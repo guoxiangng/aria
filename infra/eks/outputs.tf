@@ -17,5 +17,5 @@ output "bedrock_role_arn" {
 }
 
 output "vpc_id" {
-  value = module.vpc.vpc_id
+  value = var.vpc_id
 }

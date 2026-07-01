@@ -15,7 +15,7 @@ in RBAC, observability, guardrails, and evaluation.
 aria/
 ├── infra/                  # Terraform (AWS)
 │   ├── bootstrap/          # remote state (S3, S3-native lock) + GitHub OIDC role ← apply FIRST, local state
-│   └── eks/                # VPC + EKS + managed node group + Bedrock IAM       ← uses S3 backend
+│   └── eks/                # EKS + node group + Bedrock IAM (into existing VPC)  ← uses S3 backend
 ├── platform/               # reusable spine (D1–D4): kagent, agent-template, tool-servers, observability, policies
 ├── agents/                 # the catalog — one folder per agent (values + content-pack)
 ├── eval/                   # shared eval framework (runner, gates)

@@ -1,14 +1,17 @@
 # infra/eks
 
-VPC + EKS cluster + managed node group + Bedrock access (Pod Identity). Uses the **S3 remote backend**
-created by `infra/bootstrap`.
+EKS cluster + managed node group + Bedrock access (Pod Identity), deployed into an **existing VPC**.
+Uses the **S3 remote backend** created by `infra/bootstrap`.
 
 ## What it creates
-- **VPC** (3 AZs, public + private subnets, single NAT GW for cost), subnet-tagged for future LB controller
 - **EKS** cluster (`cluster_version` default 1.32), public API endpoint, creator gets cluster-admin
 - **Managed node group** (default 2× `t3.large` **spot**, autoscale 1–3)
 - **Addons**: coredns, kube-proxy, vpc-cni, **eks-pod-identity-agent**, aws-ebs-csi-driver
 - **Bedrock IAM role** + invoke policy, bound to a K8s ServiceAccount via **Pod Identity** (no static keys)
+
+> **Network:** does NOT create a VPC. Deploys into the existing `vpc_id` + `private_subnet_ids` set in
+> `terraform.tfvars` (gitignored). Requires private subnets in ≥2 AZs with NAT egress + DNS enabled.
+> `terraform destroy` removes the cluster/nodes but leaves your VPC untouched.
 
 ## Use
 

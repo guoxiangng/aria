@@ -14,9 +14,15 @@ variable "cluster_version" {
   default     = "1.32"
 }
 
-variable "vpc_cidr" {
-  type    = string
-  default = "10.0.0.0/16"
+# --- Existing network (gx-network:Vpc1) — real values in terraform.tfvars (gitignored) ---
+variable "vpc_id" {
+  description = "Existing VPC to deploy EKS into."
+  type        = string
+}
+
+variable "private_subnet_ids" {
+  description = "Existing private subnet IDs (>=2 AZs) for the EKS control-plane ENIs + nodes."
+  type        = list(string)
 }
 
 # --- Managed node group sizing (lab defaults: small + spot for cost) ---

@@ -1,41 +1,9 @@
-data "aws_availability_zones" "available" {
-  filter {
-    name   = "opt-in-status"
-    values = ["opt-in-not-required"]
-  }
-}
-
 locals {
   cluster_name = var.cluster_name
-  azs          = slice(data.aws_availability_zones.available.names, 0, 3)
 }
 
 ###############################################################################
-# VPC
-###############################################################################
-
-module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.13"
-
-  name = "${local.cluster_name}-vpc"
-  cidr = var.vpc_cidr
-  azs  = local.azs
-
-  private_subnets = [for k in range(3) : cidrsubnet(var.vpc_cidr, 4, k)]
-  public_subnets  = [for k in range(3) : cidrsubnet(var.vpc_cidr, 4, k + 8)]
-
-  enable_nat_gateway   = true
-  single_nat_gateway   = true # one NAT GW to save cost (lab); use multiple for prod HA
-  enable_dns_hostnames = true
-
-  # Tags so the AWS Load Balancer Controller can discover subnets later
-  private_subnet_tags = { "kubernetes.io/role/internal-elb" = 1 }
-  public_subnet_tags  = { "kubernetes.io/role/elb" = 1 }
-}
-
-###############################################################################
-# EKS cluster + managed node group
+# EKS cluster + managed node group — deployed into EXISTING VPC (gx-network:Vpc1)
 ###############################################################################
 
 module "eks" {
@@ -48,8 +16,8 @@ module "eks" {
   cluster_endpoint_public_access           = true
   enable_cluster_creator_admin_permissions = true # the principal running apply gets cluster-admin
 
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  vpc_id     = var.vpc_id
+  subnet_ids = var.private_subnet_ids
 
   cluster_addons = {
     coredns                = {}

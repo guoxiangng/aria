@@ -4,6 +4,14 @@ region          = "ap-southeast-1"
 cluster_name    = "aria"
 cluster_version = "1.32"
 
+# Existing VPC + private subnets (>=2 AZs) to deploy EKS into.
+vpc_id = "vpc-xxxxxxxx"
+private_subnet_ids = [
+  "subnet-aaaa", # AZ a
+  "subnet-bbbb", # AZ b
+  "subnet-cccc", # AZ c
+]
+
 # Lab sizing — small + spot. Bump for the full observability stack later.
 node_instance_types = ["t3.large"]
 node_capacity_type  = "SPOT"
