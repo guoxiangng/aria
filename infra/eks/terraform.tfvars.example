@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars and adjust. (terraform.tfvars is gitignored.)
+
+region          = "ap-southeast-1"
+cluster_name    = "aria"
+cluster_version = "1.32"
+
+# Lab sizing — small + spot. Bump for the full observability stack later.
+node_instance_types = ["t3.large"]
+node_capacity_type  = "SPOT"
+node_min_size       = 1
+node_max_size       = 3
+node_desired_size   = 2
+
+# Flip to true after kagent is installed and its ServiceAccount exists.
+enable_bedrock_pod_identity = false
+agent_namespace             = "kagent"
+agent_service_account       = "kagent"

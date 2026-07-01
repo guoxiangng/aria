@@ -1,0 +1,38 @@
+# CI: terraform fmt + validate + plan on PRs touching infra/. Read-only via GitHub OIDC.
+# Set repo variable AWS_GHA_ROLE_ARN to the bootstrap output `github_actions_role_arn`.
+name: terraform-plan
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required for OIDC
+  contents: read
+  pull-requests: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        layer: [eks]   # bootstrap uses local state; not planned in CI
+    defaults:
+      run:
+        working-directory: infra/${{ matrix.layer }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GHA_ROLE_ARN }}
+          aws-region: ap-southeast-1
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - run: terraform fmt -check -recursive
+      - run: terraform init -input=false
+      - run: terraform validate
+      - run: terraform plan -input=false -no-color

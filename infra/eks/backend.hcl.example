@@ -1,0 +1,7 @@
+# Copy to backend.hcl (gitignored) and fill in the account-specific values.
+# Then:  terraform init -backend-config=backend.hcl
+bucket       = "aria-tfstate-<ACCOUNT_ID>"
+key          = "eks/terraform.tfstate"
+region       = "ap-southeast-1"
+use_lockfile = true # S3-native locking (Terraform >= 1.10) — no DynamoDB
+encrypt      = true

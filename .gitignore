@@ -1,0 +1,39 @@
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+backend.hcl
+!backend.hcl.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+.terraform.lock.hcl
+
+# AWS / creds
+.aws/
+*.pem
+
+# Python (eval framework / BYO agents)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Personal command cheatsheet (not for the repo)
+COMMANDS.md
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
