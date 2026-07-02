@@ -13,7 +13,7 @@ terraform {
   }
 
   # Bootstrap uses LOCAL state by design — it is what *creates* the remote backend.
-  # After apply, the state file lives here in infra/bootstrap/. Commit nothing sensitive.
+  # After apply, the state file lives here in infra/01-bootstrap/. Commit nothing sensitive.
 }
 
 provider "aws" {

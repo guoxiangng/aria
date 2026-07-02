@@ -1,4 +1,4 @@
-# infra/argocd
+# infra/03-argocd
 
 Codifies the GitOps control plane. After this layer applies, **ArgoCD owns everything else from git** —
 no more `kubectl`/`helm` by hand.

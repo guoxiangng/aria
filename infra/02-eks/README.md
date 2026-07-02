@@ -1,7 +1,7 @@
-# infra/eks
+# infra/02-eks
 
 EKS cluster + managed node group + Bedrock access (Pod Identity), deployed into an **existing VPC**.
-Uses the **S3 remote backend** created by `infra/bootstrap`.
+Uses the **S3 remote backend** created by `infra/01-bootstrap`.
 
 ## What it creates
 - **EKS** cluster (`cluster_version` default 1.32), public API endpoint, creator gets cluster-admin

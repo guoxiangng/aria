@@ -1,4 +1,4 @@
-# infra/bootstrap
+# infra/01-bootstrap
 
 Creates the prerequisites the rest of the stack needs, using **local state** (this layer is what
 *creates* the remote backend, so it can't use it).
@@ -15,7 +15,7 @@ Provisions:
 # terraform.tfvars (gitignored) holds state_bucket_name + region — edit if needed.
 terraform init
 terraform apply
-terraform output   # state_bucket is already prefilled in ../eks/backend.hcl
+terraform output   # state_bucket is already prefilled in ../02-eks/backend.hcl
 ```
 
 > The S3 bucket name must be globally unique — the default is suffixed with your account id.

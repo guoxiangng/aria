@@ -1,6 +1,6 @@
 # gitops/ — ArgoCD Applications (app-of-apps)
 
-`infra/argocd` (Terraform) installs ArgoCD and points it at `root-app.yaml`, which syncs everything under
+`infra/03-argocd` (Terraform) installs ArgoCD and points it at `root-app.yaml`, which syncs everything under
 `apps/` by sync-wave:
 
 | Wave | App | Source | Notes |

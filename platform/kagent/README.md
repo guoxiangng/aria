@@ -43,7 +43,7 @@ the **eval-judge on another** (model diversity).
 kagent's chart has no Bedrock provider entry, so Bedrock is wired via our own `ModelConfig` CRs. Paths, best-first:
 1. **Native `provider: Bedrock` + Pod Identity (no key)** — *verify kagent's ADK runtime supports the Bedrock
    provider via the AWS credential chain.* Needs `controller.agentDeployment.serviceAccountName` (or per-agent SA)
-   = the Pod-Identity-bound SA, and `enable_bedrock_pod_identity=true` in `infra/eks/terraform.tfvars`.
+   = the Pod-Identity-bound SA, and `enable_bedrock_pod_identity=true` in `infra/02-eks/terraform.tfvars`.
 2. **OpenAI-compat Bedrock endpoint** (`provider: OpenAI`, `baseUrl=…/openai/v1`) + a Bedrock API key — works,
    but static key.
 3. **LiteLLM proxy** — agents talk OpenAI to a LiteLLM pod that assumes a Pod-Identity role for Bedrock.

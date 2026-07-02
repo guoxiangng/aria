@@ -12,7 +12,7 @@ provider "aws" {
   region = var.region
 }
 
-# Cluster (created by infra/eks) — used to configure the k8s + helm providers.
+# Cluster (created by infra/02-eks) — used to configure the k8s + helm providers.
 data "aws_eks_cluster" "this" {
   name = var.cluster_name
 }

@@ -13,25 +13,32 @@ in RBAC, observability, guardrails, and evaluation.
 
 ```
 aria/
-├── infra/                  # Terraform (AWS)
-│   ├── bootstrap/          # remote state (S3, S3-native lock) + GitHub OIDC role ← apply FIRST, local state
-│   └── eks/                # EKS + node group + Bedrock IAM (into existing VPC)  ← uses S3 backend
-├── platform/               # reusable spine (D1–D4): kagent, agent-template, tool-servers, observability, policies
-├── agents/                 # the catalog — one folder per agent (values + content-pack)
+├── BOOTSTRAP.md            # the 0→1 runbook (start here)
+├── infra/                  # Terraform (AWS) — NUMBERED = apply order
+│   ├── 00-prereqs/         # local tooling install (terraform / aws / kubectl)
+│   ├── 01-bootstrap/       # remote state (S3, S3-native lock) + GitHub OIDC role
+│   ├── 02-eks/             # EKS + node group + Bedrock/EBS IAM (into existing VPC)
+│   └── 03-argocd/          # ArgoCD + repo cred + kagent ns/secret + app-of-apps
+├── charts/                 # reusable Helm charts (namespace-bootstrap; agent-template later)
+├── gitops/                 # ArgoCD app-of-apps (root-app + apps/) — synced from git
+├── envs/                   # per-env values (dev.yaml)
+├── platform/               # kagent values + Bedrock ModelConfigs; observability, policies (later)
+├── agents/                 # the catalog — one folder per agent (later)
 ├── eval/                   # shared eval framework (runner, gates)
-└── .github/workflows/      # CI: lint → policy → eval → guardrail ; CD: terraform / helm
+├── docs/                   # design notes
+└── .github/workflows/      # CI
 ```
 
 ## Apply order (from zero)
 
 ```bash
 # 1. Bootstrap — creates the state bucket + GitHub OIDC role (local state)
-cd infra/bootstrap
+cd infra/01-bootstrap
 terraform init
 terraform apply            # note the output: state_bucket
 
 # 2. Point the EKS layer at the new backend, then stand up the cluster
-cd ../eks
+cd ../02-eks
 # put state_bucket into backend.hcl (gitignored), then:
 terraform init -backend-config=backend.hcl
 terraform apply

@@ -1,4 +1,4 @@
-# App-of-apps: the single root Application. ArgoCD is pointed at this by infra/argocd (Terraform).
+# App-of-apps: the single root Application. ArgoCD is pointed at this by infra/03-argocd (Terraform).
 # It syncs every child Application under gitops/apps/.
 apiVersion: argoproj.io/v1alpha1
 kind: Application

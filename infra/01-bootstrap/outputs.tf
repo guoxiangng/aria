@@ -1,5 +1,5 @@
 output "state_bucket" {
-  description = "S3 bucket for Terraform remote state — put this in infra/eks/backend.hcl."
+  description = "S3 bucket for Terraform remote state — put this in infra/02-eks/backend.hcl."
   value       = aws_s3_bucket.tfstate.id
 }
 

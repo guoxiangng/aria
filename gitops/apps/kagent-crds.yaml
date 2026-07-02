@@ -11,7 +11,7 @@ spec:
   source:
     repoURL: ghcr.io/kagent-dev/kagent/helm
     chart: kagent-crds
-    targetRevision: "0.0.0" # TODO: pin actual chart version (see gitops/README.md)
+    targetRevision: "0.9.10" # pinned; verify latest + crds parity (see gitops/README.md)
   destination:
     server: https://kubernetes.default.svc
     namespace: kagent
@@ -20,5 +20,5 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - CreateNamespace=false # kagent ns is created by Terraform (infra/argocd)
+      - CreateNamespace=false # kagent ns is created by Terraform (infra/03-argocd)
       - ServerSideApply=true # CRDs are large — avoid the client-side annotation limit

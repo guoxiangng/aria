@@ -15,7 +15,7 @@ spec:
       ref: values
     - repoURL: ghcr.io/kagent-dev/kagent/helm
       chart: kagent
-      targetRevision: "0.0.0" # TODO: pin actual chart version (see gitops/README.md)
+      targetRevision: "0.9.10" # pinned; verify latest + crds parity (see gitops/README.md)
       helm:
         valueFiles:
           - $values/platform/kagent/values.yaml
