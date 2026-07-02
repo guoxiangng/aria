@@ -4,7 +4,7 @@ EKS cluster + managed node group + Bedrock access (Pod Identity), deployed into 
 Uses the **S3 remote backend** created by `infra/01-bootstrap`.
 
 ## What it creates
-- **EKS** cluster (`cluster_version` default 1.32), public API endpoint, creator gets cluster-admin
+- **EKS** cluster (`cluster_version` default 1.36), public API endpoint, creator gets cluster-admin
 - **Managed node group** (default 2× `t3.large` **spot**, autoscale 1–3)
 - **Addons**: coredns, kube-proxy, vpc-cni, **eks-pod-identity-agent**, aws-ebs-csi-driver
 - **Bedrock IAM role** + invoke policy, bound to a K8s ServiceAccount via **Pod Identity** (no static keys)
