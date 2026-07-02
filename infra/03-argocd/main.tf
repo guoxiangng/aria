@@ -11,16 +11,18 @@ resource "kubernetes_namespace" "argocd" {
 }
 
 resource "helm_release" "argocd" {
-  name       = "argocd"
-  repository = "https://argoproj.github.io/argo-helm"
-  chart      = "argo-cd"
-  version    = var.argocd_chart_version
-  namespace  = kubernetes_namespace.argocd.metadata[0].name
+  name = "argocd"
+  # OCI chart — pulls directly, avoids the local HTTP repo-index cache (which had a stale kyverno entry).
+  chart     = "oci://ghcr.io/argoproj/argo-helm/argo-cd"
+  version   = var.argocd_chart_version
+  namespace = kubernetes_namespace.argocd.metadata[0].name
+  # wait=true (default) — release (incl. the Application CRD) is Ready before the root app applies.
+}
 
-  # Ride the root app-of-apps in with the install so ArgoCD self-bootstraps from git.
-  values = [yamlencode({
-    extraObjects = [yamldecode(file("${path.module}/../../gitops/root-app.yaml"))]
-  })]
+# App-of-apps root — applied AFTER ArgoCD + its Application CRD exist (can't ride in the same release).
+resource "kubectl_manifest" "root_app" {
+  yaml_body  = file("${path.module}/../../gitops/root-app.yaml")
+  depends_on = [helm_release.argocd]
 }
 
 ###############################################################################
