@@ -23,23 +23,6 @@ resource "helm_release" "argocd" {
   })]
 }
 
-# Credential ArgoCD uses to pull the (private) repo.
-resource "kubernetes_secret" "aria_repo" {
-  metadata {
-    name      = "aria-repo"
-    namespace = kubernetes_namespace.argocd.metadata[0].name
-    labels = {
-      "argocd.argoproj.io/secret-type" = "repository"
-    }
-  }
-  data = {
-    type     = "git"
-    url      = var.repo_url
-    username = var.repo_username
-    password = var.repo_pat
-  }
-}
-
 ###############################################################################
 # kagent platform namespace + Azure OpenAI secret.
 # (Platform-core namespace carrying a secret -> Terraform-owned. Tenant/agent

@@ -9,27 +9,9 @@ variable "cluster_name" {
 }
 
 variable "argocd_chart_version" {
-  description = "argo-cd Helm chart version (argoproj/argo-helm). VERIFY latest before apply."
+  description = "argo-cd Helm chart version (argoproj/argo-helm). Verified: 10.1.0 = Argo CD v3.0.0 (Jul 2026)."
   type        = string
-  default     = "7.8.2"
-}
-
-variable "repo_url" {
-  description = "Git repo ArgoCD syncs from."
-  type        = string
-  default     = "https://github.com/guoxiangng/aria.git"
-}
-
-variable "repo_username" {
-  description = "GitHub username for the repo credential."
-  type        = string
-  default     = "guoxiangng"
-}
-
-variable "repo_pat" {
-  description = "GitHub PAT (repo read scope) for ArgoCD to pull the private repo."
-  type        = string
-  sensitive   = true
+  default     = "10.1.0"
 }
 
 variable "azure_openai_api_key" {
