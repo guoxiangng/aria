@@ -31,13 +31,13 @@ providers:
   default: azureOpenAI
   azureOpenAI:
     provider: AzureOpenAI
-    model: "gpt-4o" # the model behind your Azure deployment
-    apiKeySecretRef: kagent-azure-openai # create this secret (key NOT committed) — see README
+    model: "gpt-5.4-mini-ncs4-group4" # deployment name (kagent uses this as the model id for Azure)
+    apiKeySecretRef: kagent-azure-openai # secret created by infra/03-argocd (key NOT committed)
     apiKeySecretKey: AZUREOPENAI_API_KEY
     config:
-      apiVersion: "2024-02-15-preview"
-      azureDeployment: "<your-deployment-name>"
-      azureEndpoint: "https://<your-resource>.openai.azure.com"
+      apiVersion: "2024-12-01-preview"
+      azureDeployment: "gpt-5.4-mini-ncs4-group4"
+      azureEndpoint: "https://oai-ladp-ncs-4.openai.azure.com"
 
 # --- Built-in agents: enable the InfraOps-relevant ones; disable mesh/CNI we don't run on EKS ---
 agents:
