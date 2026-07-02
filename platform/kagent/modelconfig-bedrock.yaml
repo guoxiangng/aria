@@ -16,12 +16,12 @@ metadata:
   namespace: kagent
 spec:
   provider: Bedrock
-  # Global inference profile for ap-southeast-1 (no regional premium). CONFIRM exact id before apply.
-  model: global.anthropic.claude-sonnet-4-6-v1:0
+  # Global inference profile, confirmed ACTIVE in ap-southeast-1 (no regional premium).
+  model: global.anthropic.claude-sonnet-4-6
   bedrock:
     region: ap-southeast-1
 ---
-# Cheaper model for the eval-judge / high-volume paths (used later by eval/). CONFIRM exact id.
+# Cheaper model for the eval-judge / high-volume paths (used later by eval/). Confirmed ACTIVE.
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:
@@ -29,6 +29,6 @@ metadata:
   namespace: kagent
 spec:
   provider: Bedrock
-  model: global.anthropic.claude-haiku-4-5-v1:0
+  model: global.anthropic.claude-haiku-4-5-20251001-v1:0
   bedrock:
     region: ap-southeast-1

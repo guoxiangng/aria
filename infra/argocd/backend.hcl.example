@@ -1,0 +1,6 @@
+# Copy to backend.hcl (gitignored). Then: terraform init -backend-config=backend.hcl
+bucket       = "aria-tfstate-<ACCOUNT_ID>"
+key          = "argocd/terraform.tfstate"
+region       = "ap-southeast-1"
+use_lockfile = true
+encrypt      = true

@@ -1,0 +1,17 @@
+{{- range .Values.namespaces }}
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ .name }}
+  labels:
+    environment: {{ .env }}
+    cluster: {{ $.Values.cluster }}
+    service: {{ .service }}
+    managed-by: argocd
+    {{- if .kyvernoEnforced }}
+    platform.aria.dev/kyverno-enforced: "true"
+    {{- end }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+{{- end }}

@@ -1,0 +1,31 @@
+# Wave 1 — kagent operator (upstream OCI Helm chart + our values from THIS repo).
+# Multi-source: the git repo provides values ($values), the OCI registry provides the chart.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kagent
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      ref: values
+    - repoURL: ghcr.io/kagent-dev/kagent/helm
+      chart: kagent
+      targetRevision: "0.0.0" # TODO: pin actual chart version (see gitops/README.md)
+      helm:
+        valueFiles:
+          - $values/platform/kagent/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # created by kagent-crds app / Terraform
+      - ServerSideApply=true

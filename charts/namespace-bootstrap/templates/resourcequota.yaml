@@ -1,0 +1,18 @@
+{{- range .Values.namespaces }}
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  hard:
+    requests.cpu: {{ .quota.requestsCpu | quote }}
+    requests.memory: {{ .quota.requestsMemory | quote }}
+    limits.cpu: {{ .quota.limitsCpu | quote }}
+    limits.memory: {{ .quota.limitsMemory | quote }}
+    persistentvolumeclaims: {{ .quota.pvcs | default 10 | quote }}
+    pods: {{ .quota.pods | default 20 | quote }}
+{{- end }}

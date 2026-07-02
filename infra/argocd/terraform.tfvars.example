@@ -1,0 +1,11 @@
+# Copy to terraform.tfvars (gitignored) and fill in. Secrets never go in git.
+region       = "ap-southeast-1"
+cluster_name = "aria"
+
+argocd_chart_version = "7.8.2" # verify latest: https://github.com/argoproj/argo-helm
+
+repo_url      = "https://github.com/guoxiangng/aria.git"
+repo_username = "guoxiangng"
+repo_pat      = "ghp_xxx"     # GitHub PAT with repo (read) scope
+
+azure_openai_api_key = "xxx"  # from your LADP .env (AZURE_OPENAI_API_KEY)

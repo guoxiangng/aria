@@ -1,0 +1,22 @@
+{{- range .Values.namespaces }}
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: container-limits
+  namespace: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  limits:
+  - type: Container
+    default:
+      cpu: {{ .limits.defaultCpu | default "500m" | quote }}
+      memory: {{ .limits.defaultMemory | default "512Mi" | quote }}
+    defaultRequest:
+      cpu: {{ .limits.defaultRequestCpu | default "100m" | quote }}
+      memory: {{ .limits.defaultRequestMemory | default "128Mi" | quote }}
+    max:
+      cpu: {{ .limits.maxCpu | default "2" | quote }}
+      memory: {{ .limits.maxMemory | default "4Gi" | quote }}
+{{- end }}

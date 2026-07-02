@@ -1,0 +1,19 @@
+{{- range .Values.namespaces }}
+---
+# Platform team — admin access for ops and troubleshooting.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: platform-team-admin
+  namespace: {{ .name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+- kind: Group
+  name: {{ $.Values.platformTeamGroup }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

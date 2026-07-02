@@ -1,0 +1,25 @@
+cluster: aria
+platformTeamGroup: platform-team
+
+namespaces:
+  # NOTE: the `kagent` platform namespace + its Azure secret are owned by Terraform (infra/argocd),
+  # since it carries a secret. Tenant/agent namespaces below are pure CaC via ArgoCD.
+
+  # ARIA custom agents (our InfraOps agents, later)
+  - name: aria-agents-dev
+    service: agents
+    env: dev
+    quota:
+      requestsCpu: "2"
+      requestsMemory: "4Gi"
+      limitsCpu: "4"
+      limitsMemory: "8Gi"
+      pvcs: 5
+      pods: 20
+    limits:
+      defaultCpu: "500m"
+      defaultMemory: "512Mi"
+      defaultRequestCpu: "100m"
+      defaultRequestMemory: "128Mi"
+      maxCpu: "2"
+      maxMemory: "4Gi"

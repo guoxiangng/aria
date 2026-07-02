@@ -1,0 +1,27 @@
+# Wave -1 — create ARIA namespaces (quota/limitrange/SA/RBAC) BEFORE kagent installs into them.
+# Renders charts/namespace-bootstrap with envs/dev.yaml (multi-source $values pattern).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: namespace-bootstrap
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      path: charts/namespace-bootstrap
+      helm:
+        valueFiles:
+          - $values/envs/dev.yaml
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

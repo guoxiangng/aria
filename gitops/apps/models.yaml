@@ -1,0 +1,24 @@
+# Wave 2 — extra Bedrock ModelConfig CRs (raw manifests from this repo).
+# (Azure OpenAI's default-model-config is created by the kagent chart's providers block.)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: models
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guoxiangng/aria.git
+    targetRevision: main
+    path: platform/kagent
+    directory:
+      include: "modelconfig-bedrock.yaml" # apply only the CRs, not values.yaml/README
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

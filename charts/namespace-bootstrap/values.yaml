@@ -1,0 +1,17 @@
+# Default values — overridden by environment values files (envs/dev.yaml).
+cluster: aria
+
+# Platform team group — granted admin RoleBinding in each namespace.
+# (On EKS this group must be mapped via IAM access entries / aws-auth to be effective.)
+platformTeamGroup: platform-team
+
+namespaces: []
+# Each entry:
+#   name:           full namespace name, e.g. kagent
+#   service:        short service identifier, e.g. kagent  (used for the SA name + labels)
+#   env:            environment label, e.g. dev
+#   quota:
+#     requestsCpu / requestsMemory / limitsCpu / limitsMemory
+#     pvcs (default 10) / pods (default 20)
+#   limits:
+#     defaultCpu / defaultMemory / defaultRequestCpu / defaultRequestMemory / maxCpu / maxMemory
