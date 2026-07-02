@@ -47,6 +47,30 @@ module "eks" {
 }
 
 ###############################################################################
+# Default StorageClass (gp3, via the EBS CSI driver we install above).
+# The cluster ships no default SC — PVCs with no storageClassName (e.g. kagent's
+# bundled Postgres) stay Pending forever without this.
+###############################################################################
+
+resource "kubernetes_storage_class" "gp3_default" {
+  metadata {
+    name = "gp3"
+    annotations = {
+      "storageclass.kubernetes.io/is-default-class" = "true"
+    }
+  }
+  storage_provisioner    = "ebs.csi.aws.com"
+  reclaim_policy         = "Delete"
+  volume_binding_mode    = "WaitForFirstConsumer"
+  allow_volume_expansion = true
+  parameters = {
+    type = "gp3"
+  }
+
+  depends_on = [module.eks]
+}
+
+###############################################################################
 # Bedrock access for agent pods (EKS Pod Identity — no static keys)
 ###############################################################################
 
