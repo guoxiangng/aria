@@ -1,0 +1,34 @@
+# ARIA default ModelConfig — Claude on Amazon Bedrock via EKS Pod Identity (NO API key).
+#
+# The agent pod's ServiceAccount is bound (EKS Pod Identity) to the `aria-bedrock` IAM role, so the AWS
+# credential chain provides Bedrock access — no apiKeySecret, no Portkey gateway.
+#
+# VERIFY before apply (see README):
+#  - exact inference-profile id:  aws bedrock list-inference-profiles --region ap-southeast-1
+#  - whether this kagent build requires apiKeySecret for provider: Bedrock (if so, add a dummy secret;
+#    creds still come from the pod role)
+# NOTE: `default-model-config` is created by the chart's providers block (Azure OpenAI).
+# These Bedrock ModelConfigs are additional; agents opt in via `modelConfig: bedrock-sonnet`.
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: bedrock-sonnet
+  namespace: kagent
+spec:
+  provider: Bedrock
+  # Global inference profile for ap-southeast-1 (no regional premium). CONFIRM exact id before apply.
+  model: global.anthropic.claude-sonnet-4-6-v1:0
+  bedrock:
+    region: ap-southeast-1
+---
+# Cheaper model for the eval-judge / high-volume paths (used later by eval/). CONFIRM exact id.
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: bedrock-haiku
+  namespace: kagent
+spec:
+  provider: Bedrock
+  model: global.anthropic.claude-haiku-4-5-v1:0
+  bedrock:
+    region: ap-southeast-1

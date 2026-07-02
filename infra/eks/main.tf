@@ -23,8 +23,14 @@ module "eks" {
     coredns                = {}
     kube-proxy             = {}
     vpc-cni                = {}
-    eks-pod-identity-agent = {} # enables Pod Identity (used for Bedrock access)
-    aws-ebs-csi-driver     = {}
+    eks-pod-identity-agent = {} # enables Pod Identity (used for Bedrock + EBS CSI)
+    aws-ebs-csi-driver = {
+      # Controller needs EC2 perms; bind its SA to a dedicated IAM role via Pod Identity.
+      pod_identity_association = [{
+        role_arn        = aws_iam_role.ebs_csi.arn
+        service_account = "ebs-csi-controller-sa"
+      }]
+    }
   }
 
   eks_managed_node_groups = {
@@ -94,4 +100,18 @@ resource "aws_eks_pod_identity_association" "bedrock" {
   namespace       = var.agent_namespace
   service_account = var.agent_service_account
   role_arn        = aws_iam_role.bedrock.arn
+}
+
+###############################################################################
+# EBS CSI driver IAM (Pod Identity) — required for PVCs (e.g. kagent Postgres)
+###############################################################################
+
+resource "aws_iam_role" "ebs_csi" {
+  name               = "${local.cluster_name}-ebs-csi"
+  assume_role_policy = data.aws_iam_policy_document.pod_identity_trust.json
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi" {
+  role       = aws_iam_role.ebs_csi.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
 }

@@ -1,0 +1,67 @@
+# ARIA kagent values — overlay on the UPSTREAM chart:
+#   oci://ghcr.io/kagent-dev/kagent/helm/kagent
+# Tuned for a single-node EKS lab. See README.md for install + the Bedrock provider decision.
+
+# --- Controller ---
+controller:
+  replicas: 1
+  agentDeployment:
+    # Default SA for agent pods. Set this to the ServiceAccount that EKS Pod Identity binds to the
+    # `aria-bedrock` IAM role, so agent pods get Bedrock via the AWS credential chain (no API key).
+    # TODO: set once the agent-namespace / workload-sa convention is finalized.
+    serviceAccountName: ""
+  watchNamespaces: [] # watch all namespaces for now; scope down later
+
+# --- UI (set replicas: 0 to save resources if you only use CLI/API) ---
+ui:
+  replicas: 1
+
+# --- Database: bundled PostgreSQL is dev-only (fine for the lab) ---
+database:
+  postgres:
+    bundled:
+      enabled: true
+      storage: 500Mi
+      # storageClassName: gp2   # EKS default; leave empty to use cluster default
+
+# --- LLM providers ---
+# Azure OpenAI via the chart's providers block (known-good) -> becomes `default-model-config`.
+# Bedrock is applied separately as its own ModelConfig CRs (modelconfig-bedrock.yaml). See README.
+providers:
+  default: azureOpenAI
+  azureOpenAI:
+    provider: AzureOpenAI
+    model: "gpt-4o" # the model behind your Azure deployment
+    apiKeySecretRef: kagent-azure-openai # create this secret (key NOT committed) — see README
+    apiKeySecretKey: AZUREOPENAI_API_KEY
+    config:
+      apiVersion: "2024-02-15-preview"
+      azureDeployment: "<your-deployment-name>"
+      azureEndpoint: "https://<your-resource>.openai.azure.com"
+
+# --- Built-in agents: enable the InfraOps-relevant ones; disable mesh/CNI we don't run on EKS ---
+agents:
+  k8s-agent: { enabled: true }
+  observability-agent: { enabled: true }
+  promql-agent: { enabled: true }
+  helm-agent: { enabled: true }
+  argo-rollouts-agent: { enabled: true }
+  kgateway-agent: { enabled: false }
+  istio-agent: { enabled: false }
+  cilium-policy-agent: { enabled: false }
+  cilium-manager-agent: { enabled: false }
+  cilium-debug-agent: { enabled: false }
+
+# --- Built-in tools ---
+kagent-tools:
+  enabled: true
+tools:
+  grafana-mcp: { enabled: false } # enable at the observability rung (needs Grafana)
+  querydoc: { enabled: false }
+
+# --- OTel → Langfuse/collector: wire at the observability rung ---
+otel:
+  tracing:
+    enabled: false
+  logging:
+    enabled: false

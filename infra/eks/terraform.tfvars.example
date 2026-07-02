@@ -17,7 +17,7 @@ node_instance_types = ["t3.large"]
 node_capacity_type  = "SPOT"
 node_min_size       = 1
 node_max_size       = 3
-node_desired_size   = 2
+node_desired_size   = 1
 
 # Flip to true after kagent is installed and its ServiceAccount exists.
 enable_bedrock_pod_identity = false
