@@ -49,3 +49,22 @@ resource "kubernetes_secret" "kagent_azure" {
     AZUREOPENAI_API_KEY = var.azure_openai_api_key
   }
 }
+
+###############################################################################
+# Langfuse OTel export — kagent's chart exposes no `headers` field for the
+# OTLP exporter, but the underlying Go OTel SDK reads OTEL_EXPORTER_OTLP_HEADERS
+# from the environment as a fallback. We precompute the Basic-Auth header value
+# here (never in git) and inject it via controller.env in platform/kagent/values.yaml.
+# UNVERIFIED until deploy — kagent's controller may not honor the env var; if
+# traces don't land in Langfuse, the fallback is an in-cluster OTel Collector relay.
+###############################################################################
+
+resource "kubernetes_secret" "kagent_langfuse_otel" {
+  metadata {
+    name      = "kagent-langfuse-otel"
+    namespace = kubernetes_namespace.kagent.metadata[0].name
+  }
+  data = {
+    OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Basic ${base64encode("${var.langfuse_public_key}:${var.langfuse_secret_key}")},x-langfuse-ingestion-version=4"
+  }
+}

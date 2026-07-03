@@ -11,6 +11,14 @@ controller:
     # TODO: set once the agent-namespace / workload-sa convention is finalized.
     serviceAccountName: ""
   watchNamespaces: [] # watch all namespaces for now; scope down later
+  # Langfuse auth for OTel export — the chart's otel.tracing.exporter has no `headers` field, but the
+  # underlying Go OTel SDK falls back to this standard env var. UNVERIFIED until deploy (see README).
+  env:
+    - name: OTEL_EXPORTER_OTLP_HEADERS
+      valueFrom:
+        secretKeyRef:
+          name: kagent-langfuse-otel
+          key: OTEL_EXPORTER_OTLP_HEADERS
 
 # --- UI (set replicas: 0 to save resources if you only use CLI/API) ---
 ui:
@@ -59,9 +67,15 @@ tools:
   grafana-mcp: { enabled: false } # enable at the observability rung (needs Grafana)
   querydoc: { enabled: false }
 
-# --- OTel → Langfuse/collector: wire at the observability rung ---
+# --- OTel → Langfuse (US region; team's LADP account). Traces only for now (logging off). ---
 otel:
   tracing:
-    enabled: false
+    enabled: true
+    exporter:
+      otlp:
+        endpoint: "https://us.cloud.langfuse.com/api/public/otel"
+        protocol: "http/protobuf" # Langfuse OTLP is HTTP-only (no gRPC) — chart default is grpc
+        timeout: 15000
+        insecure: false
   logging:
     enabled: false

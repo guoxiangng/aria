@@ -19,3 +19,21 @@ variable "azure_openai_api_key" {
   type        = string
   sensitive   = true
 }
+
+variable "langfuse_public_key" {
+  description = "Langfuse public key (pk-lf-...) for OTel trace export."
+  type        = string
+  sensitive   = true
+}
+
+variable "langfuse_secret_key" {
+  description = "Langfuse secret key (sk-lf-...) for OTel trace export."
+  type        = string
+  sensitive   = true
+}
+
+variable "langfuse_otel_endpoint" {
+  description = "Langfuse OTLP endpoint (region-specific). US per the team's LADP account."
+  type        = string
+  default     = "https://us.cloud.langfuse.com/api/public/otel"
+}

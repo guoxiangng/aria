@@ -6,3 +6,7 @@ argocd_chart_version = "10.1.0" # verify latest: https://github.com/argoproj/arg
 
 
 azure_openai_api_key = "xxx"  # from your LADP .env (AZURE_OPENAI_API_KEY)
+
+langfuse_public_key = "pk-lf-xxx"  # from your LADP .env (LANGFUSE_PUBLIC_KEY)
+langfuse_secret_key = "sk-lf-xxx"  # from your LADP .env (LANGFUSE_SECRET_KEY)
+# langfuse_otel_endpoint default is US region — override if your project is EU/JP/HIPAA
