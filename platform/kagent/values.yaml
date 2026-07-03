@@ -73,7 +73,9 @@ otel:
     enabled: true
     exporter:
       otlp:
-        endpoint: "https://us.cloud.langfuse.com/api/public/otel"
+        # kagent injects this as OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (signal-specific), which per the
+        # OTel spec is NOT auto-suffixed — Langfuse's own docs say to include /v1/traces explicitly here.
+        endpoint: "https://us.cloud.langfuse.com/api/public/otel/v1/traces"
         protocol: "http/protobuf" # Langfuse OTLP is HTTP-only (no gRPC) — chart default is grpc
         timeout: 15000
         insecure: false

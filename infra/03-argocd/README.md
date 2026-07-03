@@ -9,7 +9,11 @@ no more `kubectl`/`helm` by hand.
 - **kagent namespace + Azure OpenAI secret** (platform-core; carries a secret, so Terraform-owned).
   Tenant/agent namespaces are pure CaC via ArgoCD + `charts/namespace-bootstrap`.
 - **`kagent-langfuse-otel` secret** — precomputed `OTEL_EXPORTER_OTLP_HEADERS` (Basic-Auth for Langfuse's
-  OTLP endpoint), injected into the controller via `platform/kagent/values.yaml` (`controller.env`).
+  OTLP endpoint). Referenced via `controller.env` in `platform/kagent/values.yaml`, but kagent's chart
+  propagates the platform-level `otel:` config (endpoint/protocol/headers) into **every Declarative/built-in
+  agent pod's env** too (confirmed: `OTEL_EXPORTER_OTLP_TRACES_*` + the header all appear on agent pods,
+  not just the controller) — that's what actually emits GenAI traces, since LLM calls happen in the agent
+  pod's ADK runtime, not the controller.
 
 > The repo is **public**, so ArgoCD pulls it anonymously — no repo credential needed.
 
@@ -26,12 +30,17 @@ Then ArgoCD reconciles: `namespace-bootstrap` (wave -1) → `kagent-crds` (0) �
 - Verify `argocd_chart_version` against https://github.com/argoproj/argo-helm before apply.
 - helm provider pinned to v2.x (v3 changed the provider block syntax).
 
-## Langfuse tracing — UNVERIFIED, check after deploy
-kagent's Helm chart has no `headers` field for the OTLP exporter, and Langfuse's OTLP endpoint requires a
-Basic-Auth header. We inject it via the standard `OTEL_EXPORTER_OTLP_HEADERS` env var, which the underlying
-Go OTel SDK reads as a fallback — **but this isn't confirmed against kagent's actual source**. After apply:
-1. `kubectl -n kagent logs -l app.kubernetes.io/component=controller | grep -i otel` — look for export
-   errors (401 = header not picked up; connection refused = endpoint/protocol wrong).
-2. Check the Langfuse UI (Tracing tab) for new traces after invoking any agent.
-3. If nothing lands: the fallback is an in-cluster **OTel Collector relay** (kagent → no-auth OTLP → Collector
-   adds the header via its own exporter config → Langfuse) — more reliable, more moving parts.
+## Langfuse tracing — VERIFIED working (env-var header fallback confirmed)
+Checked directly on an agent pod (`k8s-agent`): `OTEL_EXPORTER_OTLP_HEADERS` (Basic-Auth, from the
+`kagent-langfuse-otel` secret), `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `_PROTOCOL`, `_INSECURE` all land
+correctly, and the pod's own logs show `Created new TracerProvider` with the right endpoint/protocol. No
+collector-relay needed.
+
+One correction applied: kagent injects the endpoint as the **signal-specific** env var
+(`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`), which per the OTel spec is used **as-is, no `/v1/traces`
+auto-append** (that only happens for the general `OTEL_EXPORTER_OTLP_ENDPOINT`). Langfuse's own docs
+confirm this — the signal-specific endpoint must include `/v1/traces` explicitly. Fixed in
+`platform/kagent/values.yaml` (`endpoint: ".../api/public/otel/v1/traces"`).
+
+To re-verify after any endpoint change: check an agent pod's logs for `TracerProvider`/export lines
+(`kubectl -n kagent logs <agent-pod>`), and check the Langfuse UI (Tracing tab) after invoking that agent.
