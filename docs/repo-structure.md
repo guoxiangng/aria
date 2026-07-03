@@ -43,5 +43,16 @@ aria/
    no static key, no gateway. (Portkey can be re-added later if we want central cost/routing across providers.)
 
 ## Deferred (not yet, but reserved above)
-- `gitops/` (ArgoCD) — CD starts as GitHub Actions `helm upgrade`; ArgoCD is a later maturity rung.
-- `platform/operators/` cert-manager/ESO — only when we need TLS/Vault-backed secrets.
+- ~~`gitops/` (ArgoCD)~~ — done, live since `infra/03-argocd`.
+- **Secrets → ESO + AWS Secrets Manager** (the AIDA pattern). Currently `infra/03-argocd/terraform.tfvars`
+  holds `azure_openai_api_key` / `langfuse_public_key` / `langfuse_secret_key` in plaintext (gitignored, but
+  still local plaintext + raw Terraform state). Target:
+  - Terraform creates the values in **AWS Secrets Manager** instead of a `kubernetes_secret` directly.
+  - **ESO** installed in `platform/operators/` (Helm, like kagent), authenticated via **Pod Identity**
+    (same no-static-key pattern as Bedrock/EBS-CSI — a dedicated IAM role, no keys).
+  - An `ExternalSecret` CR (git-committed, no secret material) per secret tells ESO which Secrets Manager
+    path to sync into which K8s Secret name.
+  - **No change needed in `platform/kagent/values.yaml`** — it already references secrets by name
+    (`kagent-azure-openai`, `kagent-langfuse-otel`); ESO just becomes what populates them.
+  - Payoff: rotation happens in AWS, ESO auto-syncs, no `terraform apply` / redeploy needed.
+- `platform/operators/` cert-manager — only when we need TLS beyond the EKS-issued cert.
