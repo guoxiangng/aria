@@ -32,3 +32,20 @@ kubectl get nodes
   to a ServiceAccount. After kagent is installed, set it `true` (and confirm `agent_service_account`) to bind it.
 - Bedrock `resources = ["*"]` for now — tighten to the chosen Claude inference-profile ARNs later.
 - Cost: `terraform destroy` this layer when idle to drop node + control-plane charges.
+
+## Scaling nodes — `node_desired_size` does NOT work on an existing node group
+The `terraform-aws-modules/eks/aws` module sets `lifecycle { ignore_changes = [scaling_config[0].desired_size] }`
+on the node group **by design** (so Terraform doesn't fight a cluster-autoscaler). This means bumping
+`node_desired_size` in `terraform.tfvars` and re-applying **only takes effect when the node group is first
+created** — on an existing node group, `terraform apply` will report success but silently do nothing to the
+running ASG. (Learned the hard way: bumped to 2, applied cleanly, ASG stayed at 1.)
+
+Since we don't run cluster-autoscaler/Karpenter, scale manually via the ASG directly (this does NOT conflict
+with Terraform — the field is explicitly ignored):
+```bash
+ASG=$(aws eks describe-nodegroup --cluster-name aria --nodegroup-name <name> --region ap-southeast-1 \
+  --query 'nodegroup.resources.autoScalingGroups[0].name' --output text)
+aws autoscaling set-desired-capacity --auto-scaling-group-name "$ASG" --desired-capacity 2 --region ap-southeast-1
+```
+`node_min_size`/`node_max_size` in tfvars still matter (they bound what the ASG will accept), so keep those
+updated too even though `desired_size` itself needs the manual step.
