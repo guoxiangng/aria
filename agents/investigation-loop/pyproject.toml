@@ -1,0 +1,14 @@
+[project]
+name = "investigation-loop"
+version = "0.1.0"
+description = "ARIA BYO agent: a hand-built LangGraph StateGraph demonstrating cyclic investigation (gather -> hypothesize -> verify -> loop/conclude), reusing kagent's existing MCP tool server."
+requires-python = ">=3.11"
+dependencies = [
+    "langgraph>=0.2",
+    "langchain-openai>=0.2",
+    "langchain-mcp-adapters>=0.1",
+    "python-dotenv>=1.0",
+]
+
+[tool.uv]
+# consistent with the team's LADP tooling (uv-based)
