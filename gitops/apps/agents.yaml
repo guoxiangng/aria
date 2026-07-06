@@ -1,0 +1,25 @@
+# Wave 5 — ARIA's own custom agents (raw Agent CRs for now; charts/agent-template/ will
+# generate these later once we've hand-built a couple and know what to templatize).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agents
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guoxiangng/aria.git
+    targetRevision: main
+    path: agents
+    directory:
+      recurse: true
+      include: "*/*.yaml" # agents/<name>/*.yaml only — skips agents/README.md
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
