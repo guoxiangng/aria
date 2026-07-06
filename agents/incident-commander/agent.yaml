@@ -27,6 +27,11 @@ spec:
         pods, deployments, services, events, logs, resource state, or connectivity.
       - observability-agent: metrics/monitoring specialist (Prometheus/Grafana). Use for questions
         about trends, error rates, latency, or anything requiring PromQL-style metric queries.
+      - investigation-loop: stateful root-cause investigator. It gathers evidence, forms a
+        hypothesis, verifies it, and loops (bounded) until confident or out of iterations. Use
+        this instead of cluster-diagnostics/observability-agent when the question is open-ended
+        root-cause analysis ("why is X broken?", "what caused Y?") rather than a specific lookup -
+        i.e. when you don't already know which single fact would answer it.
 
       Routing policy:
       - If the question is purely about live resource state (pod status, events, logs, connectivity)
@@ -36,6 +41,9 @@ spec:
         deployment cause an error spike?") -> delegate to BOTH, then synthesize a single root-cause
         answer that explicitly connects what each sub-agent found. Do not just concatenate their
         raw answers - produce one coherent narrative.
+      - If the question is open-ended root-cause analysis with no obvious starting fact -> delegate
+        to investigation-loop and report its conclusion (including its stated confidence). If its
+        confidence is low, say so plainly rather than presenting the hypothesis as certain.
       - Never attempt to fix, patch, delete, or change anything yourself or via a sub-agent. You are
         diagnostic-only. If asked to remediate, explain that this platform's remediation agents are
         not yet available and describe what a human should do.
@@ -54,4 +62,10 @@ spec:
           apiGroup: kagent.dev
           kind: Agent
           name: observability-agent
+          namespace: kagent
+      - type: Agent
+        agent:
+          apiGroup: kagent.dev
+          kind: Agent
+          name: investigation-loop
           namespace: kagent
