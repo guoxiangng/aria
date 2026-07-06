@@ -1,0 +1,40 @@
+# BYO Agent CR — kagent's controller manages this Deployment but runs OUR container image
+# (built from the Dockerfile in this folder), speaking A2A via kagent's official
+# kagent-langgraph SDK (investigation_agent/cli.py + agent.py).
+#
+# NOTE: once this is committed, ArgoCD's `agents` Application (glob `*/*.yaml`) syncs it
+# immediately. Until the image is actually built + pushed (infra/04-persistent/README.md),
+# the pod will sit in ImagePullBackOff - expected and self-resolving, not a bug to chase.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: investigation-loop
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "2-byo"
+spec:
+  type: BYO
+  description: |
+    ARIA's stateful investigation agent (hand-built LangGraph, gather/hypothesize/verify/loop).
+    Read-only tools only - see agents/investigation-loop/README.md.
+  byo:
+    deployment:
+      image: 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/investigation-loop:latest
+      env:
+        # NOTE: env `name` (what our code reads) intentionally differs from the secret's `key`
+        # (AZUREOPENAI_API_KEY, no underscore - set by infra/03-argocd to match the chart's
+        # providers block convention). This is a deliberate rename, not a typo.
+        - name: AZURE_OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kagent-azure-openai
+              key: AZUREOPENAI_API_KEY
+        - name: AZURE_OPENAI_ENDPOINT
+          value: "https://oai-ladp-ncs-4.openai.azure.com"
+        - name: AZURE_OPENAI_API_VERSION
+          value: "2024-12-01-preview"
+        - name: AZURE_OPENAI_CHAT_DEPLOYMENT_NAME
+          value: "gpt-5.4-mini-ncs4-group4"
+        - name: MCP_SERVER_URL
+          value: "http://kagent-tools.kagent:8084/mcp"

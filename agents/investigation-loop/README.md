@@ -29,7 +29,7 @@ support for actual human approval gates (see `docs/scenarios.md` and the platfor
   no mutating tools. Consistent security posture across kagent-native and BYO agents.
 - **Same Azure model** as the rest of ARIA (env vars match the team's LADP `.env` naming exactly).
 
-## Run locally (NOT yet deployed to the cluster — see Status below)
+## Run locally (fastest way to iterate on the graph logic)
 ```bash
 cd agents/investigation-loop
 uv sync                    # or: pip install -e .
@@ -40,15 +40,35 @@ kubectl -n kagent port-forward svc/kagent-tools 8084:8084
 
 uv run python -m investigation_agent.main "a pod keeps restarting intermittently in namespace kagent"
 ```
+This path uses `main.py` directly — no A2A server, no kagent SDK, no checkpointer. Good for fast
+iteration on the graph itself before touching the deployment path.
 
-## Status: experiment, not yet deployed
-This is Python code you can run locally right now. It is **not yet**:
-- containerized (needs a `Dockerfile`)
-- pushed anywhere (needs **ECR** — first time ARIA needs it; see `docs/repo-structure.md`'s deferred-work
-  note on `infra/persistent/`, since ECR images must survive `terraform destroy` of the EKS layer)
-- registered as a `kagent` `BYO` Agent CR (`spec.type: BYO`, `spec.byo.deployment.image: <ecr-image>`)
-- wired into `incident-commander` as a delegate
+## Deploy to the cluster (the real A2A path)
+Uses `agent.py` + `cli.py` (kagent's official `kagent-langgraph` SDK — `KAgentApp` wraps the graph as
+an A2A server) + `Dockerfile`, pushed to ECR, registered via `agent.yaml` (`spec.type: BYO`).
 
-Those are the deliberate next steps once this local experiment proves the pattern is worth deploying —
-not done in this pass, to keep the infra and the agent-logic decisions separate and reviewable on their
-own merits.
+```bash
+# 1. one-time: create the ECR repo (infra/04-persistent — durable, survives cluster teardown)
+cd infra/04-persistent && terraform init -backend-config=backend.hcl && terraform apply
+
+# 2. build + push (see infra/04-persistent/README.md for the exact commands)
+cd ../../agents/investigation-loop
+docker build -t <account>.dkr.ecr.ap-southeast-1.amazonaws.com/aria/investigation-loop:latest .
+docker push <account>.dkr.ecr.ap-southeast-1.amazonaws.com/aria/investigation-loop:latest
+
+# 3. agent.yaml is already committed - ArgoCD picks it up automatically (gitops/apps/agents.yaml).
+#    Before the image is pushed, the pod sits in ImagePullBackOff - expected, self-resolving.
+kubectl -n kagent get pods -l kagent=investigation-loop
+```
+
+## Status
+- Graph logic: done, syntax-checked, locally runnable.
+- Deployment path (Dockerfile, ECR via Terraform, `agent.py`/`cli.py` using kagent's official SDK,
+  `agent.yaml` BYO CR): done, committed.
+- **Not yet verified**: an actual successful run through the real A2A path (image hasn't been built/pushed
+  yet — that's a manual step requiring local `docker`/`aws` CLI access, done outside this session).
+- **Not yet wired**: as a delegate under `incident-commander` (straightforward once the above is verified
+  working — just add a `type: Agent` tool entry pointing at `investigation-loop`).
+- **Not yet verified**: whether kagent's controller injects the same platform-level `OTEL_*` env vars into
+  BYO deployments as it does Declarative ones (see the note in `cli.py`) — check Langfuse for a trace after
+  the first real invocation.

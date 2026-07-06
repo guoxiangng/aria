@@ -1,0 +1,19 @@
+{
+  "name": "investigation-loop",
+  "description": "ARIA's stateful investigation agent - a hand-built LangGraph loop (gather evidence, hypothesize, verify, loop or conclude) for diagnosing intermittent or unclear Kubernetes issues. Read-only, no mutating tools.",
+  "url": "investigation-loop.kagent:8080",
+  "version": "0.1.0",
+  "capabilities": {
+    "streaming": true
+  },
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "skills": [
+    {
+      "id": "cyclic-investigation",
+      "name": "Cyclic Root-Cause Investigation",
+      "description": "Investigates intermittent or unclear Kubernetes issues by iteratively gathering evidence, forming a hypothesis, verifying it, and looping if unconfirmed (bounded iterations, read-only tools only).",
+      "tags": ["kubernetes", "diagnostics", "root-cause", "investigation"]
+    }
+  ]
+}

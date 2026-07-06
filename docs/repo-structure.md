@@ -6,7 +6,9 @@ we don't need their repo boundaries.
 
 ```
 aria/
-├── infra/                    # Terraform (AWS): bootstrap + eks   [ARIA-only; AIDA gets clusters from ACM/HCP]
+├── infra/                    # Terraform (AWS), numbered = apply order:
+│   │                         #   00-prereqs, 01-bootstrap, 02-eks, 03-argocd, 04-persistent (ECR, durable)
+│   │                         #   [ARIA-only; AIDA gets clusters from ACM/HCP]
 ├── charts/                   # reusable Helm charts
 │   ├── namespace-bootstrap/  #   D1: Namespace + ResourceQuota + LimitRange + SA + RBAC + NetworkPolicy
 │   └── agent-template/       #   the chart every agent renders through (bakes D1–D4) — ARIA's key abstraction
@@ -44,6 +46,8 @@ aria/
 
 ## Deferred (not yet, but reserved above)
 - ~~`gitops/` (ArgoCD)~~ — done, live since `infra/03-argocd`.
+- ~~`infra/persistent/` (ECR for BYO agent images)~~ — done, live as `infra/04-persistent`. First
+  consumer: `agents/investigation-loop` (BYO LangGraph agent).
 - **Secrets → ESO + AWS Secrets Manager** (the AIDA pattern). Currently `infra/03-argocd/terraform.tfvars`
   holds `azure_openai_api_key` / `langfuse_public_key` / `langfuse_secret_key` in plaintext (gitignored, but
   still local plaintext + raw Terraform state). Target:
