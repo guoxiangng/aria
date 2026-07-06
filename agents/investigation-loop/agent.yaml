@@ -21,6 +21,11 @@ spec:
   byo:
     deployment:
       image: 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/investigation-loop:latest
+      # Always, not IfNotPresent — this repo pushes to a mutable :latest tag during active
+      # development. Without this, a node can silently keep running a stale cached image after
+      # a rebuild+push, even after a pod restart (learned the hard way - same class of bug as
+      # the GitLab-runner if-not-present trap in stories.md, just on a k8s node instead).
+      imagePullPolicy: Always
       env:
         # NOTE: env `name` (what our code reads) intentionally differs from the secret's `key`
         # (AZUREOPENAI_API_KEY, no underscore - set by infra/03-argocd to match the chart's
