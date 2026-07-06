@@ -44,3 +44,25 @@ confirm this — the signal-specific endpoint must include `/v1/traces` explicit
 
 To re-verify after any endpoint change: check an agent pod's logs for `TracerProvider`/export lines
 (`kubectl -n kagent logs <agent-pod>`), and check the Langfuse UI (Tracing tab) after invoking that agent.
+
+## Rotating the Langfuse project/keys — correct procedure
+1. Update `langfuse_public_key`/`langfuse_secret_key` in `terraform.tfvars`, `terraform apply`
+   (updates the `kagent-langfuse-otel` secret value).
+2. Restart the **controller** first, then **all agent pods**, in that order:
+   ```bash
+   kubectl -n kagent delete pod -l app.kubernetes.io/component=controller
+   kubectl -n kagent wait --for=condition=Ready pod -l app.kubernetes.io/component=controller --timeout=60s
+   kubectl -n kagent delete pod -l app.kubernetes.io/managed-by=kagent
+   ```
+   This causes a brief rollout where old and new ReplicaSets coexist — **wait for it to settle**
+   (`kubectl -n kagent get pods -l app.kubernetes.io/managed-by=kagent` — one pod per agent, no
+   `Terminating`) before trusting any check.
+3. **Verify against a pod's actual resolved env — not the Secret object.** Checking
+   `kubectl get secret ... -o jsonpath=...` only proves Terraform wrote the right value; it does NOT
+   prove any pod is using it. Decode the header from the live pod instead:
+   ```bash
+   kubectl -n kagent get pod <pod> -o json | jq -r '.spec.containers[0].env[] | select(.name=="OTEL_EXPORTER_OTLP_HEADERS") | .value' \
+     | grep -oP 'Basic \K[^,]+' | base64 -d
+   ```
+   (Learned the hard way: an early check here only verified the Secret, not the pod, and looked
+   "confirmed" while actually testing against the wrong signal.)
