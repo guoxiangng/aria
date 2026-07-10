@@ -55,11 +55,21 @@ jobs:
             eval/job.yaml | kubectl apply -f -
 
       - name: Wait for eval Job
+        # `kubectl wait --for=condition=complete` blocks for the FULL timeout when a
+        # Job fails rather than completes - Complete and Failed are separate condition
+        # types, not one "finished" state. Poll for either terminal condition instead.
         run: |
-          kubectl wait --for=condition=complete --timeout=10m \
-            job/aria-eval-${{ steps.apply.outputs.run_id }} -n kagent \
-          || kubectl wait --for=condition=failed --timeout=1s \
-            job/aria-eval-${{ steps.apply.outputs.run_id }} -n kagent
+          JOB="job/aria-eval-${{ steps.apply.outputs.run_id }}"
+          for i in $(seq 1 60); do
+            STATUS=$(kubectl get "$JOB" -n kagent -o jsonpath='{.status.conditions[?(@.status=="True")].type}')
+            if [ "$STATUS" = "Complete" ] || [ "$STATUS" = "Failed" ]; then
+              echo "Job finished: $STATUS"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Timed out waiting for job to finish"
+          exit 1
 
       - name: Show eval output
         if: always()
