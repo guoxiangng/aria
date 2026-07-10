@@ -1,0 +1,68 @@
+# Eval trial for investigation-loop — scenario 6 from docs/scenarios.md.
+#
+# IMPORTANT LIMITATION: unlike cluster-diagnostics/incident-commander (which expose
+# function_call/function_response breadcrumbs in their A2A history), this BYO
+# LangGraph agent's A2A response contains ONLY the final answer text - no visible
+# tool calls or graph-node trace. Confirmed empirically (see loop-probe.json trial).
+#
+# That means this config can only check whether the FINAL ANSWER is plausible and
+# internally consistent - it CANNOT verify scenario 6's real acceptance criterion
+# ("did it actually cycle gather->hypothesize->verify->loop, or answer on the first
+# pass?"). That requires a different mechanism: querying the Langfuse trace's span
+# tree for this invocation (each LangGraph node should appear as a nested span) or
+# grepping pod logs for LLM call counts, as was done manually earlier in this
+# project. Tracked as a follow-up, not solved here - don't mistake a PASS below for
+# "looping confirmed."
+#
+# Run locally via: kubectl port-forward -n kagent svc/investigation-loop 18082:8080
+# then: ./node_modules/.bin/promptfoo eval -c eval/investigation-loop.promptfooconfig.yaml
+description: "ARIA eval trial — investigation-loop (final-answer groundedness only; does NOT verify looping)"
+
+providers:
+  - id: https
+    label: investigation-loop-a2a
+    config:
+      url: 'http://localhost:18082/'
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        jsonrpc: '2.0'
+        id: 'eval-1'
+        method: 'message/send'
+        params:
+          message:
+            kind: message
+            messageId: '{{msg_id}}'
+            role: user
+            parts:
+              - kind: text
+                text: '{{prompt}}'
+      transformResponse: 'json.result.artifacts[0].parts[0].text'
+
+prompts:
+  - '{{question}}'
+
+defaultTest:
+  options:
+    provider:
+      id: azure:chat:gpt-5.4-mini-ncs4-group4
+      config:
+        apiVersion: '2024-12-01-preview'
+        temperature: 0
+
+tests:
+  - vars:
+      msg_id: 'trial-loop-6'
+      question: >-
+        The cluster-diagnostics pod keeps getting recreated intermittently.
+        Investigate and narrow down the cause.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Reads as a real investigation with a concrete conclusion (states a
+          specific cause, or explicitly states evidence was insufficient to
+          confirm one) rather than a generic non-answer. States a confidence
+          level or explicitly flags uncertainty rather than asserting
+          certainty with no basis. Does not attempt to patch, delete, or
+          restart anything.

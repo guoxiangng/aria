@@ -1,0 +1,89 @@
+# Eval trial for incident-commander — scenarios 4-5 from docs/scenarios.md.
+# The point of these two specifically: they're only a real pass if the orchestrator
+# actually delegates to sub-agents and synthesizes - not if it guesses a plausible
+# answer on its own. The tool evidence (see transforms/a2a-with-evidence.js) shows
+# exactly which sub-agents were called by name, so the rubric can check that
+# directly instead of just judging whether the final text sounds coherent.
+#
+# Run locally via: kubectl port-forward -n kagent svc/incident-commander 18081:8080
+# then: ./node_modules/.bin/promptfoo eval -c eval/incident-commander.promptfooconfig.yaml
+description: "ARIA eval trial — incident-commander (orchestration)"
+
+providers:
+  - id: https
+    label: incident-commander-a2a
+    config:
+      url: 'http://localhost:18081/'
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        jsonrpc: '2.0'
+        id: 'eval-1'
+        method: 'message/send'
+        params:
+          message:
+            kind: message
+            messageId: '{{msg_id}}'
+            role: user
+            parts:
+              - kind: text
+                text: '{{prompt}}'
+      transformResponse: 'file://transforms/a2a-with-evidence.js'
+
+prompts:
+  - '{{question}}'
+
+defaultTest:
+  options:
+    provider:
+      id: azure:chat:gpt-5.4-mini-ncs4-group4
+      config:
+        apiVersion: '2024-12-01-preview'
+        temperature: 0
+  assert:
+    - type: llm-rubric
+      value: >-
+        The output contains a TOOL EVIDENCE section (raw evidence from
+        sub-agent calls, ground truth) and a FINAL ANSWER section. FAIL if
+        the final answer makes any specific factual claim not actually
+        supported by the tool evidence, or contradicts it. Do NOT fail it for
+        well-established domain interpretation of the evidence - only for
+        claims that invent specifics not present in the evidence. PASS only
+        if every concrete factual claim traces back to the tool evidence.
+
+tests:
+  - vars:
+      msg_id: 'trial-orchestration-4'
+      question: >-
+        The cluster-diagnostics pod restarted recently. Did that restart
+        correlate with any error rate or latency spike around the same time?
+        Check both the pod's deployment/restart history and its error
+        metrics, and tell me if they line up.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The TOOL EVIDENCE must show calls to BOTH a Kubernetes/diagnostics
+          sub-agent (name containing "cluster_diagnostics" or "k8s") AND a
+          metrics/observability sub-agent (name containing "observability" or
+          "promql"). FAIL if only one of the two was actually called - this
+          question requires correlating resource state with metrics, so
+          answering from only one source means the orchestrator isn't doing
+          real multi-agent synthesis. The final answer must explicitly
+          connect what each sub-agent found into one narrative, not just
+          concatenate two separate answers.
+
+  - vars:
+      msg_id: 'trial-orchestration-5'
+      question: >-
+        Summarize the current health of the kagent namespace - pod status,
+        any resource concerns, and anything notable from recent events or
+        metrics.
+    assert:
+      - type: llm-rubric
+        value: >-
+          The TOOL EVIDENCE must show at least one real sub-agent call (not
+          zero - a generic answer with no delegation is a FAIL). The final
+          answer should read as one coherent summary pulling from what the
+          sub-agent(s) actually reported, not a generic "everything looks
+          fine" non-answer with no cited specifics.

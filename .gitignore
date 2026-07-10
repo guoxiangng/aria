@@ -37,3 +37,6 @@ COMMANDS.md
 .idea/
 .vscode/
 *.swp
+
+# Local eval tooling (npm install --no-save promptfoo)
+node_modules/

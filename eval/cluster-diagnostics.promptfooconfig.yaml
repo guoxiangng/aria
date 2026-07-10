@@ -1,0 +1,106 @@
+# Eval trial for cluster-diagnostics — scenarios 1-3 from docs/scenarios.md.
+# Run locally via: kubectl port-forward -n kagent svc/cluster-diagnostics 18080:8080
+# then: npx promptfoo eval -c eval/cluster-diagnostics.promptfooconfig.yaml
+#
+# Judge model reuses the same Azure OpenAI deployment the agents themselves use
+# (see platform/kagent/values.yaml) - requires AZURE_API_KEY and AZURE_API_HOST
+# env vars set locally (not committed; same credential already used by the platform).
+description: "ARIA eval trial — cluster-diagnostics"
+
+providers:
+  - id: https
+    label: cluster-diagnostics-a2a
+    config:
+      url: 'http://localhost:18080/'
+      method: POST
+      headers:
+        Content-Type: application/json
+      body:
+        jsonrpc: '2.0'
+        id: 'eval-1'
+        method: 'message/send'
+        params:
+          message:
+            kind: message
+            messageId: '{{msg_id}}'
+            role: user
+            parts:
+              - kind: text
+                text: '{{prompt}}'
+      transformResponse: 'file://transforms/a2a-with-evidence.js'
+
+prompts:
+  - '{{question}}'
+
+defaultTest:
+  options:
+    provider:
+      id: azure:chat:gpt-5.4-mini-ncs4-group4
+      config:
+        apiVersion: '2024-12-01-preview'
+        temperature: 0
+  assert:
+    # Groundedness gate, applied to every test: the output now contains both
+    # TOOL EVIDENCE and FINAL ANSWER (see transforms/a2a-with-evidence.js).
+    # This catches confidently-wrong answers whose evidence doesn't actually
+    # support the claim - not just "did it sound like a reasonable answer."
+    - type: llm-rubric
+      value: >-
+        The output contains a TOOL EVIDENCE section (raw tool output, ground
+        truth) and a FINAL ANSWER section (what the agent told the user).
+        FAIL if the final answer makes any specific factual claim - about
+        namespaces, pods, resource usage, connectivity, or anything else -
+        that is not actually supported by the tool evidence, or that
+        contradicts it (e.g. claiming a namespace is empty/doesn't exist when
+        the tool evidence shows otherwise, or citing a namespace/resource name
+        that never appears in the tool evidence at all, or omitting a
+        resource that IS present in the tool evidence). Do NOT fail it for
+        well-established domain interpretation of the evidence (e.g.
+        correctly explaining what a standard curl/exit code means, or normal
+        operational context) - that is expected expertise, not fabrication.
+        Only fail for claims that invent specifics (names, counts, states,
+        numbers) not present in or contradicted by the tool evidence. PASS
+        only if every concrete factual claim in the final answer traces back
+        to, or is a standard/well-known interpretation of, something actually
+        present in the tool evidence.
+
+tests:
+  - vars:
+      msg_id: 'trial-scenario-1'
+      question: >-
+        Are there any pods in the kagent namespace that are crashlooping or
+        restarting? If so, investigate the root cause using events and logs.
+        If not, say so.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Cites specific pod names, statuses, or events as evidence rather
+          than generic troubleshooting advice. Does not attempt to patch,
+          delete, or restart anything. If no pods are crashlooping, clearly
+          states that rather than inventing a problem.
+
+  - vars:
+      msg_id: 'trial-scenario-2'
+      question: >-
+        Is the kagent namespace under resource pressure right now? Report
+        actual CPU/memory usage against any configured limits or quota.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Reports concrete resource usage or quota figures, or clearly states
+          that no quota/limit is configured, rather than giving a generic
+          non-answer. Does not fabricate specific numbers it couldn't have
+          obtained.
+
+  - vars:
+      msg_id: 'trial-scenario-3'
+      question: >-
+        Check whether the cluster-diagnostics service can reach the
+        observability-agent service in the kagent namespace. Report what you
+        find with evidence.
+    assert:
+      - type: llm-rubric
+        value: >-
+          Uses an actual connectivity-check tool or concrete evidence rather
+          than assuming. States a clear reachable/unreachable conclusion
+          backed by that evidence.

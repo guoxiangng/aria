@@ -81,3 +81,17 @@ resource "aws_iam_role_policy_attachment" "gha_readonly" {
   role       = aws_iam_role.github_actions.name
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
+
+# The "separate, environment-scoped role" mentioned above: write access for the eval
+# gate specifically (push the eval-runner image, apply/watch a Job in `kagent`).
+# Kept distinct from aria-github-actions so a bug in the eval workflow can't touch
+# anything the read-only role wasn't already allowed to see.
+resource "aws_iam_role" "github_actions_eval" {
+  name               = "aria-github-actions-eval"
+  assume_role_policy = data.aws_iam_policy_document.gha_assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "gha_eval_ecr" {
+  role       = aws_iam_role.github_actions_eval.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
+}

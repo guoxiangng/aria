@@ -1,0 +1,34 @@
+# Template - CI substitutes __IMAGE_TAG__ (git sha) and __RUN_ID__ (unique per run)
+# before `kubectl apply`. Not synced by ArgoCD (Jobs are one-shot, not a persistent
+# app) - applied directly by the GitHub Actions workflow using the existing
+# Terraform-provisioned GitHub OIDC role. See .github/workflows/eval.yaml.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: aria-eval-__RUN_ID__
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    app.kubernetes.io/component: eval
+spec:
+  backoffLimit: 0 # fail fast - a flaky retry would mask a real gate failure
+  ttlSecondsAfterFinished: 3600 # auto-cleanup, don't accumulate finished eval Jobs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/part-of: aria
+        app.kubernetes.io/component: eval
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: eval
+          image: 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/eval-runner:__IMAGE_TAG__
+          imagePullPolicy: Always
+          env:
+            - name: AZURE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: kagent-azure-openai
+                  key: AZUREOPENAI_API_KEY
+            - name: AZURE_API_HOST
+              value: "oai-ladp-ncs-4.openai.azure.com"
