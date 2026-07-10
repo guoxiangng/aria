@@ -59,8 +59,10 @@ jobs:
         # Job fails rather than completes - Complete and Failed are separate condition
         # types, not one "finished" state. Poll for either terminal condition instead.
         run: |
+          # 3 agents run sequentially in one container (~3min each + image pull) -
+          # 10min wasn't enough (measured ~11min actual runtime), give real headroom.
           JOB="job/aria-eval-${{ steps.apply.outputs.run_id }}"
-          for i in $(seq 1 60); do
+          for i in $(seq 1 120); do
             STATUS=$(kubectl get "$JOB" -n kagent -o jsonpath='{.status.conditions[?(@.status=="True")].type}')
             if [ "$STATUS" = "Complete" ] || [ "$STATUS" = "Failed" ]; then
               echo "Job finished: $STATUS"
