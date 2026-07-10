@@ -1,0 +1,32 @@
+# Wave 1 — the actual runner pool (depends on arc-controller's CRDs existing first).
+# Requires the arc-gha-pat Secret to exist in arc-runners namespace before this can register
+# runners with GitHub - see platform/arc/runner-values.yaml for the create-secret command.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-runners
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      ref: values
+    - repoURL: ghcr.io/actions/actions-runner-controller-charts
+      chart: gha-runner-scale-set
+      targetRevision: "0.14.2"
+      helm:
+        valueFiles:
+          - $values/platform/arc/runner-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-runners
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # created by namespace-bootstrap
+      - ServerSideApply=true

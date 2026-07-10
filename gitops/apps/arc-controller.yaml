@@ -1,0 +1,31 @@
+# Wave 0 — Actions Runner Controller (upstream OCI Helm chart, cluster-wide reconciler).
+# Namespace created by namespace-bootstrap (wave -1). Same multi-source $values pattern as kagent.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-controller
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      ref: values
+    - repoURL: ghcr.io/actions/actions-runner-controller-charts
+      chart: gha-runner-scale-set-controller
+      targetRevision: "0.14.2"
+      helm:
+        valueFiles:
+          - $values/platform/arc/controller-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-systems
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # created by namespace-bootstrap
+      - ServerSideApply=true

@@ -1,0 +1,2 @@
+# Actions Runner Controller - the CRD/reconciler, cluster-wide, one instance.
+# Chart defaults are sensible for this scale; nothing to override yet.

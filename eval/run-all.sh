@@ -1,7 +1,8 @@
 #!/bin/sh
 # Runs all promptfoo eval configs against the real in-cluster agent Services
-# (no port-forward needed - this runs as a pod inside the `kagent` namespace).
-# Exits non-zero if any suite fails, so this can gate a CI check on its exit code.
+# (no port-forward needed - runs directly on an ARC self-hosted runner pod inside
+# the cluster, see platform/arc/). Exits non-zero if any suite fails, so this can
+# gate a CI check on its exit code.
 #
 # Local dev configs point at localhost:1808X (via kubectl port-forward, see each
 # config's header comment) - swap those for real in-cluster Service DNS here.

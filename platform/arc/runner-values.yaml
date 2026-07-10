@@ -1,0 +1,32 @@
+# The actual runner pool for github.com/guoxiangng/aria. Scales 0 -> maxRunners based on
+# queued jobs (min 0 = no idle compute cost when nothing's running).
+#
+# githubConfigSecret references a pre-created K8s Secret (NOT committed here) - create it
+# with: kubectl create secret generic arc-gha-pat -n arc-runners --from-literal=github_token='ghp_...'
+# See eval/README.md for the full runbook.
+githubConfigUrl: "https://github.com/guoxiangng/aria"
+githubConfigSecret: arc-gha-pat
+
+runnerScaleSetName: "aria-runners"
+minRunners: 0
+maxRunners: 2
+
+# Plain mode (no dind/kubernetes containerMode) - the eval workflow only needs to checkout
+# code and run promptfoo directly against in-cluster Service DNS, no nested container builds.
+template:
+  spec:
+    containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest
+        command: ["/home/runner/run.sh"]
+        env:
+          # Same Azure OpenAI credential the agents themselves use (for the eval judge model).
+          # Namespace isolation (arc-runners, separate from kagent) means this secret is a
+          # deliberate duplicate, not a reference - see envs/dev.yaml's arc-runners comment.
+          - name: AZURE_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: kagent-azure-openai
+                key: AZUREOPENAI_API_KEY
+          - name: AZURE_API_HOST
+            value: "oai-ladp-ncs-4.openai.azure.com"

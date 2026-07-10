@@ -23,3 +23,41 @@ namespaces:
       defaultRequestMemory: "128Mi"
       maxCpu: "2"
       maxMemory: "4Gi"
+
+  # Actions Runner Controller (ARC) - CI infra, kept separate from agent/app namespaces
+  # deliberately (isolation over convenience - see eval/README.md for the trade-off note).
+  - name: arc-systems
+    service: arc-controller
+    env: dev
+    quota:
+      requestsCpu: "500m"
+      requestsMemory: "512Mi"
+      limitsCpu: "1"
+      limitsMemory: "1Gi"
+      pvcs: 0
+      pods: 5
+    limits:
+      defaultCpu: "200m"
+      defaultMemory: "256Mi"
+      defaultRequestCpu: "100m"
+      defaultRequestMemory: "128Mi"
+      maxCpu: "1"
+      maxMemory: "1Gi"
+
+  - name: arc-runners
+    service: arc-runners
+    env: dev
+    quota:
+      requestsCpu: "1"
+      requestsMemory: "2Gi"
+      limitsCpu: "2"
+      limitsMemory: "4Gi"
+      pvcs: 0
+      pods: 10
+    limits:
+      defaultCpu: "500m"
+      defaultMemory: "1Gi"
+      defaultRequestCpu: "250m"
+      defaultRequestMemory: "512Mi"
+      maxCpu: "2"
+      maxMemory: "4Gi"

@@ -1,8 +1,8 @@
 # eval/ — agent eval loop
 
 Built on [promptfoo](https://promptfoo.dev) (open-source CLI, no cloud dependency required).
-One config per agent, run either locally (via port-forward, for iterating on a rubric) or as a
-Kubernetes Job inside the cluster (real in-cluster Service DNS, used by CI).
+One config per agent, run either locally (via port-forward, for iterating on a rubric) or on a
+self-hosted CI runner living inside the cluster (real in-cluster Service DNS, used by CI).
 
 ## Files
 
@@ -14,11 +14,15 @@ Kubernetes Job inside the cluster (real in-cluster Service DNS, used by CI).
 - `transforms/a2a-with-evidence.js` — extracts both the tool-call evidence (args + results,
   correlated by call id) and the final answer from a kagent A2A `message/send` response, so the
   judge sees what was actually checked, not just what was said.
-- `Dockerfile` / `run-all.sh` — packages the runner as a container; `run-all.sh` points each
-  config at the real in-cluster Service (`<agent>.kagent:8080`) instead of the `localhost:1808X`
-  port-forwards used for local runs.
-- `job.yaml` — Kubernetes Job template (CI substitutes image tag + run id, applies directly —
-  not ArgoCD-managed, since Jobs are one-shot, not a persistent app).
+- `run-all.sh` — swaps each config's `localhost:1808X` (local dev, via port-forward) for the real
+  in-cluster Service DNS (`<agent>.kagent:8080`), then runs every config, exiting non-zero if any
+  suite fails.
+- `Dockerfile` / `job.yaml` — **superseded**, kept until the ARC-based path (below) is fully
+  verified. Earlier approach: build an image, push to ECR, apply it as a one-shot Kubernetes Job
+  from a GitHub-hosted runner, poll for completion across the network. Retired after a full
+  session's worth of debugging exactly that cross-network polling (IAM gaps, wait-condition
+  logic, timeouts, transient kubectl failures) — the runner not living in the cluster was the
+  root cause of most of it. Delete once `platform/arc/` is confirmed solid.
 
 ## Known limitation: investigation-loop
 
@@ -41,10 +45,25 @@ npm install --no-save promptfoo   # first time only
 
 ## Running in CI
 
-`.github/workflows/eval.yml` builds the image, applies `job.yaml` as a Job in the `kagent`
-namespace, waits for completion, and fails the check on the Job's exit code. Uses a dedicated
-write-scoped role (`aria-github-actions-eval`, `infra/01-bootstrap`) separate from the read-only
-role used elsewhere in CI — namespace-scoped to `kagent` only, not cluster-admin.
+`.github/workflows/eval.yml` runs on a self-hosted GitHub Actions runner (Actions Runner
+Controller, `platform/arc/`) living inside the `arc-runners` namespace in the cluster - not a
+GitHub-hosted runner. Since the runner pod is already on the cluster network, the workflow just
+checks out the repo and runs `eval/run-all.sh` directly; no image build, no ECR push, no
+apply-and-poll indirection.
+
+Setup (one-time, not git-managed): create the GitHub PAT secret ARC authenticates with -
+```
+kubectl create secret generic arc-gha-pat -n arc-runners --from-literal=github_token='ghp_...'
+```
+See `platform/arc/runner-values.yaml` for the runner pool config, and `envs/dev.yaml` for why
+`arc-runners` is a separate namespace from `kagent` (isolation over convenience, a deliberate
+trade-off for a PoC - it means the Azure OpenAI secret is duplicated into `arc-runners` rather
+than referenced directly).
+
+Superseded: the previous `aria-github-actions-eval` IAM role and EKS access entry
+(`infra/01-bootstrap`, `infra/02-eks`) are no longer needed by this workflow - the runner
+authenticates as an in-cluster ServiceAccount, not an external IAM identity. Not yet removed
+(harmless idle resources); clean up once the ARC path is confirmed solid.
 
 ## Not yet built
 
