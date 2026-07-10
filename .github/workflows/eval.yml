@@ -61,9 +61,18 @@ jobs:
         run: |
           # 3 agents run sequentially in one container (~3min each + image pull) -
           # 10min wasn't enough (measured ~11min actual runtime), give real headroom.
+          #
+          # --request-timeout caps each call so one slow/dropped connection to the
+          # EKS API can't stall the whole loop, and `|| true` treats a failed kubectl
+          # call as "unknown this round" (retry next iteration) instead of silently
+          # looping on an empty STATUS - observed a real run where the Job finished
+          # in 4 minutes but this step still burned the full budget, most likely
+          # from exactly this (no visibility into individual poll failures).
           JOB="job/aria-eval-${{ steps.apply.outputs.run_id }}"
           for i in $(seq 1 120); do
-            STATUS=$(kubectl get "$JOB" -n kagent -o jsonpath='{.status.conditions[?(@.status=="True")].type}')
+            STATUS=$(kubectl get "$JOB" -n kagent --request-timeout=15s \
+              -o jsonpath='{.status.conditions[?(@.status=="True")].type}' 2>&1) || true
+            echo "poll $i: status='$STATUS'"
             if [ "$STATUS" = "Complete" ] || [ "$STATUS" = "Failed" ]; then
               echo "Job finished: $STATUS"
               exit 0
