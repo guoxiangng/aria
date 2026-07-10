@@ -95,3 +95,20 @@ resource "aws_iam_role_policy_attachment" "gha_eval_ecr" {
   role       = aws_iam_role.github_actions_eval.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"
 }
+
+# eks:DescribeCluster is required just to call `aws eks update-kubeconfig` and get a
+# token - separate from the EKS access entry (infra/02-eks), which governs Kubernetes
+# RBAC only *after* this IAM-level authentication succeeds. Scoped to the aria cluster.
+resource "aws_iam_role_policy" "gha_eval_eks_describe" {
+  name = "eks-describe-cluster"
+  role = aws_iam_role.github_actions_eval.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "eks:DescribeCluster"
+      Resource = "arn:aws:eks:ap-southeast-1:622629043701:cluster/aria"
+    }]
+  })
+}
