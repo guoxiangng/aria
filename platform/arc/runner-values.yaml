@@ -11,6 +11,16 @@ runnerScaleSetName: "aria-runners"
 minRunners: 0
 maxRunners: 2
 
+# This chart auto-discovers the controller's ServiceAccount via a Helm `lookup()` call on
+# arc-controller's Deployment label - but `lookup()` only works under `helm install/upgrade`,
+# never `helm template`, and ArgoCD renders exclusively via `helm template` (for clean
+# diff/prune). So auto-discovery can never succeed under ArgoCD regardless of whether the
+# controller exists - set it explicitly instead (values confirmed from the live controller
+# Deployment's own labels: actions.github.com/controller-service-account-{name,namespace}).
+controllerServiceAccount:
+  namespace: arc-systems
+  name: arc-controller-gha-rs-controller
+
 # Plain mode (no dind/kubernetes containerMode) - the eval workflow only needs to checkout
 # code and run promptfoo directly against in-cluster Service DNS, no nested container builds.
 template:
