@@ -14,8 +14,14 @@
 FROM ghcr.io/actions/actions-runner:latest
 
 USER root
+# Debian's default `apt-get install nodejs` pulls Node 18, but promptfoo requires >=20.20 -
+# confirmed the hard way (built fine with an EBADENGINE warning, failed at runtime with
+# "promptfoo requires a supported Node.js runtime. Detected: v18.19.1"). Use NodeSource's
+# setup script for a current major version instead of the distro package.
 RUN apt-get update -qq \
-    && apt-get install -y -qq nodejs npm \
+    && apt-get install -y -qq curl \
+    && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y -qq nodejs \
     && rm -rf /var/lib/apt/lists/* \
     && npm install -g promptfoo@0.121.17
 USER runner

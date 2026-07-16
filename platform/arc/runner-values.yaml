@@ -33,6 +33,11 @@ template:
     containers:
       - name: runner
         image: 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/eval-runner:ci-runner
+        # Always, not the IfNotPresent default for a non-`:latest` tag - this tag is mutable
+        # (rebuilt in place when bumping promptfoo's version), same class of gotcha already
+        # documented in agents/investigation-loop/agent.yaml. Without this, a node that
+        # cached a broken build can keep serving it silently after a fresh push.
+        imagePullPolicy: Always
         command: ["/home/runner/run.sh"]
         env:
           # Same Azure OpenAI credential the agents themselves use (for the eval judge model).
