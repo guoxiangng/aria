@@ -17,12 +17,13 @@ self-hosted CI runner living inside the cluster (real in-cluster Service DNS, us
 - `run-all.sh` — swaps each config's `localhost:1808X` (local dev, via port-forward) for the real
   in-cluster Service DNS (`<agent>.kagent:8080`), then runs every config, exiting non-zero if any
   suite fails.
-- `Dockerfile` / `job.yaml` — **superseded**, kept until the ARC-based path (below) is fully
-  verified. Earlier approach: build an image, push to ECR, apply it as a one-shot Kubernetes Job
-  from a GitHub-hosted runner, poll for completion across the network. Retired after a full
-  session's worth of debugging exactly that cross-network polling (IAM gaps, wait-condition
-  logic, timeouts, transient kubectl failures) — the runner not living in the cluster was the
-  root cause of most of it. Delete once `platform/arc/` is confirmed solid.
+
+An earlier approach (build an image, push to ECR, apply it as a one-shot Kubernetes Job from a
+GitHub-hosted runner, poll for completion across the network) was retired after a full session's
+worth of debugging exactly that cross-network polling — IAM gaps, wait-condition logic, timeouts,
+transient kubectl failures, all traceable to the runner not living in the cluster. Replaced by
+the ARC-based approach below; the old `Dockerfile`/`job.yaml` and their IAM role/EKS access entry
+have been removed.
 
 ## Known limitation: investigation-loop
 
@@ -70,12 +71,8 @@ kubectl create secret generic arc-gha-pat -n arc-runners --from-literal=github_t
 See `platform/arc/runner-values.yaml` for the runner pool config, and `envs/dev.yaml` for why
 `arc-runners` is a separate namespace from `kagent` (isolation over convenience, a deliberate
 trade-off for a PoC - it means the Azure OpenAI secret is duplicated into `arc-runners` rather
-than referenced directly).
-
-Superseded: the previous `aria-github-actions-eval` IAM role and EKS access entry
-(`infra/01-bootstrap`, `infra/02-eks`) are no longer needed by this workflow - the runner
-authenticates as an in-cluster ServiceAccount, not an external IAM identity. Not yet removed
-(harmless idle resources); clean up once the ARC path is confirmed solid.
+than referenced directly). The runner authenticates to the cluster as a normal in-cluster
+ServiceAccount, not an external IAM identity - no AWS IAM role is needed for CI at all anymore.
 
 ## Not yet built
 

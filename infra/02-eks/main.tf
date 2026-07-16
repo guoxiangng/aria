@@ -16,24 +16,6 @@ module "eks" {
   cluster_endpoint_public_access           = true
   enable_cluster_creator_admin_permissions = true # the principal running apply gets cluster-admin
 
-  # aria-github-actions-eval (infra/01-bootstrap) needs to apply/watch/delete Jobs and
-  # read pod logs for the eval CI gate. Scoped to the `kagent` namespace only, not
-  # cluster-wide admin - it has no business touching anything outside that namespace.
-  access_entries = {
-    github_actions_eval = {
-      principal_arn = "arn:aws:iam::622629043701:role/aria-github-actions-eval"
-      policy_associations = {
-        kagent_admin = {
-          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSAdminPolicy"
-          access_scope = {
-            type       = "namespace"
-            namespaces = ["kagent"]
-          }
-        }
-      }
-    }
-  }
-
   vpc_id     = var.vpc_id
   subnet_ids = var.private_subnet_ids
 
