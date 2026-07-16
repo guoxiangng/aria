@@ -19,12 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Node.js and promptfoo
-        working-directory: eval
-        run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq nodejs npm > /dev/null
-          npm install --no-save promptfoo@0.121.17
-
       - name: Run eval suite
         working-directory: eval
         run: sh run-all.sh

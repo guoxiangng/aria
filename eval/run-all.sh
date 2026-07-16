@@ -20,7 +20,7 @@ overall_status=0
 
 for f in *.promptfooconfig.yaml; do
   echo "=== Running $f ==="
-  if ! ./node_modules/.bin/promptfoo eval -c "$f" --no-cache; then
+  if ! promptfoo eval -c "$f" --no-cache; then
     echo "=== FAILED: $f ==="
     overall_status=1
   fi

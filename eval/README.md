@@ -48,13 +48,25 @@ npm install --no-save promptfoo   # first time only
 `.github/workflows/eval.yml` runs on a self-hosted GitHub Actions runner (Actions Runner
 Controller, `platform/arc/`) living inside the `arc-runners` namespace in the cluster - not a
 GitHub-hosted runner. Since the runner pod is already on the cluster network, the workflow just
-checks out the repo and runs `eval/run-all.sh` directly; no image build, no ECR push, no
-apply-and-poll indirection.
+checks out the repo and runs `eval/run-all.sh` directly; no image build/push/apply-and-poll
+indirection at CI time.
+
+The runner pool uses a **custom image** (`platform/arc/runner.Dockerfile`) with Node.js +
+promptfoo pre-baked in, not the plain `ghcr.io/actions/actions-runner` image. Measured: a fresh
+`npm install promptfoo` (571 transitive packages, no cache) hung past 20 minutes under the
+runner pod's CPU limits - baking it into the image once (rebuilt only when bumping promptfoo's
+version) avoids paying that cost on every single CI run:
+```
+docker build -f platform/arc/runner.Dockerfile -t 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/eval-runner:ci-runner platform/arc
+docker push 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/eval-runner:ci-runner
+```
 
 Setup (one-time, not git-managed): create the GitHub PAT secret ARC authenticates with -
 ```
 kubectl create secret generic arc-gha-pat -n arc-runners --from-literal=github_token='ghp_...'
 ```
+(classic PAT, `repo` scope - fine-grained tokens aren't a documented/supported path for ARC).
+
 See `platform/arc/runner-values.yaml` for the runner pool config, and `envs/dev.yaml` for why
 `arc-runners` is a separate namespace from `kagent` (isolation over convenience, a deliberate
 trade-off for a PoC - it means the Azure OpenAI secret is duplicated into `arc-runners` rather

@@ -23,11 +23,16 @@ controllerServiceAccount:
 
 # Plain mode (no dind/kubernetes containerMode) - the eval workflow only needs to checkout
 # code and run promptfoo directly against in-cluster Service DNS, no nested container builds.
+#
+# Custom image (runner.Dockerfile, this folder) with Node.js + promptfoo pre-baked in - a
+# fresh `npm install promptfoo` (571 transitive packages) on the plain actions-runner image
+# measured hanging past 20 minutes under this pod's CPU limits. Built/pushed manually
+# (infrequent - only when bumping the promptfoo version), not part of any CI pipeline.
 template:
   spec:
     containers:
       - name: runner
-        image: ghcr.io/actions/actions-runner:latest
+        image: 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/eval-runner:ci-runner
         command: ["/home/runner/run.sh"]
         env:
           # Same Azure OpenAI credential the agents themselves use (for the eval judge model).
