@@ -28,11 +28,15 @@ have been removed.
 ## Known limitation: investigation-loop
 
 `investigation-loop` (the hand-built BYO LangGraph agent) exposes **only its final answer** in
-the A2A response — no tool-call breadcrumbs like the ADK-based agents. Its config can grade
-answer plausibility, but **cannot verify scenario 6's real acceptance criterion** (did it
-actually cycle gather→hypothesize→verify→loop, or answer on the first pass?). That needs a
-different mechanism — querying the Langfuse trace's span tree for the invocation, or grepping pod
-logs for LLM call counts (as was done manually earlier in this project). Not yet built.
+the A2A response — no tool-call breadcrumbs like the ADK-based agents. Partially worked around by
+`transforms/verify-loop-checkpoints.js`: counts LangGraph checkpoint-write traces in Langfuse
+around the test's run window (a single full pass checkpoints ~5-6 times, measured empirically) as
+a rough proxy for "did real multi-step graph execution happen." This is deliberately **not** a
+precise proof of looping specifically (can't distinguish "looped once" from "ran once with a
+couple extra saves") — just enough to catch a regression where the agent stops running its graph
+at all. Requires `LANGFUSE_AUTH` (see below) and is **local-only for now**, not wired into the CI
+runner — a more precise version (tagging checkpoints with node names in the agent's own code)
+would need a second BYO agent to generalize the pattern from before it's worth building.
 
 ## Running locally
 
@@ -40,6 +44,8 @@ logs for LLM call counts (as was done manually earlier in this project). Not yet
 kubectl port-forward -n kagent svc/<agent> 1808X:8080   # see each config's header for the port
 export AZURE_API_KEY=$(kubectl get secret kagent-azure-openai -n kagent -o jsonpath='{.data.AZUREOPENAI_API_KEY}' | base64 -d)
 export AZURE_API_HOST="oai-ladp-ncs-4.openai.azure.com"
+# investigation-loop only - the checkpoint-count check needs Langfuse read access
+export LANGFUSE_AUTH=$(kubectl get secret kagent-langfuse-otel -n kagent -o jsonpath='{.data.OTEL_EXPORTER_OTLP_HEADERS}' | base64 -d | sed -n 's/.*Authorization=Basic \([^,]*\).*/\1/p')
 npm install --no-save promptfoo   # first time only
 ./node_modules/.bin/promptfoo eval -c eval/<agent>.promptfooconfig.yaml --no-cache
 ```

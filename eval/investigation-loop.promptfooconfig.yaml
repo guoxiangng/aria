@@ -5,18 +5,16 @@
 # LangGraph agent's A2A response contains ONLY the final answer text - no visible
 # tool calls or graph-node trace. Confirmed empirically (see loop-probe.json trial).
 #
-# That means this config can only check whether the FINAL ANSWER is plausible and
-# internally consistent - it CANNOT verify scenario 6's real acceptance criterion
-# ("did it actually cycle gather->hypothesize->verify->loop, or answer on the first
-# pass?"). That requires a different mechanism: querying the Langfuse trace's span
-# tree for this invocation (each LangGraph node should appear as a nested span) or
-# grepping pod logs for LLM call counts, as was done manually earlier in this
-# project. Tracked as a follow-up, not solved here - don't mistake a PASS below for
-# "looping confirmed."
+# Worked around via transforms/verify-loop-checkpoints.js: counts LangGraph
+# checkpoint-write traces in Langfuse around this test's run window, as a rough proxy
+# for "did real multi-step graph execution happen" (NOT a precise proof of looping
+# specifically - see that file's comments). Local-only for now (needs LANGFUSE_AUTH
+# env var); not wired into the CI runner - deliberately scoped down, revisit once
+# there's a second BYO agent to generalize the pattern from.
 #
 # Run locally via: kubectl port-forward -n kagent svc/investigation-loop 18082:8080
 # then: ./node_modules/.bin/promptfoo eval -c eval/investigation-loop.promptfooconfig.yaml
-description: "ARIA eval trial — investigation-loop (final-answer groundedness only; does NOT verify looping)"
+description: "ARIA eval trial — investigation-loop"
 
 providers:
   - id: https
@@ -66,3 +64,5 @@ tests:
           level or explicitly flags uncertainty rather than asserting
           certainty with no basis. Does not attempt to patch, delete, or
           restart anything.
+      - type: javascript
+        value: 'file://transforms/verify-loop-checkpoints.js'
