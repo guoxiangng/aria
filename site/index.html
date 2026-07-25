@@ -1,0 +1,839 @@
+<title>ARIA — the open control plane for AI agents on Kubernetes</title>
+<style>
+  :root {
+    --bg: #0c0f16;
+    --surface: #131826;
+    --surface-2: #1a2132;
+    --surface-3: #212a3e;
+    --border: #262f45;
+    --border-bright: #38445f;
+    --text: #e7eaf1;
+    --text-dim: #8b95ac;
+    --text-faint: #565f77;
+    --cyan: #45d0c0;
+    --cyan-deep: #1f5b56;
+    --cyan-glow: rgba(69, 208, 192, 0.14);
+    --amber: #e2a63e;
+    --amber-bg: rgba(226, 166, 62, 0.12);
+    --good: #5fbf8a;
+    --good-bg: rgba(95, 191, 138, 0.12);
+    --danger: #dd6870;
+    --danger-bg: rgba(221, 104, 112, 0.11);
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ui-sans-serif, sans-serif;
+    --maxw: 940px;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f4f6f5;
+    --surface: #ffffff;
+    --surface-2: #edf0f0;
+    --surface-3: #e3e8e8;
+    --border: #d7dcde;
+    --border-bright: #c2c9cc;
+    --text: #141922;
+    --text-dim: #515a6c;
+    --text-faint: #868f9f;
+    --cyan: #0f8f83;
+    --cyan-deep: #b9e6e0;
+    --cyan-glow: rgba(15, 143, 131, 0.1);
+    --amber: #a9741a;
+    --amber-bg: rgba(169, 116, 26, 0.1);
+    --good: #2c7a52;
+    --good-bg: rgba(44, 122, 82, 0.1);
+    --danger: #b0454d;
+    --danger-bg: rgba(176, 69, 77, 0.09);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f6f5;
+      --surface: #ffffff;
+      --surface-2: #edf0f0;
+      --surface-3: #e3e8e8;
+      --border: #d7dcde;
+      --border-bright: #c2c9cc;
+      --text: #141922;
+      --text-dim: #515a6c;
+      --text-faint: #868f9f;
+      --cyan: #0f8f83;
+      --cyan-deep: #b9e6e0;
+      --cyan-glow: rgba(15, 143, 131, 0.1);
+      --amber: #a9741a;
+      --amber-bg: rgba(169, 116, 26, 0.1);
+      --good: #2c7a52;
+      --good-bg: rgba(44, 122, 82, 0.1);
+      --danger: #b0454d;
+      --danger-bg: rgba(176, 69, 77, 0.09);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.58;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--cyan-glow); }
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  :focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 2px; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- top nav ---------- */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+  }
+  .brand {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .brand .led {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  .draft-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--amber);
+    border: 1px solid var(--amber);
+    border-radius: 3px;
+    padding: 1px 6px;
+    margin-left: 2px;
+  }
+  .navlinks { display: flex; gap: 22px; }
+  .navlinks a {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+  }
+  .navlinks a:hover { color: var(--cyan); text-decoration: none; }
+  @media (max-width: 640px) { .navlinks { display: none; } }
+
+  /* ---------- hero ---------- */
+  .hero {
+    position: relative;
+    padding: 72px 0 60px;
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 30px 30px;
+    opacity: 0.22;
+    mask-image: radial-gradient(ellipse 70% 60% at 30% 0%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 30% 0%, #000 20%, transparent 75%);
+    pointer-events: none;
+  }
+  .hero .wrap { position: relative; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 22px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(30px, 5.2vw, 50px);
+    line-height: 1.08;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    margin: 0 0 22px;
+    max-width: 17ch;
+    text-wrap: balance;
+  }
+  h1 .hl { color: var(--cyan); }
+  .subhead {
+    font-size: 19px;
+    color: var(--text-dim);
+    max-width: 60ch;
+    margin: 0 0 30px;
+    text-wrap: pretty;
+  }
+  .hero-cta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 9px 16px;
+    border-radius: 5px;
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    background: var(--surface-2);
+    transition: border-color .15s, color .15s;
+  }
+  .btn:hover { border-color: var(--cyan); color: var(--cyan); text-decoration: none; }
+  .btn.primary { background: var(--cyan); color: #06120f; border-color: var(--cyan); font-weight: 600; }
+  .btn.primary:hover { background: color-mix(in srgb, var(--cyan) 85%, #fff); color: #06120f; }
+
+  .hero-tags {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-top: 34px;
+  }
+  .tag {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 4px 9px;
+    background: var(--surface);
+  }
+  .tag b { color: var(--cyan); font-weight: 600; }
+
+  /* ---------- section scaffolding ---------- */
+  section { padding: 60px 0; border-bottom: 1px solid var(--border); }
+  .sec-label {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 20px;
+  }
+  .sec-label::before {
+    content: attr(data-n);
+    color: var(--cyan);
+  }
+  .sec-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  h2 {
+    font-family: var(--mono);
+    font-size: clamp(22px, 3.4vw, 30px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+    max-width: 24ch;
+    text-wrap: balance;
+  }
+  .lede { color: var(--text-dim); max-width: 66ch; margin: 0 0 30px; font-size: 16.5px; }
+
+  /* ---------- positioning: scope band ---------- */
+  .scope {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .scope-row {
+    background: var(--surface);
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .scope-row.mid {
+    background: var(--surface-2);
+    border-left: 3px solid var(--cyan);
+  }
+  .scope-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-faint);
+    flex: 0 0 110px;
+  }
+  .scope-row.mid .scope-tag { color: var(--cyan); }
+  .scope-body { font-size: 15px; }
+  .scope-body b { color: var(--text); }
+  .scope-row.dim .scope-body { color: var(--text-faint); }
+
+  /* ---------- open stack diagram ---------- */
+  .stack {
+    display: flex; flex-direction: column;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  .stack-layer {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 18px;
+    background: var(--surface);
+    display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap;
+  }
+  .stack-layer.aria {
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border-color: var(--cyan-deep);
+    box-shadow: inset 0 0 0 1px var(--cyan-deep);
+  }
+  .stack-layer.edge { border-style: dashed; background: transparent; }
+  .layer-name {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    flex: 0 0 130px;
+    color: var(--text-dim);
+  }
+  .stack-layer.aria .layer-name { color: var(--cyan); }
+  .layer-tools { display: flex; gap: 7px; flex-wrap: wrap; flex: 1; }
+  .chip {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .chip .oss { color: var(--good); font-size: 9px; letter-spacing: 0.05em; }
+  .chip.pluggable { border-style: dashed; color: var(--text-dim); }
+  .chip.pluggable .oss { color: var(--amber); }
+  .stack-caption {
+    margin-top: 18px;
+    font-size: 14px;
+    color: var(--text-dim);
+    max-width: 70ch;
+  }
+  .stack-caption b { color: var(--text); }
+  .stack-caption .oss-key { color: var(--good); font-family: var(--mono); font-size: 12px; }
+  .stack-caption .plug-key { color: var(--amber); font-family: var(--mono); font-size: 12px; }
+
+  /* ---------- value props ---------- */
+  .values { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .value {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 22px;
+  }
+  .value .vnum {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--cyan);
+    margin-bottom: 12px;
+    letter-spacing: 0.08em;
+  }
+  .value h3 { font-family: var(--mono); font-size: 16px; margin: 0 0 8px; font-weight: 600; }
+  .value p { margin: 0; font-size: 14.5px; color: var(--text-dim); }
+  .value p .anti { color: var(--text-faint); font-style: italic; }
+  @media (max-width: 640px) { .values { grid-template-columns: 1fr; } }
+
+  /* ---------- fleet ---------- */
+  .fleet { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .agent {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .agent .a-tier {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--cyan);
+  }
+  .agent .a-name { font-family: var(--mono); font-size: 15px; font-weight: 600; }
+  .agent .a-desc { font-size: 13.5px; color: var(--text-dim); }
+  .agent .a-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 3px;
+    background: var(--surface-3);
+    color: var(--text-faint);
+    align-self: flex-start;
+    margin-top: auto;
+  }
+  .fleet-note { margin-top: 16px; font-size: 13.5px; color: var(--text-faint); }
+  @media (max-width: 640px) { .fleet { grid-template-columns: 1fr; } }
+
+  /* ---------- proof / evidence ---------- */
+  .proof {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--good);
+    border-radius: 6px;
+    padding: 22px 24px;
+  }
+  .proof .p-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--good);
+    margin-bottom: 12px;
+  }
+  .proof h3 { font-size: 17px; margin: 0 0 10px; font-weight: 600; }
+  .proof p { margin: 0 0 14px; color: var(--text-dim); font-size: 14.5px; max-width: 72ch; }
+  .term {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    line-height: 1.6;
+  }
+  .term .c-dim { color: var(--text-faint); }
+  .term .c-bad { color: var(--danger); }
+  .term .c-good { color: var(--good); }
+  .term .c-cyan { color: var(--cyan); }
+
+  /* ---------- signature capability flow ---------- */
+  .signature {
+    background: linear-gradient(180deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--cyan-deep);
+    border-radius: 10px;
+    padding: 26px;
+  }
+  .signature .sig-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    border: 1px solid var(--cyan-deep);
+    border-radius: 3px;
+    padding: 3px 9px;
+    margin-bottom: 16px;
+  }
+  .signature h3 { font-family: var(--mono); font-size: 19px; margin: 0 0 10px; }
+  .signature > p { color: var(--text-dim); font-size: 15px; max-width: 70ch; margin: 0 0 24px; }
+  .pipeline { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding-bottom: 6px; }
+  .pstep {
+    flex: 1 0 130px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 13px 14px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .pstep .ps-i { font-family: var(--mono); font-size: 10px; color: var(--text-faint); letter-spacing: 0.06em; }
+  .pstep .ps-t { font-family: var(--mono); font-size: 13px; font-weight: 600; }
+  .pstep .ps-d { font-size: 12px; color: var(--text-dim); line-height: 1.4; }
+  .pstep.decision { border-color: var(--amber); background: var(--amber-bg); }
+  .pstep.decision .ps-i { color: var(--amber); }
+  .parrow { flex: 0 0 26px; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-family: var(--mono); }
+  .fork { display: flex; flex-direction: column; gap: 7px; flex: 1 0 130px; }
+  .fork .pstep { flex: 1; }
+  .pstep.promote { border-color: var(--cyan-deep); }
+  .pstep.promote .ps-t { color: var(--cyan); }
+  .pstep.rollback .ps-t { color: var(--danger); }
+
+  /* ---------- roadmap ladder ---------- */
+  .road { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .road-col h3 {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    margin: 0 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .road-col.shipped h3 { color: var(--good); }
+  .road-col.next h3 { color: var(--amber); }
+  .road-col.later h3 { color: var(--text-faint); }
+  .road-col ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+  .road-col li { font-size: 14px; color: var(--text); padding-left: 20px; position: relative; line-height: 1.42; }
+  .road-col li span { display: block; font-size: 12px; color: var(--text-faint); }
+  .road-col.shipped li::before { content: "▪"; position: absolute; left: 2px; color: var(--good); }
+  .road-col.next li::before { content: "▫"; position: absolute; left: 2px; color: var(--amber); }
+  .road-col.later li::before { content: "·"; position: absolute; left: 5px; color: var(--text-faint); font-size: 20px; top: -4px; }
+  @media (max-width: 700px) { .road { grid-template-columns: 1fr; gap: 26px; } }
+
+  /* ---------- footer ---------- */
+  footer { padding: 40px 0 64px; }
+  .foot-grid { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+  .foot-brand { font-family: var(--mono); font-weight: 600; font-size: 16px; }
+  .foot-note { font-size: 13px; color: var(--text-faint); max-width: 46ch; margin-top: 8px; }
+  .foot-links { display: flex; flex-direction: column; gap: 7px; font-family: var(--mono); font-size: 13px; }
+  .foot-meta { margin-top: 30px; font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); display: flex; gap: 8px; flex-wrap: wrap; }
+</style>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="led"></span>ARIA<span class="draft-tag">draft</span></div>
+    <div class="navlinks">
+      <a href="#scope">Scope</a>
+      <a href="#stack">Open stack</a>
+      <a href="#trust">Trust loop</a>
+      <a href="#delivery">Delivery</a>
+      <a href="#roadmap">Roadmap</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Agentic Runtime for Infrastructure Automation</div>
+    <h1>The open control plane for running AI agents on <span class="hl">Kubernetes</span>.</h1>
+    <p class="subhead">
+      One focused layer — get an agent from a git commit to safely running in production,
+      governed and observable — built entirely on open standards you can own end to end.
+      No paid product in the critical path.
+    </p>
+    <div class="hero-cta">
+      <a class="btn primary" href="https://github.com/guoxiangng/aria">View the source →</a>
+      <a class="btn" href="#stack">See the stack</a>
+    </div>
+    <div class="hero-tags">
+      <span class="tag"><b>100%</b> open-source core</span>
+      <span class="tag"><b>GitOps</b> by default</span>
+      <span class="tag"><b>eval-gated</b> deployment</span>
+      <span class="tag">kagent · EKS</span>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- SCOPE -->
+  <section id="scope">
+    <div class="wrap">
+      <div class="sec-label" data-n="01">Positioning</div>
+      <h2>One layer, done completely — not a platform that does everything a little.</h2>
+      <p class="lede">
+        The hard, unglamorous problem isn't writing an agent — it's operating it: getting it
+        deployed reproducibly, keeping it scoped, proving it isn't quietly hallucinating, and
+        knowing when to roll it back. ARIA owns exactly that band of the stack and nothing else.
+      </p>
+      <div class="scope">
+        <div class="scope-row dim">
+          <div class="scope-tag">Above</div>
+          <div class="scope-body">Your agent logic, prompts, and domain knowledge — yours to write.</div>
+        </div>
+        <div class="scope-row mid">
+          <div class="scope-tag">ARIA</div>
+          <div class="scope-body"><b>Deploy &amp; operate:</b> delivery, runtime, governance, and observability for AI agents on Kubernetes.</div>
+        </div>
+        <div class="scope-row dim">
+          <div class="scope-tag">Below</div>
+          <div class="scope-body">Kubernetes and your cloud — commodity, portable, already open.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPEN STACK -->
+  <section id="stack">
+    <div class="wrap">
+      <div class="sec-label" data-n="02">The open stack</div>
+      <h2>Every layer is open source. The one paid dependency is swappable.</h2>
+      <p class="lede">
+        A platform you can't take apart is a platform you don't own. ARIA's entire operating
+        stack is open and CNCF-aligned — the only proprietary piece, the model itself, sits
+        behind an open API so it swaps for a self-hosted one without touching anything else.
+      </p>
+
+      <div class="stack">
+        <div class="stack-layer edge">
+          <div class="layer-name">Agent logic</div>
+          <div class="layer-tools">
+            <span class="chip">Declarative CRs</span>
+            <span class="chip">LangGraph BYO <span class="oss">OSS</span></span>
+          </div>
+        </div>
+        <div class="stack-layer aria">
+          <div class="layer-name">Delivery</div>
+          <div class="layer-tools">
+            <span class="chip">ArgoCD <span class="oss">OSS</span></span>
+            <span class="chip">OpenTofu <span class="oss">OSS</span></span>
+            <span class="chip">Argo Rollouts <span class="oss">OSS</span></span>
+          </div>
+        </div>
+        <div class="stack-layer aria">
+          <div class="layer-name">Runtime</div>
+          <div class="layer-tools">
+            <span class="chip">kagent <span class="oss">OSS</span></span>
+            <span class="chip">MCP tools <span class="oss">OSS</span></span>
+            <span class="chip">A2A protocol <span class="oss">OSS</span></span>
+          </div>
+        </div>
+        <div class="stack-layer aria">
+          <div class="layer-name">Governance</div>
+          <div class="layer-tools">
+            <span class="chip">Kyverno <span class="oss">OSS</span></span>
+            <span class="chip">promptfoo eval <span class="oss">OSS</span></span>
+            <span class="chip">RBAC scoping <span class="oss">OSS</span></span>
+          </div>
+        </div>
+        <div class="stack-layer aria">
+          <div class="layer-name">Observability</div>
+          <div class="layer-tools">
+            <span class="chip">OpenTelemetry <span class="oss">OSS</span></span>
+            <span class="chip">Langfuse <span class="oss">OSS</span></span>
+          </div>
+        </div>
+        <div class="stack-layer aria">
+          <div class="layer-name">Model access</div>
+          <div class="layer-tools">
+            <span class="chip pluggable">OpenAI-compatible API <span class="oss">open std</span></span>
+            <span class="chip pluggable">self-host vLLM <span class="oss">OSS</span></span>
+            <span class="chip pluggable">Azure · Bedrock <span class="oss">swappable</span></span>
+          </div>
+        </div>
+        <div class="stack-layer edge">
+          <div class="layer-name">Substrate</div>
+          <div class="layer-tools">
+            <span class="chip">Kubernetes <span class="oss">OSS</span></span>
+            <span class="chip">EKS / any conformant cluster</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="stack-caption">
+        <span class="oss-key">OSS</span> = open-source, self-hostable, no license gate on the operating path.
+        <span class="plug-key">open std / swappable</span> = the model layer talks a standard API, so a
+        frontier model and a self-hosted open one are a config change, not a rebuild.
+      </p>
+    </div>
+  </section>
+
+  <!-- VALUE PROPS -->
+  <section id="why">
+    <div class="wrap">
+      <div class="sec-label" data-n="03">Why it's built this way</div>
+      <h2>Four commitments, each a deliberate reaction to how these platforms usually go wrong.</h2>
+      <div class="values">
+        <div class="value">
+          <div class="vnum">01</div>
+          <h3>Own every layer</h3>
+          <p>The whole operating stack is open source and self-hostable. <span class="anti">The usual path — bolting together a dozen paid SaaS products — buys speed and sells your ability to ever fully own or audit the thing.</span></p>
+        </div>
+        <div class="value">
+          <div class="vnum">02</div>
+          <h3>Governed by construction</h3>
+          <p>Two enforcement points, not a policy PDF: <b>Kyverno at admission</b> (an agent can't deploy without limits, scoped RBAC, and tracing) and an <b>eval gate at runtime</b> (answers checked against real evidence, in CI).</p>
+        </div>
+        <div class="value">
+          <div class="vnum">03</div>
+          <h3>Reproducible, not clicked</h3>
+          <p>Every agent, policy, and piece of infra is git-declared and ArgoCD-synced. There is no console-clicking path to production — the cluster is whatever the repo says it is.</p>
+        </div>
+        <div class="value">
+          <div class="vnum">04</div>
+          <h3>Focused, not sprawling</h3>
+          <p>One band of the stack — deploy and operate — covered end to end. <span class="anti">Not eighteen half-finished domains on a roadmap slide.</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FLEET -->
+  <section id="fleet">
+    <div class="wrap">
+      <div class="sec-label" data-n="04">What runs on it</div>
+      <h2>A governed fleet — purpose-built agents plus the open ecosystem's own.</h2>
+      <p class="lede">
+        ARIA doesn't rebuild every Kubernetes specialist — kagent already ships expert agents for
+        Helm, Istio, Cilium, PromQL and more. ARIA adds the governed, orchestrated agents on top
+        and delegates to the stock ones where raw domain expertise is enough.
+      </p>
+      <div class="fleet">
+        <div class="agent">
+          <div class="a-tier">Tier 1 · read-only</div>
+          <div class="a-name">cluster-diagnostics</div>
+          <div class="a-desc">Kubernetes diagnosis with every mutating tool deliberately stripped out — investigates, never touches.</div>
+          <div class="a-badge">running</div>
+        </div>
+        <div class="agent">
+          <div class="a-tier">Tier 3 · orchestrator</div>
+          <div class="a-name">incident-commander</div>
+          <div class="a-desc">Routes a question across specialists — its own and kagent's stock ones — and synthesizes one root-cause answer.</div>
+          <div class="a-badge">running</div>
+        </div>
+        <div class="agent">
+          <div class="a-tier">Tier 2 · BYO</div>
+          <div class="a-name">investigation-loop</div>
+          <div class="a-desc">A hand-built LangGraph agent that gathers, hypothesizes, verifies, and loops — bounded, stateful reasoning.</div>
+          <div class="a-badge">running</div>
+        </div>
+      </div>
+      <p class="fleet-note">
+        + kagent's stock experts (k8s, helm, istio, cilium, promql, argo-rollouts, kgateway…) available to delegate to, unmodified.
+      </p>
+    </div>
+  </section>
+
+  <!-- TRUST / PROOF -->
+  <section id="trust">
+    <div class="wrap">
+      <div class="sec-label" data-n="05">The trust loop</div>
+      <h2>An LLM answers with a 200 OK whether it's right or wrong. So we check.</h2>
+      <p class="lede">
+        Every agent answer is graded not on whether it <em>sounds</em> right, but on whether its
+        claims trace back to the tool calls it actually made — a groundedness gate, wired into CI.
+        It isn't theoretical. On its first real run it caught a genuine bug:
+      </p>
+      <div class="proof">
+        <div class="p-tag">Caught in eval · fixed · verified</div>
+        <h3>A "read-only" agent confusing its own name for a namespace</h3>
+        <p>
+          The diagnostics agent reported a connectivity check as failed — and its answer matched
+          what the tool returned, so a text-only check would have passed it. But the grounded
+          check saw <em>how</em> it called the tool:
+        </p>
+        <div class="term">
+<span class="c-dim"># what the agent actually invoked</span>
+k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnostics"</span>, ...})
+<span class="c-dim"># ↑ that namespace doesn't exist — it passed its own agent name.</span>
+<span class="c-dim">#   the "failure" was a false negative, reported with full confidence.</span>
+
+<span class="c-good">→ root cause: its prompt never told it which namespace it runs in.</span>
+<span class="c-cyan">→ one-line fix, re-run, confirmed green.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIGNATURE CAPABILITY -->
+  <section id="delivery">
+    <div class="wrap">
+      <div class="sec-label" data-n="06">Signature capability</div>
+      <div class="signature">
+        <span class="sig-badge">Where trust meets delivery</span>
+        <h3>Eval-gated progressive delivery</h3>
+        <p>
+          The trust loop and the deployment pipeline are the same loop. A new agent version
+          canary-deploys to a slice of real traffic; its groundedness scores are measured live;
+          it promotes itself only if it holds the bar, and rolls back if it doesn't — no human
+          watching a dashboard at 3am to make the call.
+        </p>
+        <div class="pipeline">
+          <div class="pstep">
+            <div class="ps-i">01 · git</div>
+            <div class="ps-t">New version</div>
+            <div class="ps-d">Agent change merged, ArgoCD syncs it</div>
+          </div>
+          <div class="parrow">→</div>
+          <div class="pstep">
+            <div class="ps-i">02 · rollout</div>
+            <div class="ps-t">Canary slice</div>
+            <div class="ps-d">Argo Rollouts routes a fraction of traffic</div>
+          </div>
+          <div class="parrow">→</div>
+          <div class="pstep decision">
+            <div class="ps-i">03 · measure</div>
+            <div class="ps-t">Eval on live traffic</div>
+            <div class="ps-d">Groundedness scored against real tool evidence</div>
+          </div>
+          <div class="parrow">→</div>
+          <div class="fork">
+            <div class="pstep promote">
+              <div class="ps-i">04a · holds bar</div>
+              <div class="ps-t">↑ Promote</div>
+            </div>
+            <div class="pstep rollback">
+              <div class="ps-i">04b · drops</div>
+              <div class="ps-t">↩ Roll back</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section id="roadmap">
+    <div class="wrap">
+      <div class="sec-label" data-n="07">Honest status</div>
+      <h2>What's real, what's next, what's deferred.</h2>
+      <p class="lede">
+        A solo build, kept honest. Shipped means running on a live cluster today; the rest is
+        sequenced, not sold.
+      </p>
+      <div class="road">
+        <div class="road-col shipped">
+          <h3>Shipped</h3>
+          <ul>
+            <li>Multi-agent fleet <span>read-only, orchestrator, BYO loop</span></li>
+            <li>Continuous eval gate <span>groundedness-checked, in CI</span></li>
+            <li>Full GitOps delivery <span>OpenTofu + ArgoCD</span></li>
+            <li>OTel → Langfuse tracing <span>declarative &amp; BYO agents</span></li>
+            <li>In-cluster CI runner <span>self-hosted, ephemeral</span></li>
+          </ul>
+        </div>
+        <div class="road-col next">
+          <h3>Next</h3>
+          <ul>
+            <li>Agent template chart <span>render agents, stop hand-authoring YAML</span></li>
+            <li>Kyverno admission policies <span>governance at deploy time</span></li>
+            <li>Eval-gated rollouts <span>wire the signature loop end to end</span></li>
+            <li>Open model gateway <span>route by cost / sensitivity, self-host option</span></li>
+            <li>Approval-gated remediation <span>human-in-the-loop action</span></li>
+          </ul>
+        </div>
+        <div class="road-col later">
+          <h3>Later</h3>
+          <ul>
+            <li>Least-privilege RBAC <span>real boundary under tool scoping</span></li>
+            <li>FinOps agent <span>cost visibility, self-dogfooded</span></li>
+            <li>Red-team scenarios <span>refusal &amp; injection resistance</span></li>
+            <li>Agent registry / catalog <span>curate what's deployed</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">ARIA</div>
+        <p class="foot-note">
+          A solo, open-source build of the deploy-and-operate layer for AI agents on Kubernetes.
+          Not an enterprise product — a focused, ownable reference for how this layer can actually work.
+        </p>
+      </div>
+      <div class="foot-links">
+        <a href="https://github.com/guoxiangng/aria">github.com/guoxiangng/aria</a>
+        <a href="#stack">The open stack</a>
+        <a href="#roadmap">Roadmap</a>
+      </div>
+    </div>
+    <div class="foot-meta">
+      <span>draft — iterating as the platform is built</span><span>·</span><span>built on kagent + EKS</span><span>·</span><span>notes as of 2026-07</span>
+    </div>
+  </div>
+</footer>
