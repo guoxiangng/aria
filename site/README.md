@@ -1,7 +1,15 @@
-# site/ — ARIA product page (draft)
+# site/ — ARIA product pages (draft)
 
-A single self-contained `index.html` — the product/brochure page for ARIA. Marked **draft**;
-it's meant to be iterated as the platform is built, not a finished marketing site.
+Two self-contained HTML pages, both draft, both iterated as the platform is built:
+
+- **`index.html`** — the polished product/brochure page. Open-source, Kubernetes-native
+  positioning; the "own every layer" + focused-scope angle, with the open-stack diagram and the
+  eval-gated-delivery signature capability. This is the primary page.
+- **`product-notes.html`** — an earlier, more internal-facing one-pager: the raw-kagent-vs-ARIA
+  gap, the workflow diagram, rough user stories, and the cluster-admin RBAC finding as evidence.
+  Kept as the terser "engineering notes" companion to the brochure.
+
+Both are meant to be iterated, not finished marketing sites.
 
 - **Self-contained**: all CSS inline, no external fonts/scripts/assets — opens directly in a
   browser or serves as a static file anywhere (GitHub Pages, S3, `python -m http.server`, etc.).

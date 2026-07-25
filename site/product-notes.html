@@ -1,0 +1,648 @@
+<title>ARIA — Product Notes</title>
+<style>
+  :root {
+    --bg: #10131a;
+    --surface: #171b24;
+    --surface-2: #1d2230;
+    --border: #262b38;
+    --text: #e9e7e0;
+    --text-dim: #9298a8;
+    --text-faint: #5c6274;
+    --accent: #4fc3d9;
+    --accent-dim: #2c5964;
+    --good: #6fbf8b;
+    --good-bg: rgba(111, 191, 139, 0.12);
+    --warn: #d9a23c;
+    --warn-bg: rgba(217, 162, 60, 0.12);
+    --danger: #d9636b;
+    --danger-bg: rgba(217, 99, 107, 0.12);
+    --mono: ui-monospace, "Cascadia Code", "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", ui-sans-serif, Roboto, sans-serif;
+  }
+
+  :root[data-theme="light"] {
+    --bg: #f4f2ea;
+    --surface: #fffdf8;
+    --surface-2: #eeebe0;
+    --border: #ddd7c6;
+    --text: #23262e;
+    --text-dim: #5c6070;
+    --text-faint: #8b8f9c;
+    --accent: #147d91;
+    --accent-dim: #d3ecf1;
+    --good: #2f7a52;
+    --good-bg: rgba(47, 122, 82, 0.1);
+    --warn: #a1701c;
+    --warn-bg: rgba(161, 112, 28, 0.1);
+    --danger: #a83f47;
+    --danger-bg: rgba(168, 63, 71, 0.1);
+  }
+
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f4f2ea;
+      --surface: #fffdf8;
+      --surface-2: #eeebe0;
+      --border: #ddd7c6;
+      --text: #23262e;
+      --text-dim: #5c6070;
+      --text-faint: #8b8f9c;
+      --accent: #147d91;
+      --accent-dim: #d3ecf1;
+      --good: #2f7a52;
+      --good-bg: rgba(47, 122, 82, 0.1);
+      --warn: #a1701c;
+      --warn-bg: rgba(161, 112, 28, 0.1);
+      --danger: #a83f47;
+      --danger-bg: rgba(168, 63, 71, 0.1);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection { background: var(--accent-dim); }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 56px 24px 96px;
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- Masthead ---------- */
+
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  h1.wordmark {
+    font-family: var(--mono);
+    font-size: clamp(38px, 6vw, 56px);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+    text-wrap: balance;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
+  h1.wordmark span.sub {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 400;
+    color: var(--text-dim);
+  }
+
+  .thesis {
+    font-size: 19px;
+    color: var(--text-dim);
+    max-width: 62ch;
+    text-wrap: balance;
+  }
+
+  .meta-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+
+  .pill {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    background: var(--surface);
+  }
+
+  /* ---------- Sections ---------- */
+
+  section { margin-bottom: 56px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+
+  p.lede {
+    color: var(--text-dim);
+    max-width: 68ch;
+    margin: 0 0 22px;
+  }
+
+  /* ---------- Comparison ---------- */
+
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .compare-col {
+    background: var(--surface);
+    padding: 20px 22px;
+  }
+
+  .compare-col h3 {
+    font-family: var(--mono);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 0 0 14px;
+    color: var(--text-dim);
+  }
+
+  .compare-col.raw h3 { color: var(--danger); }
+  .compare-col.governed h3 { color: var(--good); }
+
+  .compare-col ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .compare-col li {
+    font-size: 14.5px;
+    color: var(--text);
+    padding-left: 18px;
+    position: relative;
+  }
+
+  .compare-col.raw li::before {
+    content: "✕";
+    position: absolute;
+    left: 0;
+    color: var(--danger);
+    font-size: 12px;
+    top: 3px;
+  }
+
+  .compare-col.governed li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: var(--good);
+    font-size: 12px;
+    top: 3px;
+  }
+
+  .compare-col code {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--surface-2);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ---------- Field note (evidence callout) ---------- */
+
+  .field-note {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--danger);
+    border-radius: 4px;
+    padding: 18px 20px;
+    margin-top: 20px;
+  }
+
+  .field-note .fn-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--danger);
+    margin-bottom: 8px;
+  }
+
+  .field-note pre {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 10px 0;
+    color: var(--text);
+    line-height: 1.5;
+  }
+
+  .field-note p { margin: 8px 0 0; color: var(--text-dim); font-size: 14px; }
+
+  /* ---------- Workflow diagram ---------- */
+
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding: 4px 2px 14px;
+  }
+
+  .flow-step {
+    flex: 0 0 auto;
+    width: 168px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .flow-step .fs-kind {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .flow-step .fs-name {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .flow-step .fs-desc {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .flow-step.aria { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .flow-step.aria .fs-kind { color: var(--accent); }
+  .flow-step.stock .fs-kind { color: var(--text-faint); }
+  .flow-step.gate { border-style: dashed; border-color: var(--warn); }
+  .flow-step.gate .fs-kind { color: var(--warn); }
+
+  .flow-arrow {
+    flex: 0 0 auto;
+    width: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    font-family: var(--mono);
+    font-size: 16px;
+  }
+
+  .flow-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+
+  .flow-legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--text-dim);
+  }
+
+  .flow-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+  .swatch.aria { background: var(--accent); }
+  .swatch.stock { background: var(--text-faint); }
+  .swatch.gate { background: var(--warn); }
+
+  /* ---------- Stories ---------- */
+
+  .stories {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .story {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 20px;
+  }
+
+  .story .role {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+
+  .story p {
+    margin: 0;
+    font-size: 14.5px;
+    color: var(--text);
+    text-wrap: balance;
+  }
+
+  /* ---------- Status ladder ---------- */
+
+  .ladder {
+    display: flex;
+    flex-direction: column;
+    border-left: 2px solid var(--border);
+    margin-left: 6px;
+  }
+
+  .rung {
+    position: relative;
+    padding: 4px 0 22px 24px;
+  }
+
+  .rung::before {
+    content: "";
+    position: absolute;
+    left: -7px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--good);
+  }
+
+  .rung.next::before { border-color: var(--warn); }
+  .rung.future::before { border-color: var(--text-faint); }
+
+  .rung .r-status {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 3px;
+    display: inline-block;
+    margin-bottom: 4px;
+  }
+
+  .rung.done .r-status { color: var(--good); background: var(--good-bg); }
+  .rung.next .r-status { color: var(--warn); background: var(--warn-bg); }
+  .rung.future .r-status { color: var(--text-faint); background: var(--surface-2); }
+
+  .rung .r-title {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .rung .r-desc { font-size: 13.5px; color: var(--text-dim); max-width: 56ch; }
+
+  /* ---------- Footer ---------- */
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-faint);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  @media (max-width: 620px) {
+    .compare { grid-template-columns: 1fr; }
+    .stories { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="kicker">Internal product notes · not for distribution</div>
+    <h1 class="wordmark">ARIA <span class="sub">Agentic Runtime for Infrastructure Automation</span></h1>
+    <p class="thesis">
+      kagent ships powerful, individually-expert Kubernetes agents. None of them are governed —
+      no read/write boundary worth trusting, no cross-domain synthesis, no way to know if an
+      answer is actually grounded. ARIA is the layer that makes them safe to hand to an engineer.
+    </p>
+    <div class="meta-row">
+      <span class="pill">status: solo PoC</span>
+      <span class="pill">platform: kagent + EKS</span>
+      <span class="pill">stage: diagnosis + orchestration proven</span>
+    </div>
+  </header>
+
+  <section>
+    <div class="eyebrow">The gap</div>
+    <h2>What raw kagent gives you vs. what ARIA adds</h2>
+    <p class="lede">
+      This isn't a rebuild of kagent's specialist agents — it's the governance and orchestration
+      layer sitting on top of them, reusing the ones that are already safe to use directly.
+    </p>
+    <div class="compare">
+      <div class="compare-col raw">
+        <h3>kagent, used directly</h3>
+        <ul>
+          <li>Every specialist is single-domain — cross-domain root cause is manual chat-hopping</li>
+          <li><code>k8s-agent</code> ships with patch / delete / create / exec, live, no approval</li>
+          <li>No verification layer — nothing checks if an answer is actually grounded</li>
+          <li>Config-level tool scoping only — no RBAC backstop underneath it</li>
+        </ul>
+      </div>
+      <div class="compare-col governed">
+        <h3>Through ARIA</h3>
+        <ul>
+          <li>One orchestrator synthesizes findings across specialists into one root-cause narrative</li>
+          <li>Read-only-by-design diagnostic agent, mutating tools stripped entirely</li>
+          <li>Every agent answer graded against its own tool-call evidence, CI-gated</li>
+          <li>Mutating actions (planned) route through an explicit human-approval gate</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="field-note">
+      <div class="fn-label">Field note — confirmed on the live cluster, 2026-07-16</div>
+      <pre>ClusterRole kagent-tools-cluster-admin-role
+  apiGroups: ["*"]  resources: ["*"]  verbs: ["*"]
+  nonResourceURLs: ["*"]  verbs: ["*"]</pre>
+      <p>
+        The shared tool server backing every agent — including the read-only ones — runs with
+        literal cluster-admin by default. The "read-only" guarantee today is config-level only.
+        Fixable natively via the chart's own <code>rbac.readOnly</code> flag; not fixed yet —
+        accepted trade-off for a solo PoC, not production.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Workflow</div>
+    <h2>What an engineer actually does</h2>
+    <p class="lede">
+      One question in, one synthesized answer out — routed across whichever agents actually
+      apply, ARIA's own or kagent's stock ones, with a human checkpoint before anything mutates.
+    </p>
+
+    <div class="flow">
+      <div class="flow-step">
+        <div class="fs-kind">Engineer asks</div>
+        <div class="fs-name">"Why is X broken?"</div>
+        <div class="fs-desc">Natural language, one place to ask</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step aria">
+        <div class="fs-kind">ARIA · orchestrator</div>
+        <div class="fs-name">incident-commander</div>
+        <div class="fs-desc">Routes to specialists, synthesizes one narrative</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-group">
+        <div class="flow-step aria" style="width:150px;">
+          <div class="fs-kind">ARIA · read-only</div>
+          <div class="fs-name">cluster-diagnostics</div>
+        </div>
+        <div class="flow-step stock" style="width:150px;">
+          <div class="fs-kind">kagent · stock</div>
+          <div class="fs-name">observability-agent</div>
+        </div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step gate">
+        <div class="fs-kind">Human gate</div>
+        <div class="fs-name">remediation-with-approval</div>
+        <div class="fs-desc">Proposes a fix, holds for approval — planned, not built</div>
+      </div>
+    </div>
+
+    <div class="flow-legend">
+      <span><i class="swatch aria"></i>ARIA-built, governed</span>
+      <span><i class="swatch stock"></i>kagent stock specialist, reused as-is</span>
+      <span><i class="swatch gate"></i>approval checkpoint</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Requirements, roughly</div>
+    <h2>If this were framed as user stories</h2>
+    <div class="stories">
+      <div class="story">
+        <div class="role">On-call engineer</div>
+        <p>"I want one place to ask why something's broken and get a synthesized answer with
+        evidence — not four chat tabs I have to cross-reference myself."</p>
+      </div>
+      <div class="story">
+        <div class="role">Platform lead</div>
+        <p>"I want every diagnostic agent read-only by default, so giving engineers self-service
+        access doesn't also mean giving them blast radius."</p>
+      </div>
+      <div class="story">
+        <div class="role">Approver</div>
+        <p>"I want to see exactly what an agent wants to change and why, with one click to approve
+        or reject, before anything touches the cluster."</p>
+      </div>
+      <div class="story">
+        <div class="role">Platform owner</div>
+        <p>"I want a CI gate that fails when an agent's answers stop being grounded in real
+        evidence — the same way a test suite fails on a real regression."</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Build status</div>
+    <h2>Where the thesis stands</h2>
+    <div class="ladder">
+      <div class="rung done">
+        <div class="r-status">done</div>
+        <div class="r-title">Read-only diagnosis</div>
+        <div class="r-desc">cluster-diagnostics — same domain as k8s-agent, mutating tools stripped entirely.</div>
+      </div>
+      <div class="rung done">
+        <div class="r-status">done</div>
+        <div class="r-title">Cross-domain orchestration</div>
+        <div class="r-desc">incident-commander — confirmed via live trace to delegate to multiple specialists and synthesize, not just guess.</div>
+      </div>
+      <div class="rung done">
+        <div class="r-status">done</div>
+        <div class="r-title">Trust / eval loop</div>
+        <div class="r-desc">Groundedness-checked CI gate, on a self-hosted in-cluster runner. Found and fixed a real agent bug.</div>
+      </div>
+      <div class="rung next">
+        <div class="r-status">next</div>
+        <div class="r-title">Gated remediation</div>
+        <div class="r-desc">remediation-with-approval — the missing chapter: an agent that can act, held behind a human checkpoint.</div>
+      </div>
+      <div class="rung future">
+        <div class="r-status">later</div>
+        <div class="r-title">Defense in depth</div>
+        <div class="r-desc">Real RBAC boundary underneath the config-level tool scoping — deferred, accepted gap for a solo PoC.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>ARIA · github.com/guoxiangng/aria</span>
+    <span>notes as of 2026-07-21</span>
+  </footer>
+
+</div>
