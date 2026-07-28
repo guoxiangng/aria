@@ -1,0 +1,42 @@
+# Istio ambient mode — the identity/mesh layer for ARIA.
+#
+# WHY ambient (not sidecar): no per-pod proxy injection; a per-node ztunnel provides
+# automatic mTLS + SPIFFE identity + L4 authorization for agent-to-agent (A2A) traffic
+# with zero changes to the agent pods themselves. This is what lets ARIA add a real
+# identity plane on top of the existing fleet without redeploying any agent.
+#
+# WHY the `ambient` umbrella chart (one release) rather than 4 separate charts
+# (base/istiod/cni/ztunnel): a single ArgoCD Application, one pinned version, reproducible
+# in a fresh cluster in one sync. Istio recommends separate charts only when you need
+# independent control-plane/data-plane upgrade cadence — an ops-maturity concern that
+# doesn't apply to this platform.
+#
+# EKS-SPECIFIC NOTES (verified live against this cluster, 2026-07):
+#   - CNI: AWS VPC CNI (aws-node). istio-cni CHAINS onto it (does not replace it) — no CNI
+#     swap needed. Ambient is GA and tested on EKS + VPC CNI.
+#   - POD_SECURITY_GROUP_ENFORCING_MODE=standard is NOT needed here: this cluster does not
+#     use Pod Security Groups (ENABLE_POD_ENI=false, zero SecurityGroupPolicy resources).
+#     That workaround only applies with ENI trunking + pod-attached SGs — re-check if that
+#     ever changes.
+#   - Inter-node HBONE traffic uses port 15008. Managed node groups share the cluster
+#     security group (self-referencing allow-all within the SG), so this is permitted by
+#     default. If ztunnel mTLS between agents on different nodes ever fails, confirm the
+#     node SG allows 15008 node-to-node first.
+#
+# The chart already defaults istiod / ztunnel / cni to the `ambient` profile; this file is
+# intentionally thin — explicit intent + a home for EKS overrides, not a re-statement of
+# chart defaults.
+
+global:
+  # distroless variant is the chart default; pinned here for reproducibility/intent.
+  variant: distroless
+
+istiod:
+  enabled: true
+  profile: ambient
+
+ztunnel:
+  profile: ambient
+
+cni:
+  profile: ambient

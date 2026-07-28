@@ -1,0 +1,36 @@
+# Wave 0 — Istio ambient mesh (identity/mTLS layer). Upstream `ambient` umbrella chart
+# from Istio's official Helm repo + our values from this repo (multi-source, same pattern
+# as kagent). Installs base CRDs + istiod + istio-cni + ztunnel in one release.
+#
+# Independent of kagent: the mesh comes up on its own; the kagent namespace is opted INTO
+# the mesh separately (the `istio.io/dataplane-mode=ambient` label — added when the identity
+# work onboards it, not here). Installing the mesh does nothing to existing agents until then.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istio
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://istio-release.storage.googleapis.com/charts
+      chart: ambient
+      targetRevision: "1.30.3" # pinned; verify latest at istio-release.storage.googleapis.com before bumping
+      helm:
+        valueFiles:
+          - $values/platform/istio/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: istio-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true # istio-system is system infra; no namespace-bootstrap quota/RBAC needed
+      - ServerSideApply=true # Istio CRDs are large — avoid the client-side annotation size limit
