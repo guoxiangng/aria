@@ -1,0 +1,14 @@
+# External Secrets Operator (ESO) — syncs secrets FROM AWS Secrets Manager INTO the
+# cluster as native k8s Secrets, driven by git-committed `ExternalSecret` pointer CRs
+# (which carry no secret material). This is what lets secret provisioning become pure
+# GitOps/CaC — see docs + infra/03-argocd/eso.tf for the AWS backing (Secrets Manager
+# secrets + the Pod Identity IAM role ESO's controller SA assumes).
+#
+# Controller ServiceAccount is `external-secrets` (chart default with this release name),
+# bound to IAM via EKS Pod Identity in Terraform — NO annotation needed here (unlike IRSA),
+# and the ClusterSecretStore needs no auth block (AWS SDK picks up Pod Identity creds).
+#
+# CRDs install by default (installCRDs/crds.create = true) — nothing to override.
+serviceAccount:
+  create: true
+  # name left to chart default -> "external-secrets" (matches the Pod Identity binding).
