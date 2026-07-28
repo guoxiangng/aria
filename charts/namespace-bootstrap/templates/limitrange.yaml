@@ -1,4 +1,5 @@
 {{- range .Values.namespaces }}
+{{- if .limits }}
 ---
 apiVersion: v1
 kind: LimitRange
@@ -19,4 +20,5 @@ spec:
     max:
       cpu: {{ .limits.maxCpu | default "2" | quote }}
       memory: {{ .limits.maxMemory | default "4Gi" | quote }}
+{{- end }}
 {{- end }}

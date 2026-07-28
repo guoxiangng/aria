@@ -12,6 +12,9 @@ metadata:
     {{- if .kyvernoEnforced }}
     platform.aria.dev/kyverno-enforced: "true"
     {{- end }}
+    {{- range $k, $v := .labels }}
+    {{ $k }}: {{ $v | quote }}
+    {{- end }}
   annotations:
     argocd.argoproj.io/sync-wave: "0"
 {{- end }}

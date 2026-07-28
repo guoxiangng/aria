@@ -2,8 +2,17 @@ cluster: aria
 platformTeamGroup: platform-team
 
 namespaces:
-  # NOTE: the `kagent` platform namespace + its Azure secret are owned by Terraform (infra/03-argocd),
-  # since it carries a secret. Tenant/agent namespaces below are pure CaC via ArgoCD.
+  # kagent platform namespace — now pure CaC (moved off Terraform once its secrets went to ESO).
+  # NO quota/limits block on purpose: this is the platform's own namespace with ~20 controller-managed
+  # workloads (postgres, controller, agents, tools) — imposing a ResourceQuota/LimitRange could reject
+  # future agent pods that don't declare matching requests. The chart's quota/limits are opt-in per
+  # namespace (guarded by `{{ if .quota }}` / `{{ if .limits }}`), so omitting them here is intentional.
+  # The `labels` block enrolls it into the Istio ambient mesh (per-agent SPIFFE identity + A2A mTLS).
+  - name: kagent
+    service: kagent
+    env: dev
+    labels:
+      istio.io/dataplane-mode: ambient
 
   # ARIA custom agents (our InfraOps agents, later)
   - name: aria-agents-dev

@@ -1,5 +1,8 @@
 {{- range .Values.namespaces }}
+{{- if .quota }}
 ---
+# Quota is OPT-IN per namespace: tenant/agent namespaces set a `quota:` block; platform
+# namespaces (e.g. kagent, which the platform controls directly) omit it and run unconstrained.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -15,4 +18,5 @@ spec:
     limits.memory: {{ .quota.limitsMemory | quote }}
     persistentvolumeclaims: {{ .quota.pvcs | default 10 | quote }}
     pods: {{ .quota.pods | default 20 | quote }}
+{{- end }}
 {{- end }}

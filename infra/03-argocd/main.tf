@@ -26,23 +26,14 @@ resource "kubectl_manifest" "root_app" {
 }
 
 ###############################################################################
-# kagent platform namespace + Azure OpenAI secret.
-# (Platform-core namespace carrying a secret -> Terraform-owned. Tenant/agent
-#  namespaces are pure CaC via ArgoCD + charts/namespace-bootstrap.)
-###############################################################################
-
-resource "kubernetes_namespace" "kagent" {
-  metadata {
-    name = "kagent"
-    labels = {
-      "managed-by" = "terraform"
-    }
-  }
-}
-
-###############################################################################
-# The kagent-azure-openai and kagent-langfuse-otel Secrets are NO LONGER created
-# here. They moved to External Secrets Operator (see eso.tf + platform/external-secrets/):
+# The kagent namespace is NO LONGER Terraform-owned. Once its secrets moved to ESO
+# (see eso.tf), the namespace was a bare object with no reason to stay in Terraform —
+# it's now managed as pure CaC by ArgoCD via charts/namespace-bootstrap (envs/dev.yaml),
+# which also carries its Istio ambient-mesh enrollment label. Migrated via
+# `terraform state rm` (so the live namespace + everything in it was never deleted).
+#
+# The kagent-azure-openai and kagent-langfuse-otel Secrets are also gone from here —
+# moved to External Secrets Operator (see eso.tf + platform/external-secrets/):
 # the values live in AWS Secrets Manager, and git-committed ExternalSecret pointer CRs
 # (owned by ArgoCD) materialize the in-cluster Secrets. This removes secret material
 # from Terraform state and makes secret provisioning pure GitOps.
