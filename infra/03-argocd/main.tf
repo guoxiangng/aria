@@ -40,31 +40,14 @@ resource "kubernetes_namespace" "kagent" {
   }
 }
 
-resource "kubernetes_secret" "kagent_azure" {
-  metadata {
-    name      = "kagent-azure-openai"
-    namespace = kubernetes_namespace.kagent.metadata[0].name
-  }
-  data = {
-    AZUREOPENAI_API_KEY = var.azure_openai_api_key
-  }
-}
-
 ###############################################################################
-# Langfuse OTel export — kagent's chart exposes no `headers` field for the
-# OTLP exporter, but the underlying Go OTel SDK reads OTEL_EXPORTER_OTLP_HEADERS
-# from the environment as a fallback. We precompute the Basic-Auth header value
-# here (never in git) and inject it via controller.env in platform/kagent/values.yaml.
-# UNVERIFIED until deploy — kagent's controller may not honor the env var; if
-# traces don't land in Langfuse, the fallback is an in-cluster OTel Collector relay.
+# The kagent-azure-openai and kagent-langfuse-otel Secrets are NO LONGER created
+# here. They moved to External Secrets Operator (see eso.tf + platform/external-secrets/):
+# the values live in AWS Secrets Manager, and git-committed ExternalSecret pointer CRs
+# (owned by ArgoCD) materialize the in-cluster Secrets. This removes secret material
+# from Terraform state and makes secret provisioning pure GitOps.
+#
+# The azure_openai_api_key / langfuse_* variables are still used — eso.tf reads them to
+# seed the initial Secrets Manager values (after which Secrets Manager is the source of
+# truth and rotation happens there, not in tfvars).
 ###############################################################################
-
-resource "kubernetes_secret" "kagent_langfuse_otel" {
-  metadata {
-    name      = "kagent-langfuse-otel"
-    namespace = kubernetes_namespace.kagent.metadata[0].name
-  }
-  data = {
-    OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Basic ${base64encode("${var.langfuse_public_key}:${var.langfuse_secret_key}")},x-langfuse-ingestion-version=4"
-  }
-}
