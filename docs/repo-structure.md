@@ -44,19 +44,31 @@ aria/
    agent SA to the `aria-bedrock` IAM role (Pod Identity); the AWS credential chain supplies Bedrock access —
    no static key, no gateway. (Portkey can be re-added later if we want central cost/routing across providers.)
 
+## Identity / mesh layer (`platform/istio/`, `platform/external-secrets/`) — LIVE
+- **Istio ambient mesh** (`platform/istio/`, `gitops/apps/istio.yaml`) — the `ambient` umbrella chart
+  (base + istiod + istio-cni + ztunnel, one release). Every meshed pod gets a per-agent **SPIFFE identity**
+  (`spiffe://cluster.local/ns/<ns>/sa/<sa>`) and automatic A2A **mTLS** via the per-node ztunnel — no
+  sidecars, no pod restarts. The `kagent` namespace is enrolled via the `istio.io/dataplane-mode=ambient`
+  label (set in `envs/dev.yaml`).
+- **AuthorizationPolicy allow-lists** (`platform/istio/policies/`, `gitops/apps/istio-policies.yaml`) —
+  identity-based access control. First one: `cluster-diagnostics` accepts calls ONLY from the
+  incident-commander SPIFFE principal (default-deny for everyone else). Reachability constrained by
+  cryptographic identity, not network position.
+- **External Secrets Operator** (`platform/external-secrets/`, `gitops/apps/external-secrets*.yaml`) —
+  secret material lives in **AWS Secrets Manager** (seeded by `infra/03-argocd/eso.tf`); ESO syncs it into
+  k8s Secrets via git-committed `ExternalSecret` pointer CRs, authenticated by **EKS Pod Identity** (no
+  static keys). Secrets are OUT of Terraform state entirely.
+
+## The kagent namespace migration (done this iteration)
+The `kagent` namespace + its secrets used to be Terraform-owned (`infra/03-argocd`) — the only cluster
+constructs outside GitOps, because a public repo can't hold secret values. ESO dissolved that coupling:
+secrets moved to Secrets Manager, and the namespace moved to pure CaC (`charts/namespace-bootstrap` via
+`envs/dev.yaml`, migrated with `terraform state rm` so the live namespace was never deleted). The chart's
+quota/limitrange are now **opt-in per namespace** so the platform namespace runs unconstrained. Terraform
+now holds only the irreducible bootstrap kernel (ArgoCD install, StorageClass, IAM/Pod-Identity roles).
+
 ## Deferred (not yet, but reserved above)
 - ~~`gitops/` (ArgoCD)~~ — done, live since `infra/03-argocd`.
-- ~~`infra/persistent/` (ECR for BYO agent images)~~ — done, live as `infra/04-persistent`. First
-  consumer: `agents/investigation-loop` (BYO LangGraph agent).
-- **Secrets → ESO + AWS Secrets Manager** (the AIDA pattern). Currently `infra/03-argocd/terraform.tfvars`
-  holds `azure_openai_api_key` / `langfuse_public_key` / `langfuse_secret_key` in plaintext (gitignored, but
-  still local plaintext + raw Terraform state). Target:
-  - Terraform creates the values in **AWS Secrets Manager** instead of a `kubernetes_secret` directly.
-  - **ESO** installed in `platform/operators/` (Helm, like kagent), authenticated via **Pod Identity**
-    (same no-static-key pattern as Bedrock/EBS-CSI — a dedicated IAM role, no keys).
-  - An `ExternalSecret` CR (git-committed, no secret material) per secret tells ESO which Secrets Manager
-    path to sync into which K8s Secret name.
-  - **No change needed in `platform/kagent/values.yaml`** — it already references secrets by name
-    (`kagent-azure-openai`, `kagent-langfuse-otel`); ESO just becomes what populates them.
-  - Payoff: rotation happens in AWS, ESO auto-syncs, no `terraform apply` / redeploy needed.
+- ~~`infra/persistent/` (ECR for BYO agent images)~~ — done, live as `infra/04-persistent`.
+- ~~**Secrets → ESO + AWS Secrets Manager**~~ — DONE (see the identity/mesh section above).
 - `platform/operators/` cert-manager — only when we need TLS beyond the EKS-issued cert.
