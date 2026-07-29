@@ -1,0 +1,27 @@
+# Wave 1 — Istio identity/authz policies (AuthorizationPolicy allow-lists governing which
+# agent can call which). Separate from the wave-0 mesh install so policies apply only after
+# the CRDs exist. Directory source; new policies drop into platform/istio/policies/.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: istio-policies
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guoxiangng/aria.git
+    targetRevision: main
+    path: platform/istio/policies
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent # default ns for policies that don't set their own
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true

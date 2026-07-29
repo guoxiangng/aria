@@ -1,0 +1,33 @@
+# Identity-based allow-list for cluster-diagnostics.
+#
+# An Istio AuthorizationPolicy with action ALLOW makes its target DEFAULT-DENY: only
+# requests whose mTLS peer identity (SPIFFE, derived from the caller's ServiceAccount)
+# matches a rule are permitted; everything else is refused at the node ztunnel — before
+# the request ever reaches the agent.
+#
+# cluster-diagnostics is a read-only leaf agent; the ONLY workload that legitimately calls
+# it is the incident-commander orchestrator (verified empirically from ztunnel access logs —
+# no other agent, not even the kagent controller, connects to it; A2A delegation is direct
+# pod-to-pod, not proxied). So the allow-list is exactly one identity.
+#
+# This is the identity plane doing real work: reachability is constrained by *who you
+# cryptographically are*, not by network position. A pod that can route to the port but
+# isn't this principal (a future rogue agent, an unauthenticated port-forward) is blocked.
+#
+# NOTE: kubelet health probes are exempted by ambient (they bypass ztunnel enforcement),
+# so this does not affect liveness/readiness. Verified: the pod stays Ready after apply.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: cluster-diagnostics-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cluster-diagnostics
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/kagent/sa/incident-commander
