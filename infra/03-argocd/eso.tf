@@ -1,0 +1,104 @@
+###############################################################################
+# External Secrets Operator (ESO) backing store: AWS Secrets Manager + the IAM
+# identity ESO uses to read it (EKS Pod Identity — no static keys, same pattern
+# as the Bedrock / EBS-CSI roles in infra/02-eks).
+#
+# WHY: moves the kagent secret *material* out of git AND out of Terraform state's
+# long-term ownership into Secrets Manager (the source of truth), so the in-cluster
+# Secret becomes a git-committable `ExternalSecret` pointer (no secret material) that
+# ArgoCD owns. See platform/external-secrets/ + agents-of-record ExternalSecrets.
+#
+# NOTE on seeding: Terraform seeds the initial value here from the same gitignored
+# tfvars vars that currently feed the k8s Secret — so the value passes through TF
+# state once during seeding (it already does today, via kubernetes_secret). After
+# cutover, Secrets Manager is the source of truth and rotation happens there;
+# `ignore_changes` keeps TF from clobbering a rotated value.
+###############################################################################
+
+locals {
+  sm_prefix = "aria" # Secrets Manager path prefix for this platform
+}
+
+# --- Secrets Manager: the two secrets, seeded from existing tfvars vars ---
+
+resource "aws_secretsmanager_secret" "kagent_azure" {
+  name        = "${local.sm_prefix}/kagent-azure-openai"
+  description = "Azure OpenAI API key for kagent agents (consumed via ESO ExternalSecret)."
+}
+
+resource "aws_secretsmanager_secret_version" "kagent_azure" {
+  secret_id = aws_secretsmanager_secret.kagent_azure.id
+  # JSON with keys matching the k8s Secret's keys — ESO extracts by property.
+  secret_string = jsonencode({
+    AZUREOPENAI_API_KEY = var.azure_openai_api_key
+  })
+  lifecycle {
+    ignore_changes = [secret_string] # SM is source of truth post-seed; rotate there, don't let TF revert
+  }
+}
+
+resource "aws_secretsmanager_secret" "kagent_langfuse_otel" {
+  name        = "${local.sm_prefix}/kagent-langfuse-otel"
+  description = "Langfuse OTLP Basic-Auth header for kagent tracing (consumed via ESO ExternalSecret)."
+}
+
+resource "aws_secretsmanager_secret_version" "kagent_langfuse_otel" {
+  secret_id = aws_secretsmanager_secret.kagent_langfuse_otel.id
+  secret_string = jsonencode({
+    OTEL_EXPORTER_OTLP_HEADERS = "Authorization=Basic ${base64encode("${var.langfuse_public_key}:${var.langfuse_secret_key}")},x-langfuse-ingestion-version=4"
+  })
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
+# --- IAM: the role ESO's ServiceAccount assumes via EKS Pod Identity ---
+
+data "aws_iam_policy_document" "eso_pod_identity_trust" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Service"
+      identifiers = ["pods.eks.amazonaws.com"]
+    }
+    actions = ["sts:AssumeRole", "sts:TagSession"]
+  }
+}
+
+resource "aws_iam_role" "eso" {
+  name               = "${var.cluster_name}-external-secrets"
+  assume_role_policy = data.aws_iam_policy_document.eso_pod_identity_trust.json
+}
+
+# Least-privilege: read ONLY the two secrets above (not all of Secrets Manager).
+data "aws_iam_policy_document" "eso_read" {
+  statement {
+    sid       = "ReadKagentSecrets"
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [aws_secretsmanager_secret.kagent_azure.arn, aws_secretsmanager_secret.kagent_langfuse_otel.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "eso_read" {
+  name   = "read-kagent-secrets"
+  role   = aws_iam_role.eso.id
+  policy = data.aws_iam_policy_document.eso_read.json
+}
+
+# --- Pod Identity: bind ESO's controller ServiceAccount to the role ---
+# The SA (external-secrets/external-secrets) is created later by the ArgoCD-managed
+# ESO install; the association binds by name and does not require the SA to exist yet.
+# With Pod Identity, NO annotation on the SA is needed (unlike IRSA) and the
+# ClusterSecretStore needs no auth block — the AWS SDK picks creds up automatically.
+resource "aws_eks_pod_identity_association" "eso" {
+  cluster_name    = var.cluster_name
+  namespace       = "external-secrets"
+  service_account = "external-secrets"
+  role_arn        = aws_iam_role.eso.arn
+}
+
+output "eso_role_arn" {
+  description = "IAM role ESO assumes via Pod Identity to read Secrets Manager."
+  value       = aws_iam_role.eso.arn
+}
