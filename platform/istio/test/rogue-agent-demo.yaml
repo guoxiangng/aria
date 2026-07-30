@@ -1,0 +1,82 @@
+# Rogue-agent deny demo — the faithful test of cluster-diagnostics-allow-list.
+#
+# WHY this exists: the AuthorizationPolicy in ../policies/cluster-diagnostics-authz.yaml is
+# only *believed* to work until something is actually denied over a real in-mesh path. A
+# `kubectl port-forward` test is worthless here — it lands on the target's loopback, which
+# ztunnel does not intercept, so mesh authz never runs (it returns 200 and proves nothing).
+# The only faithful test is a real peer pod, with its own SPIFFE identity, calling over the
+# pod network. That is what this manifest sets up.
+#
+# THE EXPERIMENT: two probe pods, byte-identical containers, differing ONLY in
+# ServiceAccount (hence differing SPIFFE identity). Both live in the ambient-enrolled
+# `kagent` namespace, so both are full mesh members with valid, cryptographic identities.
+#   - authorized-probe  → SA incident-commander → identity IS on the allow-list → expect 200
+#   - rogue-probe        → SA shadow-agent       → valid identity, NOT allow-listed → expect DENY
+# Same request, opposite outcome, only the identity differs. That is the point.
+#
+# EXPECTED DENY SHAPE: the policy is L4 (matches on source principal only, no HTTP rules),
+# so ambient ztunnel enforces it by RESETTING the TCP connection — the rogue curl fails at
+# the connection level (exit 56 "Recv failure: Connection reset by peer" / empty reply),
+# NOT with an HTTP 403. Absence of an HTTP status is the deny.
+#
+# NOT wired into ArgoCD app-of-apps on purpose: a deliberately-rogue workload should not run
+# permanently. Committed for reproducibility; apply manually to run the demo (see run-demo.sh),
+# then `kubectl delete -f rogue-agent-demo.yaml`.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: shadow-agent
+  namespace: kagent
+  labels:
+    aria.dev/demo: rogue-agent
+---
+# The rogue: a valid mesh member (own SPIFFE identity) that nobody allow-listed.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rogue-probe
+  namespace: kagent
+  labels:
+    aria.dev/demo: rogue-agent
+    app.kubernetes.io/name: rogue-probe
+spec:
+  serviceAccountName: shadow-agent
+  restartPolicy: Never
+  containers:
+    - name: curl
+      image: curlimages/curl:8.11.1
+      command: ["sleep", "infinity"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 100  # curlimages/curl's user; numeric so runAsNonRoot can verify it
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
+---
+# The positive control: identical container, but runs as the ONE allow-listed identity.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: authorized-probe
+  namespace: kagent
+  labels:
+    aria.dev/demo: rogue-agent
+    app.kubernetes.io/name: authorized-probe
+spec:
+  serviceAccountName: incident-commander
+  restartPolicy: Never
+  containers:
+    - name: curl
+      image: curlimages/curl:8.11.1
+      command: ["sleep", "infinity"]
+      securityContext:
+        allowPrivilegeEscalation: false
+        runAsNonRoot: true
+        runAsUser: 100  # curlimages/curl's user; numeric so runAsNonRoot can verify it
+        capabilities:
+          drop: ["ALL"]
+        seccompProfile:
+          type: RuntimeDefault
