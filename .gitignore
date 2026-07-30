@@ -41,5 +41,8 @@ COMMANDS.md
 # Local eval tooling (npm install --no-save promptfoo)
 node_modules/
 
-# Product-page drafts — kept private/local, not published to the public repo
-site/
+# Product-page drafts — kept private/local, EXCEPT the published page (index.html),
+# which is served publicly via GitHub Pages (see .github/workflows/pages.yml) and
+# linked from the portfolio site. Other drafts (product-notes.html, README) stay local.
+site/*
+!site/index.html
