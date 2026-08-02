@@ -1,0 +1,40 @@
+# Wave 1 — Agent Substrate control + data plane (ate-system).
+#
+# VENDORED chart (platform/substrate/vendor/substrate), NOT the upstream OCI chart, because:
+#   1. the upstream chart hardcodes a 6-node valkey in its init job (no value overrides it), and
+#   2. its JWT bootstrap uses Helm `lookup` to reuse cert material, which returns empty under
+#      ArgoCD's `helm template` -> certs would churn every sync.
+# The vendored copy parameterizes valkey (3 masters/0 replicas) and we disable the chart's
+# bootstrap (values: auth.jwt.bootstrap.enabled=false) — cert material is supplied via ESO by
+# the substrate-config app (wave 0). See platform/substrate/vendor/PATCH.md + README.md.
+#
+# Multi-source (same repo twice): #1 exposes the repo as $values, #2 renders the vendored chart.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: substrate
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1" # after substrate-crds + substrate-config (wave 0)
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      path: platform/substrate/vendor/substrate
+      helm:
+        valueFiles:
+          - $values/platform/substrate/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ate-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

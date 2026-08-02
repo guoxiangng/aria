@@ -1,5 +1,9 @@
 # ARIA — Repo Structure & Layering
 
+> **The layering law** — where anything is defined and how it deploys (Terraform=AWS only,
+> ArgoCD=all Kubernetes, no manual-helm third layer) — is its own doc: **[`deploy-layers.md`](deploy-layers.md)**.
+> This file is the folder map; that file is the rule.
+
 Single repo, but organized by the same **layers** the AIDA-on-OpenShift setup splits across three repos
 (`cak-platform-cac`, `aida-ckn-deploy`, `aida-platform-agent-configs`). We keep their proven abstractions;
 we don't need their repo boundaries.

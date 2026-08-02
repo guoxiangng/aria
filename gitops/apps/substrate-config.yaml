@@ -1,0 +1,30 @@
+# Wave 0 — Substrate cert material as ESO ExternalSecrets (ateapi-tls, ateapi-ca, session
+# pools) in ate-system. Must land before the substrate chart (wave 1) so ate-api/ate-controller/
+# atenet-router find their mounted Secrets on first start. Material lives in Secrets Manager
+# (infra/03-argocd/substrate-certs.tf); these are git-committable pointers with no secret data.
+# Same pattern as gitops/apps/external-secrets-config.yaml.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: substrate-config
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guoxiangng/aria.git
+    targetRevision: main
+    path: platform/substrate/manifests
+    directory:
+      recurse: false
+      include: "*.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ate-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

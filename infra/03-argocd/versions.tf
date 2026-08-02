@@ -6,6 +6,7 @@ terraform {
     helm       = { source = "hashicorp/helm", version = "~> 2.16" }
     kubernetes = { source = "hashicorp/kubernetes", version = "~> 2.33" }
     kubectl    = { source = "alekc/kubectl", version = "~> 2.1" }
+    tls        = { source = "hashicorp/tls", version = "~> 4.0" }
   }
 }
 

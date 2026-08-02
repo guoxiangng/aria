@@ -1,0 +1,36 @@
+# ARIA's Agent Substrate probe — a deliberately minimal agent whose ONLY purpose is to validate
+# the Substrate actor runtime on EKS: it schedules onto the shared WorkerPool as an actor
+# (not its own Deployment), gets snapshotted to object storage when idle, and resumes on the
+# next call. Tier 0 (spike). NOT part of the InfraOps fleet — safe to delete once the
+# suspend/resume learning is captured (see docs/spec-agent-substrate-integration.md §9).
+#
+# Contrast with the fleet agents (kind: Agent): those run as always-on pods. This is
+# kind: SandboxAgent + platform: substrate — the same declarative agent spec, different runtime
+# substrate. runtime MUST be `go` (Substrate's ADK runtime; python is not supported on it).
+apiVersion: kagent.dev/v1alpha2
+kind: SandboxAgent
+metadata:
+  name: substrate-probe
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "0-spike"
+spec:
+  type: Declarative
+  platform: substrate
+  description: |
+    Minimal probe agent validating Agent Substrate suspend/resume on EKS. Runs as an actor on
+    the shared kagent-default WorkerPool (gVisor), not as an always-on Deployment.
+  declarative:
+    runtime: go
+    modelConfig: default-model-config # existing Azure OpenAI config (do not create a new one)
+    systemMessage: |
+      You are substrate-probe, a minimal test agent that exists only to validate Agent Substrate
+      suspend/resume on ARIA's EKS cluster. Answer in one short sentence. When asked who you are,
+      say: "I am substrate-probe, a Go declarative agent running inside a gVisor actor on Agent
+      Substrate."
+  substrate:
+    workerPoolRef:
+      name: kagent-default
+    # snapshotsConfig left default (chart routes actor snapshots to the bundled rustfs/S3 store,
+    # bucket ate-snapshots). Override here if we move to an external S3 bucket later.

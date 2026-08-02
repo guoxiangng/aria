@@ -19,6 +19,29 @@ controller:
         secretKeyRef:
           name: kagent-langfuse-otel
           key: OTEL_EXPORTER_OTLP_HEADERS
+  # Agent Substrate (density/serverless actor runtime). Requires the `ate-system` control
+  # plane (see platform/substrate/ + gitops/apps/substrate*.yaml). When enabled, the controller
+  # translates SandboxAgent CRs (platform: substrate) into ActorTemplates scheduled on the
+  # WorkerPool below — instead of one always-on Deployment per agent. Existing Declarative/BYO
+  # agents (the fleet) are unaffected; this is additive.
+  substrate:
+    enabled: true
+    ateApiEndpoint: "dns:///api.ate-system.svc:443"      # `api` svc, port 443 (verified live)
+    atenetRouterURL: "http://atenet-router.ate-system.svc:80"
+    ateApiInsecure: true   # spike: skip ate-api server-cert verify. Harden later with the
+                           # chart's ateapi-ca ConfigMap (JWT-mode bootstrap serverCert).
+    defaultWorkerPool:
+      namespace: kagent
+      name: kagent-default
+
+# --- Agent Substrate WorkerPool: shared "platform capacity" the chart creates (not owned by
+# any single agent). Actors (SandboxAgents) are scheduled onto these worker pods. One replica
+# is enough for the lab. ateomImage is the gVisor worker image (verified: tag exists in GHCR). ---
+substrateWorkerPool:
+  create: true
+  name: kagent-default
+  replicas: 1
+  ateomImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.0.10
 
 # --- UI (set replicas: 0 to save resources if you only use CLI/API) ---
 ui:
