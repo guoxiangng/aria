@@ -25,7 +25,11 @@ controller:
   # WorkerPool below — instead of one always-on Deployment per agent. Existing Declarative/BYO
   # agents (the fleet) are unaffected; this is additive.
   substrate:
-    enabled: true
+    # PARKED (2026-08-03): control plane is healthy, but the controller can't reach ate-api on :443
+    # (ate-api serves internally but isn't reachable pod-to-pod — a Substrate atenet/networking
+    # question, NOT the mesh/cert, both ruled out). Flipping this true makes the controller
+    # crashloop. Re-enable once ate-api reachability on EKS is solved. See platform/substrate/README.md.
+    enabled: false
     ateApiEndpoint: "dns:///api.ate-system.svc:443"      # `api` svc, port 443 (verified live)
     atenetRouterURL: "http://atenet-router.ate-system.svc:80"
     ateApiInsecure: true   # spike: skip ate-api server-cert verify. Harden later with the
