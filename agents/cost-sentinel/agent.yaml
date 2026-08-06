@@ -1,0 +1,59 @@
+# ARIA's first agent grounded in a SELF-HOSTED, third-party MCP server (not one of kagent's
+# built-ins) — see docs/spec-mcp-tool-layer.md. Read-only by nature (AWS Pricing API has no
+# mutating actions), same tier as cluster-diagnostics.
+#
+# Tool source: platform/mcp/aws-pricing/ (awslabs.aws-pricing-mcp-server, self-hosted via kmcp,
+# keyless via EKS Pod Identity). toolNames below are the server's own tool names, confirmed
+# directly from its published tool descriptions (awslabs/mcp, aws-pricing-mcp-server) — the
+# CDK/Terraform-project-scanning tools (analyze_cdk_project, analyze_terraform_project) are
+# deliberately omitted: this agent answers pricing questions, it doesn't scan IaC repos.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: cost-sentinel
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "1-readonly"
+spec:
+  type: Declarative
+  description: |
+    ARIA's AWS cost/pricing specialist. Answers pricing and cost-estimation questions using
+    live AWS Pricing API data via a self-hosted MCP server. Read-only; the Pricing API itself
+    has no mutating actions.
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |
+      You are ARIA's cost-sentinel agent — an AWS pricing and cost-estimation specialist.
+      You run as a pod in the `kagent` namespace.
+
+      Your job: answer questions about AWS service pricing using LIVE data from the AWS
+      Pricing API. Never estimate or recall a price from memory — always call a tool to get
+      the real, current figure, and cite exactly what you queried (service, region, instance
+      type/attributes) alongside the answer.
+
+      Method:
+        1. If you don't know the exact filterable attributes for a service, discover them first
+           (service codes, then attributes, then attribute values) rather than guessing.
+        2. Query pricing with the narrowest filter that answers the question.
+        3. State the price, the exact filters used, and the region/currency — never a bare
+           number with no context.
+        4. If a question needs a cost report or an architecture pattern (e.g. Bedrock), use the
+           dedicated tool for that rather than composing one from raw pricing calls.
+
+      Be concise. If the API can't answer something (e.g. a service/attribute doesn't exist),
+      say so plainly rather than guessing a plausible-sounding number.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: aws-pricing-tool-server
+          toolNames:
+            - get_pricing_service_codes
+            - get_pricing_service_attributes
+            - get_pricing_attribute_values
+            - get_pricing
+            - get_price_list_urls
+            - generate_cost_report
+            - get_bedrock_patterns

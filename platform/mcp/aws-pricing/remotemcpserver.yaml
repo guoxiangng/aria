@@ -1,0 +1,21 @@
+# Registers the self-hosted aws-pricing MCPServer (mcpserver.yaml, same folder) with kagent,
+# so Agent CRs can reference it by name in `tools[].mcpServer`. Mirrors the shape of the
+# existing built-in registration (`kagent-tool-server`, installed by kagent's own chart):
+# same apiVersion, same STREAMABLE_HTTP protocol, same /mcp path suffix — kmcp's transport
+# adapter (see mcpserver.yaml's header comment) serves exactly that protocol on the Service
+# it creates, which is named identically to the MCPServer resource ("aws-pricing") on the
+# port declared there (3000).
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: aws-pricing-tool-server
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  description: Self-hosted AWS Pricing MCP server (awslabs.aws-pricing-mcp-server via kmcp)
+  protocol: STREAMABLE_HTTP
+  url: http://aws-pricing.kagent:3000/mcp
+  timeout: 30s
+  sseReadTimeout: 5m0s
+  terminateOnClose: true

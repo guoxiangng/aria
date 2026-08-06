@@ -1,0 +1,40 @@
+# Self-hosts AWS's OWN official MCP server (awslabs/mcp) in-cluster via kmcp — flavor (b)
+# from docs/spec-mcp-tool-layer.md ("third-party, self-hosted", not a custom-built server).
+#
+# How this resolves the spec's central open question ("does kmcp actually host an EXISTING
+# third-party server, or only scaffold ones you write yourself?"): confirmed by reading kmcp's
+# controller source directly (transportadapter_translator.go, kmcp v0.3.0):
+#   - `cmd: uvx` + no `image` -> kmcp auto-injects `ghcr.io/astral-sh/uv:debian` as the runtime
+#     image. No image to build.
+#   - `transportType: stdio` -> kmcp injects an init container that installs a transport-adapter
+#     binary, bridging the server's stdio protocol to Streamable HTTP automatically. No custom
+#     stdio->HTTP bridge needed.
+#   - No `serviceAccountName` set -> kmcp creates its own ServiceAccount NAMED AFTER THIS
+#     RESOURCE ("aws-pricing"), in this namespace. That's the exact (namespace, name) pair
+#     `infra/02-eks/mcp-tools.tf` binds EKS Pod Identity to for keyless AWS auth.
+#
+# ORDERING: this CR must sync/exist BEFORE `terraform apply` on mcp-tools.tf, since Pod
+# Identity binds to a ServiceAccount kmcp only creates once this reconciles.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: aws-pricing
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  deployment:
+    cmd: uvx
+    args:
+      - awslabs.aws-pricing-mcp-server@latest
+    port: 3000
+    env:
+      FASTMCP_LOG_LEVEL: ERROR
+      AWS_REGION: ap-southeast-1
+      # Deliberately NO AWS_PROFILE / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY here.
+      # boto3's default credential chain finds the EKS Pod Identity credentials
+      # automatically via AWS_CONTAINER_CREDENTIALS_FULL_URI, which the Pod Identity
+      # webhook injects once the association (mcp-tools.tf) exists — same no-static-key
+      # pattern as every other AWS-facing workload in ARIA (Bedrock, EBS CSI).
+  transportType: stdio
+  stdioTransport: {}

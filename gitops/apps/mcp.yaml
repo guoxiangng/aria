@@ -1,0 +1,25 @@
+# Wave 3 — self-hosted MCP tool servers (platform/mcp/), after kagent (wave 1) + models
+# (wave 2) exist, before agents (wave 5) that consume them. New servers drop into
+# platform/mcp/<name>/ alongside their MCPServer + RemoteMCPServer manifests.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mcp
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guoxiangng/aria.git
+    targetRevision: main
+    path: platform/mcp
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kagent
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
