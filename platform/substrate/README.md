@@ -83,6 +83,28 @@ Fixed with one additive rule in `infra/02-eks/main.tf`
 the node SG) — confirmed live: cross-node TCP to ate-api:443 failed before, succeeded after,
 no other change. AWS-layer, so it's in Terraform per `docs/deploy-layers.md`.
 
+## Parked: golang-adk runtime image registry mismatch (upstream kagent bug)
+
+With the SG fix above, the pipeline runs all the way through: controller stable (no crashloop),
+WorkerPool created, `substrate-probe`'s SandboxAgent reaches `Accepted: True`. It stops at
+`Ready: False` / `ActorTemplateNotReady` — kagent 0.9.10's controller tries to pull the Go ADK
+actor-runtime image from `cr.kagent.dev/kagent-dev/kagent/golang-adk` (its default registry), but
+that path is genuinely unpublished there (`404 NAME_UNKNOWN`, confirmed directly against the
+registry, outside the cluster). The image **does** exist on `ghcr.io/kagent-dev/kagent/golang-adk`
+(confirmed `401` — exists, needs auth to list tags) — kagent 0.9.10 has no values override to point
+at it; the reference is baked into the controller binary for this feature.
+
+**The fix exists, just not at our pinned version:** kagent **0.10.0-beta** (beta11 checked) adds an
+explicit `controller.goAgentImage.{registry,repository,tag}` override — setting
+`registry: ghcr.io` there would resolve it. Deliberately NOT applied: bumping the *shared* kagent
+chart to a beta affects the whole fleet (`cluster-diagnostics`, `incident-commander`,
+`investigation-loop`), not just this spike. Revisit once kagent 0.10.0 goes stable, or accept the
+beta + fleet-wide regression risk consciously if picked up sooner.
+
+**Current state:** `controller.substrate.enabled: true`, control plane + WorkerPool healthy, probe
+`Accepted` but not `Ready` — parked exactly here, fully documented, nothing further to debug from
+ARIA's side.
+
 ## Identity-model note (tension with ARIA's SPIFFE/Istio plane)
 
 Substrate actors are **not their own Pods** — many actors share a small set of WorkerPool pods,
