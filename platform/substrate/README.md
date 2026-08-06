@@ -67,6 +67,22 @@ Verify: `kubectl -n ate-system get pods` (all Running/Completed); valkey healthy
 `cluster_size:3`); ate-api serving (`kubectl -n ate-system logs deploy/ate-api-server-deployment`
 shows `Fetched JWK set` from the EKS OIDC issuer).
 
+## EKS gotcha — node security group blocks cross-node privileged ports by default
+
+After the control plane + ESO certs were healthy, the substrate-enabled kagent controller still
+couldn't reach `ate-api` — dialing `dns:///api.ate-system.svc:443` timed out. It was **not** the
+mesh and **not** the certs (both directly ruled out: same result meshed and non-meshed, same
+result from a plain non-meshed pod in `ate-system` itself). Root cause: the
+`terraform-aws-modules/eks` module's node security group **only opens ephemeral ports
+(1025-65535) between nodes** by default — any pod serving a privileged port like 443 is
+unreachable from a pod on a *different* node until you add a rule for it. `ate-api` was ARIA's
+first workload to serve on such a port cross-node, so nothing had exposed this before.
+
+Fixed with one additive rule in `infra/02-eks/main.tf`
+(`node_security_group_additional_rules.ingress_self_443`, self-referencing tcp/443 ingress on
+the node SG) — confirmed live: cross-node TCP to ate-api:443 failed before, succeeded after,
+no other change. AWS-layer, so it's in Terraform per `docs/deploy-layers.md`.
+
 ## Identity-model note (tension with ARIA's SPIFFE/Istio plane)
 
 Substrate actors are **not their own Pods** — many actors share a small set of WorkerPool pods,

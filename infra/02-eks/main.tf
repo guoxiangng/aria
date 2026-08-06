@@ -44,6 +44,22 @@ module "eks" {
       desired_size = var.node_desired_size
     }
   }
+
+  # Module default only opens ephemeral ports (1025-65535) between nodes on the node
+  # security group's self-referencing rule. Any pod serving on a privileged port needs an
+  # explicit rule here to be reachable from a pod on a DIFFERENT node. Found via Agent
+  # Substrate's ate-api (port 443): cross-node calls timed out at the TCP layer even though
+  # ate-api itself was healthy and listening — not the mesh, not certs, this SG default.
+  node_security_group_additional_rules = {
+    ingress_self_443 = {
+      description = "Node-to-node pod traffic on 443 (e.g. Substrate ate-api gRPC)"
+      protocol    = "tcp"
+      from_port   = 443
+      to_port     = 443
+      type        = "ingress"
+      self        = true
+    }
+  }
 }
 
 ###############################################################################
