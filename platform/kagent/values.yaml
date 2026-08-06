@@ -51,6 +51,29 @@ substrateWorkerPool:
 ui:
   replicas: 1
 
+# --- Built-in agents: disable the ones this platform has no substrate for. ---
+# The chart ships ~10 ready-made agents, each its own Deployment (a pod + CPU request). On a
+# two-node lab that density is what actually bites: enabling pgvector wedged the Postgres pod
+# into Pending ("Insufficient cpu" on one node, "Too many pods" on the other) until this was
+# trimmed. These specific agents are dead weight HERE — ARIA runs AWS VPC CNI (no Cilium),
+# has no kgateway and no Argo Rollouts, the grafana MCP has never registered (ACCEPTED=False,
+# it points at a grafana.kagent service that doesn't exist), and querydoc is a docs-retrieval
+# MCP nothing in the fleet queries. Re-enable any of them the day its backing system exists.
+cilium-policy-agent:
+  enabled: false
+cilium-manager-agent:
+  enabled: false
+cilium-debug-agent:
+  enabled: false
+kgateway-agent:
+  enabled: false
+argo-rollouts-agent:
+  enabled: false
+grafana-mcp:
+  enabled: false
+querydoc:
+  enabled: false
+
 # --- Database: bundled PostgreSQL is dev-only (fine for the lab) ---
 database:
   postgres:
