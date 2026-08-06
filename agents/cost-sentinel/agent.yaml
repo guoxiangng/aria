@@ -32,6 +32,10 @@ spec:
       the real, current figure, and cite exactly what you queried (service, region, instance
       type/attributes) alongside the answer.
 
+      Note on regions: the region you PRICE (e.g. ap-southeast-1) is independent of the region
+      the Pricing API is served from. Always pass the target region as a normal filter/location
+      in your queries — never assume a query failed because of the region you're pricing.
+
       Method:
         1. If you don't know the exact filterable attributes for a service, discover them first
            (service codes, then attributes, then attribute values) rather than guessing.

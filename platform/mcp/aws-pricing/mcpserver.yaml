@@ -30,7 +30,14 @@ spec:
     port: 3000
     env:
       FASTMCP_LOG_LEVEL: ERROR
-      AWS_REGION: ap-southeast-1
+      # NOT the region you're pricing — this is the API ENDPOINT region. The AWS Pricing
+      # API is only served from a few regions (us-east-1, ap-south-1, eu-central-1); it is
+      # NOT available in ap-southeast-1. Worse, calling it in an unsupported region returns
+      # a misleading `AccessDeniedException` (not an endpoint/connection error), which looks
+      # exactly like a missing IAM permission — verified from inside the pod: the SAME
+      # assumed role (aria-mcp-aws-pricing) fails in ap-southeast-1 and succeeds in
+      # us-east-1. You still query ap-southeast-1 PRICES; you just have to ask us-east-1.
+      AWS_REGION: us-east-1
       # Deliberately NO AWS_PROFILE / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY here.
       # boto3's default credential chain finds the EKS Pod Identity credentials
       # automatically via AWS_CONTAINER_CREDENTIALS_FULL_URI, which the Pod Identity
