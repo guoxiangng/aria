@@ -1,0 +1,36 @@
+# HITL demo target — a deliberately-broken workload for cluster-remediation to fix.
+#
+# A Deployment scaled to 0 replicas (i.e. "down"). Ask cluster-remediation to bring it back to 1;
+# it will diagnose, then PAUSE at the k8s_scale call for human approval (see ./README.md).
+#
+# Intentionally NOT wired into the ArgoCD app-of-apps — this is a demo fixture, applied by hand.
+# Reset to 0 replicas (`kubectl -n aria-demo scale deploy/broken-app --replicas=0`) to re-run.
+# Uses registry.k8s.io/pause (tiny, always pullable) so "recovered" == pod Running 1/1.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aria-demo
+  labels:
+    aria.dev/purpose: hitl-remediation-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: broken-app
+  namespace: aria-demo
+  labels:
+    app: broken-app
+    aria.dev/purpose: hitl-remediation-demo
+spec:
+  replicas: 0            # "broken": down. cluster-remediation should scale this to 1 (with approval).
+  selector:
+    matchLabels:
+      app: broken-app
+  template:
+    metadata:
+      labels:
+        app: broken-app
+    spec:
+      containers:
+        - name: pause
+          image: registry.k8s.io/pause:3.9

@@ -1,0 +1,86 @@
+# ARIA's first MUTATING agent — Tier 2 (see docs/platform-proposal-infraops-agents.md).
+#
+# The deliberate mirror of cluster-diagnostics (Tier 1, read-only): this agent CAN change the
+# cluster, but only through a curated, REVERSIBLE toolset, and every mutation is gated behind
+# kagent's human-in-the-loop approval (`requireApproval`). It is the read-only -> write seam.
+#
+# SAFETY DESIGN (three independent layers):
+#   1. Curated toolset — it is given ONLY k8s_rollout (restart) + k8s_scale (replica count),
+#      both reversible/low-blast-radius. It is deliberately NOT given k8s_delete_resource,
+#      k8s_apply_manifest, k8s_create_resource, or k8s_patch_* — no destructive or broad tools.
+#   2. requireApproval — both mutating tools pause for an explicit human approve/reject before
+#      they execute (verified: the field description is "execution pauses and the user is
+#      prompted to approve or reject the call"). Read tools stay un-gated for fast diagnosis.
+#   3. System prompt — instructs minimal, reversible, one-step fixes with a verify-after.
+#
+# HONEST LIMITATION (do not hide this — see the proposal doc): the tools execute via the
+# kagent-tools ServiceAccount, which is bound to CLUSTER-ADMIN
+# (kagent-tools-cluster-admin-rolebinding, verified live). So layers 1-3 constrain the AGENT's
+# *intent*, not the executor's *authority*: approval is the only thing between the LLM and a
+# cluster-admin action. Scoping that tool-server RBAC down to rollout/scale on specific
+# namespaces is the real next step (the authorization frontier above the identity plane).
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: cluster-remediation
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "2-remediation"
+spec:
+  type: Declarative
+  description: |
+    ARIA's Tier-2 remediation agent. Can restart (k8s_rollout) and scale (k8s_scale)
+    workloads to fix common failures — but ONLY with human approval on every mutation,
+    and with no destructive tools (no delete/apply/create/patch). The mutating counterpart
+    to the read-only cluster-diagnostics agent.
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |
+      You are ARIA's cluster-remediation agent — a Kubernetes SRE that can make a SMALL,
+      REVERSIBLE set of changes to fix common workload failures. You run as a pod in the
+      `kagent` namespace. When a tool asks for "your" namespace, that value is `kagent` —
+      never guess it from a service or agent name in the question.
+
+      Your capabilities are deliberately narrow:
+        - You can RESTART a workload (k8s_rollout) and CHANGE ITS REPLICA COUNT (k8s_scale).
+        - You have read tools to diagnose first (get/describe resources, events, logs, yaml).
+        - You CANNOT delete, create, apply, or patch anything. If a fix needs those, explain
+          what the fix would be and stop — do not attempt it.
+
+      Every restart or scale requires explicit human approval before it runs. That is by
+      design; do not treat a rejection as an error.
+
+      Method for any remediation request:
+        1. Diagnose using the read tools — identify the specific failing resource and the
+           evidence (events, logs, replica status).
+        2. Decide the MINIMAL, reversible action that addresses the root cause. Prefer the
+           smallest change; never scale or restart more than necessary.
+        3. State clearly, before acting: what you will do, to which exact resource, and why —
+           then invoke the tool (which will pause for approval).
+        4. After the action is approved and runs, VERIFY it worked (re-check state/events) and
+           report the outcome honestly, including if it did not help.
+
+      Be concise. Cite the exact evidence you observed. Never claim you changed something you
+      did not, and never overstate confidence in a fix.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: kagent-tool-server
+          toolNames:
+            # --- read-only: diagnose before acting ---
+            - k8s_get_resources
+            - k8s_describe_resource
+            - k8s_get_events
+            - k8s_get_pod_logs
+            - k8s_get_resource_yaml
+            # --- mutating: reversible only, both gated by requireApproval below ---
+            - k8s_rollout
+            - k8s_scale
+          # HITL: every mutating tool pauses for explicit human approve/reject.
+          # (Each name here MUST also appear in toolNames above.)
+          requireApproval:
+            - k8s_rollout
+            - k8s_scale
