@@ -1,0 +1,28 @@
+# Embedding ModelConfig — required by kagent's INTERNAL long-term memory.
+#
+# An agent's `spec.declarative.memory.modelConfig` must point at a ModelConfig whose provider
+# supplies EMBEDDINGS (not chat): memory vectorizes the facts it stores, so the chat model
+# (`default-model-config`, gpt-5.4-mini) cannot be used here. This is a separate Azure
+# deployment (text-embedding-3-large) with its own API key on the same Azure resource.
+#
+# Pairs with database.postgres.vectorEnabled + the pgvector Postgres image (see values.yaml):
+# vectors land in kagent's own bundled Postgres, NOT in Pinecone — the standalone `Memory` CR's
+# only provider is Pinecone (external SaaS), which this path deliberately avoids.
+#
+# The referenced Secret holds the key and is NOT in git. Provision it via ESO
+# (platform/external-secrets/manifests/externalsecret-kagent-azure-embedding.yaml +
+# infra/03-argocd/eso.tf), which is the durable path.
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: azure-embedding
+  namespace: kagent
+spec:
+  provider: AzureOpenAI
+  model: text-embedding-3-large
+  apiKeySecret: kagent-azure-embedding
+  apiKeySecretKey: AZUREOPENAI_EMBEDDING_API_KEY
+  azureOpenAI:
+    azureEndpoint: "https://oai-ladp-ncs-4.openai.azure.com/"
+    azureDeployment: text-embedding-3-large
+    apiVersion: "2024-12-01-preview"

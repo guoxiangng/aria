@@ -14,7 +14,7 @@ spec:
     targetRevision: main
     path: platform/kagent
     directory:
-      include: "modelconfig-bedrock.yaml" # apply only the CRs, not values.yaml/README
+      include: "modelconfig-*.yaml" # apply only the ModelConfig CRs, not values.yaml/README
   destination:
     server: https://kubernetes.default.svc
     namespace: kagent
