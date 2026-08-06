@@ -54,10 +54,25 @@ ui:
 # --- Database: bundled PostgreSQL is dev-only (fine for the lab) ---
 database:
   postgres:
+    # Enables the pgvector migration, which kagent's INTERNAL long-term memory depends on
+    # (agent `spec.declarative.memory`). Note this is a different feature from the standalone
+    # `Memory` CR, whose only provider is Pinecone (external SaaS) — the internal path keeps
+    # memory self-hosted in the bundled Postgres instead. Ships disabled upstream.
+    vectorEnabled: true
     bundled:
       enabled: true
       storage: 500Mi
       # storageClassName: gp2   # EKS default; leave empty to use cluster default
+      # The chart's default bundled image is stock `postgres` (docker.io/library/postgres:18.3-alpine),
+      # which does NOT carry the pgvector extension — verified live: `vector` wasn't even listed in
+      # pg_available_extensions, so `vectorEnabled: true` alone cannot work with the default image.
+      # pgvector/pgvector is the official pgvector build of the same Postgres major version (18), so
+      # the existing PVC's data directory stays compatible — this is an image swap, not a migration.
+      image:
+        registry: docker.io
+        repository: pgvector
+        name: pgvector
+        tag: "pg18"
 
 # --- LLM providers ---
 # Azure OpenAI via the chart's providers block (known-good) -> becomes `default-model-config`.
