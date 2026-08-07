@@ -75,8 +75,46 @@ kubectl get sandboxagent agent-sandbox-probe -n kagent    # Accepted / Ready
 kubectl get sandbox -A                                    # the actual Sandbox the agent runs in
 ```
 
-## Status
+## Status — deployed; probe blocked by a kagent 0.9.10 bug (2026-08-07)
 
-Codified and validated locally; not yet rolled out at time of writing. Update this section with the
-live outcome (and any EKS-specific findings — there are no EKS-specific upstream docs, same gap
-Substrate had) once it's applied.
+**Deployed and healthy:** ArgoCD app `Synced/Healthy`, controller `1/1 Running`, all 4 CRDs
+installed, `v1alpha1 served=true` confirmed live. No EKS-specific problems at all — it installed
+cleanly on stock EKS (unlike Substrate, which needed a node-SG fix). The live fleet was unaffected
+(all agents stayed `Ready`), confirming the CRD install didn't destabilize the shared controller.
+
+**The compatibility premise was validated.** kagent 0.9.10 successfully reached the v1alpha1 API
+through the conversion webhook — the controller logged the upstream deprecation warning
+(`agents.x-k8s.io/v1alpha1 Sandbox is deprecated; use v1beta1`), proving the call landed. The
+earlier `no matches for kind "SandboxList"` error is gone.
+
+**But the probe fails one layer deeper, inside kagent's own reconciler:**
+
+```
+error listing *v1alpha1.Sandbox: Index with name field:.metadata.owner does not exist
+```
+
+kagent 0.9.10 queries its controller-runtime cache using a field index it never registered — a bug
+in the kagent binary, not fixable from config. No public issue filed upstream.
+
+### Conclusion: kagent 0.9.10 cannot run `SandboxAgent` on EITHER platform
+
+| platform | blocker on kagent 0.9.10 |
+|---|---|
+| `substrate` | `golang-adk` runtime image 404 at 0.9.10's registry path |
+| `agent-sandbox` | unregistered `.metadata.owner` field index (above) |
+
+Both are the same underlying story: **SandboxAgent is a 0.10-line feature.** The release notes make
+this explicit — 0.9.10 shipped only the skeleton (*"add substrate as a subchart"*, *"degrade
+gracefully when ate.dev CRDs are absent"*), while the actual functionality landed across
+0.10.0-beta1→rc1 (*"substrate support for BYO and python runtimes for SandboxAgent"*, *"gate
+SandboxAgent actor readiness"*, *"store session state for declarative sandbox agents"*).
+
+**`v0.10.0-rc1` now exists** (chart published 2026-07-29) — a *release candidate*, materially further
+along than the beta11 that was evaluated and rejected earlier, and it carries the `goAgentImage`
+override that unblocks Substrate too. It bundles substrate `0.0.9` as a subchart (note: ARIA
+currently runs substrate `0.0.10` standalone — version pairing between kagent and substrate has
+mattered historically, so align them deliberately if upgrading).
+
+Upgrading kagent is therefore the single change that would unblock **both** spikes — but it upgrades
+the controller serving the live fleet, so it's a deliberate decision, not a side effect of this work.
+Left un-upgraded here.
