@@ -1,0 +1,46 @@
+# ARIA's Agent Sandbox probe — a minimal agent validating the kubernetes-sigs/agent-sandbox
+# isolation runtime on EKS. Tier 0 (spike). NOT part of the InfraOps fleet.
+#
+# Sibling to agents/substrate-probe/ (which is PARKED — see platform/substrate/README.md). Same
+# `SandboxAgent` kind, different `spec.platform`:
+#   substrate-probe      -> platform: substrate      (density/actor runtime; blocked upstream)
+#   agent-sandbox-probe  -> platform: agent-sandbox  (isolation runtime; kagent's DEFAULT)
+# Keep BOTH as documented reference points; do not delete one to "clean up".
+#
+# Two deliberate choices that avoid the wall the substrate-probe hit:
+#  1. `runtime: python` — kagent's default runtime, and it resolves to the `kagent/app` image, which
+#     IS published (verified: 401=exists on cr.kagent.dev). The `go` runtime resolves to
+#     `golang-adk`, which is NOT published at kagent 0.9.10's registry path (verified: 404) — that's
+#     exactly what blocked substrate-probe. Substrate forced `go`; agent-sandbox allows python.
+#  2. No kagent version bump needed — 0.9.10 requests agents.x-k8s.io/v1alpha1, still served by
+#     agent-sandbox v0.5.4 via its conversion webhook (see platform/agent-sandbox/vendor/PROVENANCE.md).
+apiVersion: kagent.dev/v1alpha2
+kind: SandboxAgent
+metadata:
+  name: agent-sandbox-probe
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "0-spike"
+spec:
+  type: Declarative
+  platform: agent-sandbox
+  description: |
+    Minimal probe agent validating the kubernetes-sigs/agent-sandbox isolation runtime on ARIA's
+    EKS cluster. Runs inside a Sandbox (isolated, stable identity) rather than a plain agent pod.
+  declarative:
+    runtime: python # see note 1 above — do NOT switch to `go` without re-checking the image exists
+    modelConfig: default-model-config # existing Azure OpenAI config; don't introduce a new variable
+    systemMessage: |
+      You are agent-sandbox-probe, a minimal test agent that exists only to validate the Agent
+      Sandbox isolation runtime on ARIA's EKS cluster. Answer in one short sentence. When asked who
+      you are, say: "I am agent-sandbox-probe, a Python declarative agent running inside a
+      kubernetes-sigs Agent Sandbox."
+  sandbox:
+    # Agent Sandbox is SECURE BY DEFAULT: outbound network is DENIED unless allow-listed here
+    # (confirmed via the CRD: "When unset or when allowedDomains is empty, outbound access is denied
+    # by default"). The agent must reach the Azure OpenAI endpoint from platform/kagent/values.yaml
+    # or every LLM call fails — this is the isolation boundary doing its job, not a bug.
+    network:
+      allowedDomains:
+        - oai-ladp-ncs-4.openai.azure.com

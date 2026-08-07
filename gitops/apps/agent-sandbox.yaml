@@ -1,0 +1,47 @@
+# Wave 0 — Agent Sandbox (kubernetes-sigs/agent-sandbox): CRDs + controller.
+#
+# Provides the `Sandbox` CRD family that kagent's SandboxAgent uses when
+# `spec.platform: agent-sandbox` (kagent's DEFAULT platform). Unlike Agent Substrate, this needs NO
+# kagent version bump — kagent 0.9.10 asks for agents.x-k8s.io/v1alpha1, which v0.5.4 still serves
+# (deprecated, via conversion webhook). See platform/agent-sandbox/vendor/PROVENANCE.md.
+#
+# Vendored manifest (not a remote URL): upstream ships plain `kubectl apply -f <release-url>` with no
+# Helm chart, and ArgoCD can't source a remote URL — so the manifest lives in this repo, keeping the
+# "all K8s via ArgoCD" law in docs/deploy-layers.md intact.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent-sandbox
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guoxiangng/aria.git
+    targetRevision: main
+    path: platform/agent-sandbox/vendor
+    directory:
+      recurse: false
+      include: "sandbox-with-extensions.yaml" # the manifest only — not PROVENANCE.md
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agent-sandbox-system # manifest creates this itself; harmless to name it here
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # the manifest includes its own Namespace resource
+      - ServerSideApply=true  # CRDs are large (17k lines) — avoids the client-side annotation limit
+
+  # CRITICAL: the controller SELF-SIGNS its webhook certs at runtime — it creates the
+  # agent-sandbox-webhook-certs Secret and PATCHES each CRD's conversion-webhook caBundle (which
+  # ships empty in the manifest). Without these ignores, selfHeal would revert the injected caBundle
+  # on every sync, breaking the conversion webhook — and with it the v1alpha1 support that kagent
+  # 0.9.10 depends on. Ignore the controller-managed fields; everything else stays enforced.
+  ignoreDifferences:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      jqPathExpressions:
+        - .spec.conversion.webhook.clientConfig.caBundle
