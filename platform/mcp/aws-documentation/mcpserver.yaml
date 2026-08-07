@@ -1,0 +1,29 @@
+# AWS Documentation MCP server — the CREDENTIAL-FREE case.
+#
+# Deliberate contrast with the aws-pricing server next door: this one needs NO AWS identity
+# at all. Its upstream prerequisites (awslabs/mcp, aws-documentation-mcp-server) list only
+# uv/Python — no credentials, no IAM. It reads public AWS documentation over plain HTTPS.
+#
+# So there is NO ServiceAccount annotation, NO IAM role, and NO Pod Identity association for
+# this one (nothing in infra/02-eks/mcp-tools.tf references it). That asymmetry is the point:
+# "self-hosted MCP server" does not automatically mean "needs cloud credentials" — it depends
+# entirely on what the server talks to. Same kmcp mechanics, zero auth surface.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: aws-documentation
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  deployment:
+    cmd: uvx
+    args:
+      - awslabs.aws-documentation-mcp-server@latest
+    port: 3000
+    env:
+      FASTMCP_LOG_LEVEL: ERROR
+      # Which documentation partition to read (aws = the standard public partition).
+      AWS_DOCUMENTATION_PARTITION: aws
+  transportType: stdio
+  stdioTransport: {}

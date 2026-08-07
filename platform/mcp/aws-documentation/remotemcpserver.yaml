@@ -1,0 +1,17 @@
+# Registers the self-hosted aws-documentation MCPServer with kagent.
+# Same shape as the other registrations: kmcp's transport adapter serves STREAMABLE_HTTP on
+# /mcp, on a Service named after the MCPServer resource, on the port declared there.
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: aws-documentation-tool-server
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  description: Self-hosted AWS Documentation MCP server (awslabs.aws-documentation-mcp-server via kmcp)
+  protocol: STREAMABLE_HTTP
+  url: http://aws-documentation.kagent:3000/mcp
+  timeout: 30s
+  sseReadTimeout: 5m0s
+  terminateOnClose: true

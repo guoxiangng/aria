@@ -1,0 +1,15 @@
+# Registers the self-hosted aws-eks MCPServer with kagent.
+apiVersion: kagent.dev/v1alpha2
+kind: RemoteMCPServer
+metadata:
+  name: aws-eks-tool-server
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  description: Self-hosted AWS EKS MCP server, read-only (awslabs.eks-mcp-server via kmcp)
+  protocol: STREAMABLE_HTTP
+  url: http://aws-eks.kagent:3000/mcp
+  timeout: 30s
+  sseReadTimeout: 5m0s
+  terminateOnClose: true

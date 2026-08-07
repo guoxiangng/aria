@@ -1,0 +1,34 @@
+# AWS EKS MCP server — cluster-aware AWS tooling, READ-ONLY by design.
+#
+# Note what is deliberately ABSENT: the `--allow-write` and `--allow-sensitive-data-access`
+# flags. Upstream's own README warns that enabling them "grants significant privileges to the
+# MCP server" (their write policy is effectively `eks:*`). ARIA's posture is read-only by
+# default with mutation gated behind explicit HITL approval (see agents/cluster-remediation),
+# so this server stays read-only and its IAM role (infra/02-eks/mcp-tools.tf) grants only the
+# upstream-documented read-only action list. Withholding the capability at the TOOL layer is
+# stronger than withholding it at the prompt layer.
+#
+# Unlike aws-documentation (credential-free) and like aws-pricing, this one DOES need an AWS
+# identity — bound via EKS Pod Identity to the SA kmcp creates, named after this resource
+# ("aws-eks"). No static keys.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: aws-eks
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  deployment:
+    cmd: uvx
+    args:
+      - awslabs.eks-mcp-server@latest
+      # No --allow-write / --allow-sensitive-data-access: read-only by design (see above).
+    port: 3000
+    env:
+      FASTMCP_LOG_LEVEL: ERROR
+      # EKS API is served from the cluster's own region (unlike the Pricing API — see
+      # ../aws-pricing/mcpserver.yaml for why that one points elsewhere).
+      AWS_REGION: ap-southeast-1
+  transportType: stdio
+  stdioTransport: {}
