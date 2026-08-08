@@ -19,6 +19,9 @@ variable "azure_openai_api_key" {
   type        = string
   sensitive   = true
 }
+# NOTE: there is deliberately NO variable for the Azure EMBEDDING key. That secret's value is written
+# directly to Secrets Manager with the CLI (see the comment in eso.tf), so it never enters tfvars or
+# Terraform state.
 
 variable "langfuse_public_key" {
   description = "Langfuse public key (pk-lf-...) for OTel trace export."

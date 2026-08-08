@@ -37,6 +37,25 @@ resource "aws_secretsmanager_secret_version" "kagent_azure" {
   }
 }
 
+# Embedding credential — separate from the chat key above. kagent Memory vectorizes stored
+# facts through a ModelConfig backed by an embedding deployment (text-embedding-3-large),
+# which carries its own API key on the same Azure resource.
+resource "aws_secretsmanager_secret" "kagent_azure_embedding" {
+  name        = "${local.sm_prefix}/kagent-azure-embedding"
+  description = "Azure OpenAI EMBEDDING API key for kagent Memory vectorization (consumed via ESO ExternalSecret)."
+}
+
+# NOTE the deliberate difference from the two secrets above: no `aws_secretsmanager_secret_version`
+# seeded from a tfvars variable. Terraform creates the *container* only; the value is written
+# out-of-band with the CLI:
+#
+#   aws secretsmanager put-secret-value --secret-id aria/kagent-azure-embedding \
+#     --secret-string '{"AZUREOPENAI_EMBEDDING_API_KEY":"<key>"}'
+#
+# This keeps the credential out of tfvars AND out of Terraform state entirely (the older two still
+# pass through state once at seed time). Secrets Manager is the source of truth either way; ESO reads
+# it via Pod Identity. Prefer this pattern for any new secret.
+
 resource "aws_secretsmanager_secret" "kagent_langfuse_otel" {
   name        = "${local.sm_prefix}/kagent-langfuse-otel"
   description = "Langfuse OTLP Basic-Auth header for kagent tracing (consumed via ESO ExternalSecret)."
@@ -70,13 +89,18 @@ resource "aws_iam_role" "eso" {
   assume_role_policy = data.aws_iam_policy_document.eso_pod_identity_trust.json
 }
 
-# Least-privilege: read ONLY the two secrets above (not all of Secrets Manager).
+# Least-privilege: read ONLY the secrets above (not all of Secrets Manager). Every new
+# ExternalSecret needs its backing secret's ARN added here, or ESO gets AccessDenied.
 data "aws_iam_policy_document" "eso_read" {
   statement {
-    sid       = "ReadKagentSecrets"
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
-    resources = [aws_secretsmanager_secret.kagent_azure.arn, aws_secretsmanager_secret.kagent_langfuse_otel.arn]
+    sid     = "ReadKagentSecrets"
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    resources = [
+      aws_secretsmanager_secret.kagent_azure.arn,
+      aws_secretsmanager_secret.kagent_azure_embedding.arn,
+      aws_secretsmanager_secret.kagent_langfuse_otel.arn,
+    ]
   }
 }
 
