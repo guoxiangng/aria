@@ -65,3 +65,53 @@ only for **BYO container agents** (the RAG agent, later) → add `infra/persiste
 - Full vendored chart (all knobs) → `git/aida-ckn-deploy/kagent/`
 - ModelConfig + Agent CR shapes → `git/aida-platform-agent-configs/telecom-multi-agent/`
 - kagent secret + ArgoCD placeholder trick → `git/cak-platform-cac/operator-configs/kagent/`
+
+## Long-term memory (pgvector, self-hosted) — live 2026-08-08
+
+kagent has **two** memory paths; don't conflate them:
+
+| Path | Backend | Status here |
+|---|---|---|
+| `Memory` CR | **Pinecone only** (`provider` enum has one value) — external SaaS | not used |
+| `spec.declarative.memory` on an Agent | kagent's **own Postgres via pgvector** | **in use** |
+
+### What was needed
+1. `database.postgres.vectorEnabled: true` (ships disabled).
+2. **A pgvector-capable Postgres image.** The chart's bundled image is stock `postgres:18.3-alpine`, where
+   the extension isn't even installable (`select count(*) from pg_available_extensions where name='vector'`
+   returned `0`). With the flag on and that image, the controller crash-loops:
+   `database migration failed … vector migrations require pgvector`. Swapped to `pgvector/pgvector:pg18` —
+   same Postgres major version, so the existing PVC data directory stayed compatible (image swap, not a
+   migration). Extension then installed: `vector|0.8.6`. Data intact (13 tables).
+3. An **embedding** ModelConfig — `modelconfig-azure-embedding.yaml` (`text-embedding-3-large`). The chat
+   model cannot vectorize. Its key comes from Secrets Manager via ESO (`kagent-azure-embedding`); the value
+   was written with the CLI, never through tfvars/TF state (see `infra/03-argocd/eso.tf`).
+
+### The gotcha: memory is scoped per user, and A2A invents a user per conversation
+Calling an agent's A2A endpoint **directly** (unauthenticated) makes every new conversation a new user, so
+long-term recall silently never hits. From upstream `converters/request_converter.py`:
+
+```python
+def _get_user_id(request):
+    if request.call_context and request.call_context.user and request.call_context.user.user_name:
+        return request.call_context.user.user_name    # auth enabled
+    return f"A2A_USER_{request.context_id}"           # fallback
+```
+
+Verified: a planted fact was stored under `A2A_USER_<contextId-A>` and a fresh conversation searched under
+`A2A_USER_<contextId-B>` → `No memories found`.
+
+**Working invocation** — through the controller with a stable user identity:
+
+```bash
+curl -X POST http://kagent-controller.kagent:8083/api/a2a/kagent/<agent> \
+  -H 'X-User-Id: <stable-user>' -H 'Content-Type: application/json' -d '{...message/send...}'
+```
+
+Proven: session 1 stored "lucky colour is teal"; a **new** session as the same user recalled it; a
+**different** user got "I don't know" (correct isolation). Takeaway: **memory is downstream of identity.**
+
+### Capacity note
+Enabling this forced a Postgres reschedule that could not fit ("Insufficient cpu" / "Too many pods"), taking
+the DB down until unused built-in agents were disabled (see `values.yaml`). On small clusters the built-in
+agent fleet — one Deployment each — is the real constraint.
