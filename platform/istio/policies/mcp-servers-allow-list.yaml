@@ -58,9 +58,9 @@ spec:
     - from:
         - source:
             principals:
-              # Controller only — no agent references this server yet. Add an agent's principal
-              # here at the same time as adding the server to that agent's Agent CR.
               - cluster.local/ns/kagent/sa/kagent-controller
+              # cluster-diagnostics uses this to ground remediation advice in real AWS docs.
+              - cluster.local/ns/kagent/sa/cluster-diagnostics
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -76,7 +76,10 @@ spec:
     - from:
         - source:
             principals:
-              # Controller only — no agent references this server yet. Note this server carries 16
-              # AWS tools against a real (read-only) IAM role, so leaving it unrestricted was the
-              # largest of the three exposures.
+              # This server carries 16 AWS tools against a real (read-only) IAM role — the largest
+              # of the three exposures, so keep this list tight.
               - cluster.local/ns/kagent/sa/kagent-controller
+              # cloud-diagnostics is the ONLY agent granted the AWS control-plane view, and its
+              # Agent CR further narrows to 7 read-only tools (the server still advertises
+              # mutating ones — see agents/cloud-diagnostics/agent.yaml).
+              - cluster.local/ns/kagent/sa/cloud-diagnostics

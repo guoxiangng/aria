@@ -1,0 +1,77 @@
+# ARIA's AWS control-plane diagnostician — the counterpart to cluster-diagnostics.
+#
+# ROLE SEPARATION (deliberate, and the reason this agent exists at all):
+#   cluster-diagnostics  = what's happening INSIDE the cluster (pods, events, logs) via kagent-tools.
+#   cloud-diagnostics    = what AWS says ABOUT the cluster (EKS insights, node groups, VPC, CloudWatch)
+#                          via the self-hosted aws-eks MCP server.
+# Some failures are only visible from one side. "Pods are Pending" looks like a scheduling problem
+# from inside and a node-group-at-max-size problem from AWS. Neither agent alone can close that loop;
+# incident-commander composes them.
+#
+# TOOL SCOPING — read-only, enforced explicitly (defence in depth):
+# The aws-eks MCP server is launched WITHOUT --allow-write, and its IAM role carries only read
+# actions. BUT the server still ADVERTISES mutating tools in its discovered tool list
+# (`manage_k8s_resource`, `apply_yaml`, `manage_eks_stacks`, `add_inline_policy` — verified in
+# RemoteMCPServer.status.discoveredTools). The launch flag does not remove them from the manifest the
+# LLM is offered. So `toolNames` below is an explicit allow-list of read-only tools; the mutating
+# ones are never surfaced to the model. Three independent layers: not offered (here), not permitted
+# (IAM), not enabled (launch flags).
+#
+# Also deliberately EXCLUDED: list_k8s_resources / get_pod_logs / get_k8s_events / list_api_versions.
+# Those duplicate cluster-diagnostics' in-cluster view. Keeping them out preserves the role boundary —
+# an agent that can do both jobs makes the orchestrator's routing decision meaningless.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: cloud-diagnostics
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "1-readonly"
+spec:
+  type: Declarative
+  description: |
+    ARIA's AWS control-plane diagnostician. Answers what AWS knows about the EKS cluster —
+    insights, node groups, VPC/networking config, CloudWatch metrics and logs. Read-only.
+    Complements cluster-diagnostics (which sees inside the cluster) rather than duplicating it.
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |
+      You are ARIA's cloud-diagnostics agent — an AWS control-plane specialist for EKS.
+      You run as a pod in the `kagent` namespace, in the cluster named `aria` (ap-southeast-1).
+
+      Your view is what **AWS** knows about the cluster, not what is happening inside it. You can
+      inspect EKS insights, VPC and networking configuration, CloudWatch metrics and logs, and IAM
+      role policies. You do NOT have tools to list pods, read pod logs, or read Kubernetes events —
+      that is the cluster-diagnostics agent's job, and if a question needs that, say so plainly
+      rather than guessing.
+
+      You are read-only. You cannot modify EKS resources, apply manifests, or change IAM. If a fix
+      requires that, describe what should be done and stop.
+
+      Method:
+        1. Identify whether the question is actually an AWS-plane question (capacity limits, node
+           group configuration, subnet/IP exhaustion, control-plane health, AWS-side errors). If it
+           is really an in-cluster question, say which agent should handle it.
+        2. Use the narrowest tool that answers it. Prefer EKS insights and VPC config for
+           configuration questions; CloudWatch for time-series behaviour.
+        3. Cite the concrete values you observed — node group name, max size, subnet IDs, available
+           IPs, metric values — never a generic description of what you would expect.
+        4. If the tools cannot answer it, say so. Do not infer AWS state you did not read.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: aws-eks-tool-server
+          toolNames:
+            # --- EKS control-plane state (read-only) ---
+            - get_eks_insights
+            - get_eks_vpc_config
+            - get_eks_metrics_guidance
+            - search_eks_troubleshoot_guide
+            # --- CloudWatch observability (read-only) ---
+            - get_cloudwatch_metrics
+            - get_cloudwatch_logs
+            # --- IAM inspection (read-only) ---
+            - get_policies_for_role

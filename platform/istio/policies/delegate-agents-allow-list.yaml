@@ -1,0 +1,41 @@
+# Identity allow-lists for the orchestrator's newer delegate agents.
+#
+# Mirrors cluster-diagnostics-allow-list.yaml, extended to the two specialists added when
+# incident-commander became a cross-plane orchestrator (Kubernetes + AWS + cost). Both are leaf
+# agents: the only workload that legitimately calls them is the orchestrator, so the allow-list is
+# exactly one principal each.
+#
+# Without these, any pod in the mesh could drive cost-sentinel (and through it the AWS Pricing API)
+# or cloud-diagnostics (and through it a read-only AWS IAM role) directly — bypassing the
+# orchestrator entirely. Same gap the MCP-server policies closed one layer down.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: cost-sentinel-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cost-sentinel
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/kagent/sa/incident-commander
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: cloud-diagnostics-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloud-diagnostics
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/kagent/sa/incident-commander

@@ -25,22 +25,34 @@ spec:
       Available sub-agents:
       - cluster-diagnostics: read-only Kubernetes specialist. Use for questions about specific
         pods, deployments, services, events, logs, resource state, or connectivity.
-      - observability-agent: metrics/monitoring specialist (Prometheus/Grafana). Use for questions
-        about trends, error rates, latency, or anything requiring PromQL-style metric queries.
+      - cloud-diagnostics: AWS control-plane specialist for this EKS cluster. Use for what AWS
+        knows ABOUT the cluster rather than what is happening inside it: EKS insights, node group
+        sizing and capacity limits, VPC/subnet configuration and IP exhaustion, CloudWatch metrics
+        and logs. It cannot see pods, pod logs or Kubernetes events.
+      - cost-sentinel: AWS pricing and cost specialist. Use for what something costs, or what a
+        proposed change (scaling up, a different instance type) would cost. Answers come from the
+        live AWS Pricing API, not estimates.
       - investigation-loop: stateful root-cause investigator. It gathers evidence, forms a
         hypothesis, verifies it, and loops (bounded) until confident or out of iterations. Use
-        this instead of cluster-diagnostics/observability-agent when the question is open-ended
+        this instead of the specialists when the question is open-ended
         root-cause analysis ("why is X broken?", "what caused Y?") rather than a specific lookup -
         i.e. when you don't already know which single fact would answer it.
 
       Routing policy:
       - If the question is purely about live resource state (pod status, events, logs, connectivity)
         -> delegate to cluster-diagnostics only.
-      - If the question is purely about metrics/trends -> delegate to observability-agent only.
-      - If the question requires correlating resource state WITH metrics/trends (e.g. "did this
-        deployment cause an error spike?") -> delegate to BOTH, then synthesize a single root-cause
-        answer that explicitly connects what each sub-agent found. Do not just concatenate their
-        raw answers - produce one coherent narrative.
+      - If the question is about AWS-side configuration or limits (node group capacity, VPC/subnet
+        IPs, EKS insights, CloudWatch) -> delegate to cloud-diagnostics only.
+      - If the question is about cost or the price of a proposed change -> delegate to
+        cost-sentinel only.
+      - CROSS-PLANE: many real incidents are only explicable across planes. A symptom inside the
+        cluster often has its cause in AWS configuration, and the fix often has a cost. Example:
+        "pods are Pending" -> cluster-diagnostics establishes there is no schedulable capacity ->
+        cloud-diagnostics establishes the node group is at its maximum size -> cost-sentinel
+        establishes what raising that maximum would cost. When a question spans planes like this,
+        delegate to each relevant specialist and synthesize ONE causal narrative that connects
+        their findings — symptom, cause, and (where relevant) the cost of the remedy. Do not
+        concatenate their raw answers.
       - If the question is open-ended root-cause analysis with no obvious starting fact -> delegate
         to investigation-loop and report its conclusion (including its stated confidence). If its
         confidence is low, say so plainly rather than presenting the hypothesis as certain.
@@ -57,11 +69,25 @@ spec:
           kind: Agent
           name: cluster-diagnostics
           namespace: kagent
+      # NOTE: `observability-agent` was previously a delegate here and has been REMOVED. It was a
+      # built-in kagent agent backed by Prometheus/Grafana tools — but ARIA runs no Prometheus,
+      # Grafana or Mimir, and the kagent-grafana-mcp server it depended on was never functional
+      # (ACCEPTED=False from cluster creation, since removed). It was later disabled entirely to free
+      # capacity. Critically, kagent does NOT validate that a delegate exists: this CR reported
+      # Accepted=True / Ready=True the whole time it pointed at a deleted agent. A dangling delegate
+      # is a silent failure — it only surfaces when a real investigation needs that plane.
+      # Its "second opinion" role is now filled by agents that are actually grounded in live APIs.
       - type: Agent
         agent:
           apiGroup: kagent.dev
           kind: Agent
-          name: observability-agent
+          name: cloud-diagnostics
+          namespace: kagent
+      - type: Agent
+        agent:
+          apiGroup: kagent.dev
+          kind: Agent
+          name: cost-sentinel
           namespace: kagent
       - type: Agent
         agent:

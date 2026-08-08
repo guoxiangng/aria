@@ -52,3 +52,15 @@ spec:
             - k8s_get_available_api_resources
             - k8s_get_cluster_configuration
             - k8s_check_service_connectivity
+      # Self-hosted AWS Documentation MCP server (platform/mcp/aws-documentation/). Lets the agent
+      # ground remediation advice in actual AWS/EKS documentation instead of model recall — the same
+      # "cite the source" discipline the system prompt already demands for cluster evidence.
+      # Read-only and credential-free: this server needs no AWS identity at all.
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: RemoteMCPServer
+          name: aws-documentation-tool-server
+          toolNames:
+            - search_documentation
+            - read_documentation
