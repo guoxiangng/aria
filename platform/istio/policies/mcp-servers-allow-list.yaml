@@ -1,0 +1,82 @@
+# Identity-based allow-lists for the self-hosted MCP tool servers (platform/mcp/).
+#
+# WHY THIS EXISTS — the gap it closes:
+# An Agent CR's `tools[].mcpServer.toolNames` decides which tools the LLM is *offered*. It is a
+# configuration constraint on the agent's intent — NOT a network boundary. Until this policy, any
+# pod that could route to `aws-eks.kagent:3000` could call all 16 of its AWS tools regardless of
+# what any Agent CR said. Verified accidentally: a throwaway `kubectl run` probe pod running as the
+# `default` ServiceAccount reached aws-documentation (seen in ztunnel logs as
+# src.identity=.../sa/default). Same class of gap as kagent-tools' cluster-admin binding —
+# configuration constrains *intent*, identity+policy constrains *authority*.
+#
+# WHO IS ALLOWED — derived from real ztunnel access logs, not assumption:
+#   - `kagent-controller` — REQUIRED on every MCP server. The controller connects to each server to
+#     introspect its tool list (the `discoveredTools` in RemoteMCPServer status). Omit it and tool
+#     discovery silently breaks. Observed calling aws-pricing and aws-eks.
+#   - the specific agent(s) whose Agent CR references that server. Today only cost-sentinel ->
+#     aws-pricing; aws-documentation and aws-eks are registered but not yet wired to any agent, so
+#     they allow the controller only.
+#
+# MAINTENANCE NOTE (the "both sides" rule): wiring a new agent to an MCP server means editing TWO
+# things — the Agent CR's tools list AND this file's principal list for that server. If you only do
+# the first, the agent gets the tool in its prompt and then gets connection-reset at the mesh.
+# That coupling is deliberate: granting a capability should be an explicit, reviewable change.
+#
+# Ambient note: `action: ALLOW` makes each target DEFAULT-DENY — only listed principals pass; all
+# else is refused at the node ztunnel before reaching the pod. Kubelet health probes bypass ztunnel
+# enforcement, so readiness/liveness are unaffected.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: aws-pricing-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aws-pricing
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              # tool discovery (RemoteMCPServer.status.discoveredTools)
+              - cluster.local/ns/kagent/sa/kagent-controller
+              # the only agent whose CR references aws-pricing-tool-server
+              - cluster.local/ns/kagent/sa/cost-sentinel
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: aws-documentation-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aws-documentation
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              # Controller only — no agent references this server yet. Add an agent's principal
+              # here at the same time as adding the server to that agent's Agent CR.
+              - cluster.local/ns/kagent/sa/kagent-controller
+---
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: aws-eks-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aws-eks
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              # Controller only — no agent references this server yet. Note this server carries 16
+              # AWS tools against a real (read-only) IAM role, so leaving it unrestricted was the
+              # largest of the three exposures.
+              - cluster.local/ns/kagent/sa/kagent-controller
