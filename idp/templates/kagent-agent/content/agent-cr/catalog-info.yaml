@@ -1,0 +1,16 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  description: ${{ values.description | dump }}
+  tags:
+    - kagent
+    - aria
+    - '${{ values.tier }}'
+  annotations:
+    aria.dev/tier: ${{ values.tier }}
+spec:
+  type: kagent-agent
+  lifecycle: experimental
+  owner: user:guest
+  system: aria

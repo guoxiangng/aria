@@ -1,0 +1,177 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-template
+kind: Template
+metadata:
+  name: kagent-agent-onboarding
+  title: Onboard a new kagent agent
+  description: >
+    Scaffolds a new kagent Agent CR (Tier 1 read-only or Tier 2 HITL-mutating), its Istio
+    AuthorizationPolicy allow-list, and opens a pull request against the aria repo. See
+    aria/docs/spec-backstage-idp-integration.md for the full design and open decisions.
+spec:
+  owner: user:guest
+  type: service
+
+  parameters:
+    - title: Agent basics
+      required:
+        - name
+        - tier
+      properties:
+        name:
+          title: Agent name
+          type: string
+          description: >
+            Lowercase, hyphenated. Becomes the kagent ServiceAccount name and therefore the
+            SPIFFE identity (cluster.local/ns/kagent/sa/<name>) - see platform/istio/.
+          pattern: '^[a-z][a-z0-9-]*$'
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+          description: One or two sentences - goes into the Agent CR's spec.description.
+        tier:
+          title: Tier
+          type: string
+          enum:
+            - tier1-readonly
+            - tier2-hitl-mutating
+          enumNames:
+            - 'Tier 1 - read-only (no mutating tools) - the cluster-diagnostics pattern'
+            - 'Tier 2 - HITL-mutating (kagent requireApproval, reversible tools only) - the cluster-remediation pattern. NOTE: mutating tools execute via the kagent-tools ServiceAccount, which is currently bound cluster-admin - approval gates INTENT, not the executor''s authority. See agents/cluster-remediation/agent.yaml.'
+          default: tier1-readonly
+        modelConfig:
+          title: Model config
+          type: string
+          enum:
+            - default-model-config
+            - bedrock-sonnet
+            - bedrock-haiku
+          default: default-model-config
+
+    - title: Tools and delegation
+      properties:
+        readTools:
+          title: Read-only tools (kagent-tool-server)
+          type: array
+          items:
+            type: string
+            enum:
+              - k8s_get_resources
+              - k8s_describe_resource
+              - k8s_get_events
+              - k8s_get_pod_logs
+              - k8s_get_resource_yaml
+              - k8s_get_available_api_resources
+              - k8s_get_cluster_configuration
+              - k8s_check_service_connectivity
+          uniqueItems: true
+        mutatingTools:
+          title: Mutating tools (Tier 2 only - reversible only)
+          description: Both selected tools are automatically added to requireApproval below.
+          type: array
+          items:
+            type: string
+            enum:
+              - k8s_rollout
+              - k8s_scale
+          uniqueItems: true
+        callsAgents:
+          title: Existing agents this one calls via A2A
+          type: array
+          items:
+            type: string
+            enum:
+              - cluster-diagnostics
+              - incident-commander
+              - investigation-loop
+              - cluster-remediation
+          uniqueItems: true
+          description: >
+            Drives this new agent's OWN AuthorizationPolicy allow-list (who it's allowed to call).
+            Does NOT automatically patch the allow-list of the agents listed here to permit THIS
+            new agent - see platform/istio/policies/mcp-servers-allow-list.yaml's "both sides"
+            rule. The PR description reminds you which files to check.
+
+    - title: Choose a location
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+            allowedOwners:
+              - guoxiangng
+            allowedRepos:
+              - aria
+
+  steps:
+    - id: fetch-agent-cr
+      name: Render Agent CR + catalog-info
+      action: fetch:template
+      input:
+        url: ./content/agent-cr
+        targetPath: agents/${{ parameters.name }}
+        trimBlocks: true
+        lstripBlocks: true
+        values:
+          name: ${{ parameters.name }}
+          description: ${{ parameters.description }}
+          tier: ${{ parameters.tier }}
+          modelConfig: ${{ parameters.modelConfig }}
+          readTools: ${{ parameters.readTools }}
+          mutatingTools: ${{ parameters.mutatingTools }}
+
+    - id: fetch-authz-policy
+      name: Render AuthorizationPolicy
+      action: fetch:template
+      input:
+        url: ./content/authz-policy
+        targetPath: platform/istio/policies
+        trimBlocks: true
+        lstripBlocks: true
+        values:
+          name: ${{ parameters.name }}
+          callsAgents: ${{ parameters.callsAgents }}
+
+    - id: publish
+      name: Open pull request against aria
+      action: publish:github:pull-request
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        title: 'Onboard agent: ${{ parameters.name }}'
+        branchName: onboard-agent-${{ parameters.name }}
+        description: |
+          Onboards `${{ parameters.name }}` (${{ parameters.tier }}) via the kagent-agent-onboarding
+          Backstage template.
+
+          **Calls (A2A):** ${{ parameters.callsAgents }}
+
+          ---
+          ⚠️ **"Both sides" reminder** (see `platform/istio/policies/mcp-servers-allow-list.yaml`'s
+          comment): this PR only adds `${{ parameters.name }}`'s own allow-list. If it calls an
+          EXISTING agent listed above, that agent's own `AuthorizationPolicy` file also needs
+          `cluster.local/ns/kagent/sa/${{ parameters.name }}` added to its principals - check each
+          file under `platform/istio/policies/` for the agents listed above before merging.
+
+          Generated by the kagent-agent-onboarding Scaffolder template - see
+          `aria/docs/spec-backstage-idp-integration.md`.
+
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/agents/${{ parameters.name }}/catalog-info.yaml'
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}
