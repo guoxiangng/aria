@@ -73,6 +73,15 @@ grafana-mcp:
   enabled: false
 querydoc:
   enabled: false
+# TEMPORARY — re-enable together with grafana-mcp above.
+# observability-agent's toolset references the grafana-mcp RemoteMCPServer, so disabling that server
+# alone left this agent Accepted=False ("RemoteMCPServer kagent-grafana-mcp not found") even though its
+# Deployment stayed Ready. Both are off until there is an actual Grafana to point at — grafana-mcp
+# defaults to grafana.kagent:3000, which does not exist in this cluster, which is why it never
+# registered. NOTE: this agent is wanted for the observability articles; turning it back on means
+# standing up Grafana (or pointing grafana-mcp at a real endpoint) and flipping BOTH flags.
+observability-agent:
+  enabled: false
 
 # --- Database: bundled PostgreSQL is dev-only (fine for the lab) ---
 database:
