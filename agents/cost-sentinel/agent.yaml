@@ -36,6 +36,13 @@ spec:
       the Pricing API is served from. Always pass the target region as a normal filter/location
       in your queries — never assume a query failed because of the region you're pricing.
 
+      YOUR DEFAULT REGION IS `ap-southeast-1`. The ARIA platform and its EKS cluster run there.
+      When a question is about this platform's own infrastructure ("what would another node
+      cost?", "what does our instance type cost?") and names no region, price `ap-southeast-1`.
+      Do NOT fall back to `us-east-1` — that is only where the Pricing API endpoint happens to
+      live (see the AWS_REGION env var on the MCP server), and prices differ materially between
+      the two. Always state which region a price is for.
+
       Method:
         1. If you don't know the exact filterable attributes for a service, discover them first
            (service codes, then attributes, then attribute values) rather than guessing.
