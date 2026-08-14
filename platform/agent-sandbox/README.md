@@ -6,10 +6,13 @@ workloads — purpose-built for AI agent runtimes. Isolation is delegated to a s
 (gVisor / Kata) via `RuntimeClass`; sandboxes get a stable network identity and optional persistent
 storage.
 
-It's the **foundational layer Agent Substrate is built on**: Substrate takes Sandbox's
-isolation/snapshotting primitives and adds a density-oriented control plane over them. Where
-Substrate optimizes for *density* (suspend/resume, many actors per worker), Sandbox optimizes for
-*isolation and lifecycle*.
+It is **not** the layer Agent Substrate is built on — an earlier version of this doc said so, based on a
+second-hand blog summary; corrected 2026-08-15. The two are **parallel** projects, both Google-originated
+but on different governance tracks: Agent Sandbox went to Kubernetes SIG Apps (standards track), while
+Agent Substrate stayed Google-run (`agent-substrate/substrate`, Google CLA). Substrate implements its own
+gVisor/microVM isolation and never references Agent Sandbox. Where Substrate optimises for *density*
+(many actors multiplexed onto few workers, snapshot/resume), Sandbox optimises for *isolation and
+lifecycle*. See `../../docs/execution-environment.md` for the full comparison.
 
 ## Why this, and why it's the lower-risk path
 
@@ -22,8 +25,11 @@ Agent Sandbox sidesteps that entirely — **two verified facts**:
 
 1. **No kagent version bump.** kagent 0.9.10 requests `agents.x-k8s.io/v1alpha1`; agent-sandbox
    v0.5.4 still **serves** it (deprecated, alongside `v1beta1`, with a conversion webhook). Verified
-   directly from the release manifest — see `vendor/PROVENANCE.md`. kagent's own CRD also documents
-   `platform` as *"Defaults to agent-sandbox"*, so this is the primary path, not a side-branch.
+   directly from the release manifest — see `vendor/PROVENANCE.md`. kagent's CRD does default
+   `platform` to `agent-sandbox` — **but note the asymmetry** (found 2026-08-15): kagent's *documentation*
+   covers only Agent Substrate (a core-concept page; `AgentHarness` runs on Substrate exclusively) and
+   never mentions Agent Sandbox. The default points one way, the docs the other — so "primary path" is
+   true of the CRD default only, not of kagent's documented direction. See `../../docs/execution-environment.md`.
 2. **The missing image isn't in the way.** The substrate probe died pulling `golang-adk` (404 at
    kagent 0.9.10's registry path). Substrate only supports `runtime: go`. Agent Sandbox also supports
    **`runtime: python`** (kagent's default), which resolves to the `kagent/app` image — verified

@@ -1,6 +1,11 @@
 # Agent Substrate on ARIA (EKS)
 
-[Agent Substrate](https://github.com/kagent-dev/substrate) is a density/serverless runtime for
+> **Read `../../docs/execution-environment.md` first** — it owns the workstream: how Substrate, Agent
+> Sandbox and kagent relate, who governs each, and the retry plan. Note the upstream project is
+> **`agent-substrate/substrate`** (Google-run, 1225★); `kagent-dev/substrate` is a fork, which is where
+> ARIA's vendored chart and images come from.
+
+[Agent Substrate](https://github.com/agent-substrate/substrate) is a density/serverless runtime for
 kagent agents: instead of one always-on Deployment per agent, agents run as **actors** on a shared
 **WorkerPool**, get **snapshotted to object storage when idle**, and **resume on the next call**.
 
