@@ -1,0 +1,26 @@
+# Allow-list for the self-hosted GitHub MCP server (platform/mcp/github/).
+#
+# Shipped DENY-BY-DEFAULT from day one, before any agent references this server — learned the
+# hard way with the AWS servers (see mcp-servers-allow-list.yaml's header): a throwaway probe
+# pod running as the `default` ServiceAccount reached aws-documentation because no policy
+# existed yet to stop it. `action: ALLOW` with an empty principal list means nothing passes;
+# add a principal here in the SAME commit that wires an agent's Agent CR to this server, not
+# after. Also worth being deliberate about here specifically: this server holds a real
+# (if read-only-scoped) GitHub credential — the same "both sides" discipline as the AWS
+# allow-lists, applied earlier in the lifecycle this time.
+#
+# GOTCHA, verified against Istio's docs before shipping this (easy to get backwards):
+#   rules: []      <- deny-all (THIS policy). Zero rules means nothing ever matches ALLOW.
+#   rules: [{}]    <- allow-all. One EMPTY RULE OBJECT always matches. Opposite meaning,
+#                     one pair of braces apart. Do not "simplify" this to rules: [{}].
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: github-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: github
+  action: ALLOW
+  rules: []

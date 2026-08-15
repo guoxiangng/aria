@@ -1,0 +1,48 @@
+# GitHub's OFFICIAL MCP server (github.com/github/github-mcp-server), self-hosted via kmcp.
+#
+# Deliberately different from every AWS server in platform/mcp/ — worth reading before copying
+# the pattern elsewhere:
+#
+# 1. NOT a uvx/npx package. It's a Go binary shipped as a container image, so kmcp's
+#    cmd-based image auto-selection (which only fires for `uvx`/`npx`) does NOT apply here.
+#    `image:` must be set explicitly.
+# 2. stdio transport works nothing like `docker run`. Verified from kmcp's controller source
+#    (transportadapter_translator.go): for stdio, the main container's Command is ALWAYS
+#    overridden to kmcp's own `agentgateway` binary, which reads `cmd`/`args` from a generated
+#    ConfigMap and EXECS THEM AS A SUBPROCESS INSIDE THE CONTAINER — the image's own ENTRYPOINT
+#    is never invoked. So `cmd` here must be the exact binary PATH inside the image
+#    (`/server/github-mcp-server`, confirmed from the upstream Dockerfile: ENTRYPOINT
+#    ["/server/github-mcp-server"], CMD ["stdio"]) — not a `docker run`-style command.
+#    Every AWS server in this platform sidesteps this because `uvx`/`npx` ARE already the
+#    literal binary being exec'd (they resolve their own subprocess via PATH); a
+#    pre-compiled-binary image like this one needs the path spelled out explicitly.
+# 3. Identity is genuinely different, not just differently-plumbed. Every AWS server in this
+#    platform authenticates via EKS Pod Identity - a federated credential, nothing to leak,
+#    nothing to rotate by hand. GitHub's self-hosted server has no equivalent: it needs a
+#    static Personal Access Token. That's injected via `secretRefs`, which - contrary to the
+#    MCPServer CRD's own doc comment ("mounted as volumes") - the controller actually wires as
+#    `envFrom: secretRef` (verified in transportadapter_translator.go's createSecretEnvFrom),
+#    i.e. every key in the referenced Secret becomes an environment variable. That's exactly
+#    what this server needs: GITHUB_PERSONAL_ACCESS_TOKEN as an env var, not a mounted file.
+#
+# The PAT itself: platform/external-secrets/manifests/externalsecret-github-pat.yaml
+# (materialized from Secrets Manager by ESO). Should be fine-grained, read-only, scoped to
+# ONLY this repo (guoxiangng/aria) - least privilege, matching every other tool in this
+# platform. Create at https://github.com/settings/personal-access-tokens/new.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: github
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  deployment:
+    image: ghcr.io/github/github-mcp-server
+    cmd: /server/github-mcp-server
+    args: ["stdio"]
+    port: 3000
+    secretRefs:
+      - name: github-pat
+  transportType: stdio
+  stdioTransport: {}

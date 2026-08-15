@@ -56,6 +56,19 @@ resource "aws_secretsmanager_secret" "kagent_azure_embedding" {
 # pass through state once at seed time). Secrets Manager is the source of truth either way; ESO reads
 # it via Pod Identity. Prefer this pattern for any new secret.
 
+# GitHub PAT for the self-hosted github-mcp-server (platform/mcp/github/). Genuinely different
+# from every other secret here: it's a STATIC bearer token, not a federated cloud identity like
+# EKS Pod Identity — GitHub's own MCP server (unlike the AWS ones) has no equivalent to
+# "assume a role with no credential to leak." The container-only pattern applies here too, and
+# matters MORE than usual: this value must never pass through tfvars or state at all. Seed with:
+#
+#   aws secretsmanager put-secret-value --secret-id aria/github-pat \
+#     --secret-string '{"GITHUB_PERSONAL_ACCESS_TOKEN":"<fine-grained PAT, read-only, aria repo only>"}'
+resource "aws_secretsmanager_secret" "github_pat" {
+  name        = "${local.sm_prefix}/github-pat"
+  description = "Fine-grained GitHub PAT (read-only, aria repo scope) for the self-hosted github-mcp-server."
+}
+
 resource "aws_secretsmanager_secret" "kagent_langfuse_otel" {
   name        = "${local.sm_prefix}/kagent-langfuse-otel"
   description = "Langfuse OTLP Basic-Auth header for kagent tracing (consumed via ESO ExternalSecret)."
@@ -100,6 +113,7 @@ data "aws_iam_policy_document" "eso_read" {
       aws_secretsmanager_secret.kagent_azure.arn,
       aws_secretsmanager_secret.kagent_azure_embedding.arn,
       aws_secretsmanager_secret.kagent_langfuse_otel.arn,
+      aws_secretsmanager_secret.github_pat.arn,
     ]
   }
 }
