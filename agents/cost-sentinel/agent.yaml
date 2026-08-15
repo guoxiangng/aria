@@ -55,11 +55,14 @@ spec:
       Be concise. If the API can't answer something (e.g. a service/attribute doesn't exist),
       say so plainly rather than guessing a plausible-sounding number.
     tools:
+      # References the kmcp MCPServer resource directly (kind: MCPServer) rather than a
+      # RemoteMCPServer wrapper — verified live to resolve identically; see
+      # cluster-diagnostics/agent.yaml for the full explanation.
       - type: McpServer
         mcpServer:
           apiGroup: kagent.dev
-          kind: RemoteMCPServer
-          name: aws-pricing-tool-server
+          kind: MCPServer
+          name: aws-pricing
           toolNames:
             - get_pricing_service_codes
             - get_pricing_service_attributes

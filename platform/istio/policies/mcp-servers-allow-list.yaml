@@ -10,12 +10,15 @@
 # configuration constrains *intent*, identity+policy constrains *authority*.
 #
 # WHO IS ALLOWED — derived from real ztunnel access logs, not assumption:
-#   - `kagent-controller` — REQUIRED on every MCP server. The controller connects to each server to
-#     introspect its tool list (the `discoveredTools` in RemoteMCPServer status). Omit it and tool
-#     discovery silently breaks. Observed calling aws-pricing and aws-eks.
-#   - the specific agent(s) whose Agent CR references that server. Today only cost-sentinel ->
-#     aws-pricing; aws-documentation and aws-eks are registered but not yet wired to any agent, so
-#     they allow the controller only.
+#   - ONLY the specific agent(s) whose Agent CR references that server. `kagent-controller` is
+#     deliberately NOT listed here — verified empirically (twice, including a fresh controller
+#     restart forcing a full reconcile) that it never connects to these pods. That's a real
+#     behavioural difference from RemoteMCPServer: a RemoteMCPServer object makes the controller
+#     connect to populate `status.discoveredTools` (live introspection); our Agent CRs reference
+#     the kmcp MCPServer resource DIRECTLY (kind: MCPServer), which renders `http_tools` purely
+#     from the Agent CR's own hand-written `toolNames` — no live call, no discovery. Trade-off
+#     worth knowing: leaner wiring, but a typo'd tool name won't surface until an agent tries to
+#     call it, since nothing ever asks the server what it actually exposes.
 #
 # MAINTENANCE NOTE (the "both sides" rule): wiring a new agent to an MCP server means editing TWO
 # things — the Agent CR's tools list AND this file's principal list for that server. If you only do
@@ -39,9 +42,7 @@ spec:
     - from:
         - source:
             principals:
-              # tool discovery (RemoteMCPServer.status.discoveredTools)
-              - cluster.local/ns/kagent/sa/kagent-controller
-              # the only agent whose CR references aws-pricing-tool-server
+              # the only agent whose CR references this server (kind: MCPServer, name: aws-pricing)
               - cluster.local/ns/kagent/sa/cost-sentinel
 ---
 apiVersion: security.istio.io/v1
@@ -58,7 +59,6 @@ spec:
     - from:
         - source:
             principals:
-              - cluster.local/ns/kagent/sa/kagent-controller
               # cluster-diagnostics uses this to ground remediation advice in real AWS docs.
               - cluster.local/ns/kagent/sa/cluster-diagnostics
 ---
@@ -76,10 +76,8 @@ spec:
     - from:
         - source:
             principals:
-              # This server carries 16 AWS tools against a real (read-only) IAM role — the largest
-              # of the three exposures, so keep this list tight.
-              - cluster.local/ns/kagent/sa/kagent-controller
               # cloud-diagnostics is the ONLY agent granted the AWS control-plane view, and its
               # Agent CR further narrows to 7 read-only tools (the server still advertises
-              # mutating ones — see agents/cloud-diagnostics/agent.yaml).
+              # mutating ones — see agents/cloud-diagnostics/agent.yaml). This server carries 16
+              # AWS tools against a real (read-only) IAM role, so keep this list tight.
               - cluster.local/ns/kagent/sa/cloud-diagnostics

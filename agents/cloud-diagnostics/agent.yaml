@@ -59,11 +59,14 @@ spec:
            IPs, metric values — never a generic description of what you would expect.
         4. If the tools cannot answer it, say so. Do not infer AWS state you did not read.
     tools:
+      # References the kmcp MCPServer resource directly (kind: MCPServer) rather than a
+      # RemoteMCPServer wrapper — verified live to resolve identically; see
+      # cluster-diagnostics/agent.yaml for the full explanation.
       - type: McpServer
         mcpServer:
           apiGroup: kagent.dev
-          kind: RemoteMCPServer
-          name: aws-eks-tool-server
+          kind: MCPServer
+          name: aws-eks
           toolNames:
             # --- EKS control-plane state (read-only) ---
             - get_eks_insights

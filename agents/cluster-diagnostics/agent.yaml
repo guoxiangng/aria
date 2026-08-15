@@ -56,11 +56,17 @@ spec:
       # ground remediation advice in actual AWS/EKS documentation instead of model recall — the same
       # "cite the source" discipline the system prompt already demands for cluster evidence.
       # Read-only and credential-free: this server needs no AWS identity at all.
+      #
+      # References the kmcp MCPServer resource DIRECTLY (kind: MCPServer), not a RemoteMCPServer
+      # wrapper. Verified live: kagent's controller internally calls
+      # ConvertMCPServerToRemoteMCPServer() when it sees kind: MCPServer, producing an identical
+      # rendered http_tools config either way. A RemoteMCPServer object here would just be a
+      # redundant registration layer — kmcp already owns lifecycle, kagent resolves the reference.
       - type: McpServer
         mcpServer:
           apiGroup: kagent.dev
-          kind: RemoteMCPServer
-          name: aws-documentation-tool-server
+          kind: MCPServer
+          name: aws-documentation
           toolNames:
             - search_documentation
             - read_documentation
