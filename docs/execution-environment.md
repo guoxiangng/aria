@@ -133,8 +133,12 @@ Substrate as its own ArgoCD app from a *vendored, patched* 0.0.10 chart. Options
    fix (`goAgentImage`) is present. Check after upgrading; it determines whether *both* paths work.
 2. **Substrate version pairing** with rc1: does 0.10.0-rc1 work against our 0.0.10, or must we match
    the 0.0.9 it bundles?
-3. **Do the `ghcr.io` images pull anonymously** from the EKS nodes? (Tag-listing returns 401; pull is
-   a different auth path — verify before the upgrade, it's a rollout blocker if not.)
+3. ~~**Do the `ghcr.io` images pull anonymously** from the EKS nodes?~~ **RESOLVED 2026-08-15: yes.**
+   Verified with a disposable, self-cleaning `Job` (`activeDeadlineSeconds: 60`, deleted after) pulling
+   `ghcr.io/kagent-dev/kagent/app:0.10.0-rc1` in the `kagent` namespace. Kubelet event confirmed the
+   pull explicitly: `Pulled ... image already present on machine and can be accessed by the pod`. (The
+   job's own exit code 128 was a red herring — the probe command `true` doesn't exist in this
+   distroless-style image; irrelevant to the pull question.) Not a rollout blocker.
 4. **Which runtime does ARIA actually standardise on?** Not urgent, but the article needs a position:
    Substrate (density, kagent-native, harness-capable, Google-governed, pre-production) vs Agent
    Sandbox (isolation, standards-track, portable, not in kagent's docs). Running both indefinitely is
@@ -144,8 +148,12 @@ Substrate as its own ArgoCD app from a *vendored, patched* 0.0.10 chart. Options
 
 ## 9. Retry plan (sequenced)
 
-1. **Pre-flight**: snapshot the kagent Postgres PVC; verify anonymous `ghcr.io` pulls from a node;
-   confirm no in-flight agent work.
+1. **Pre-flight**: ~~snapshot the kagent Postgres PVC~~ **done 2026-08-15** — EBS snapshot
+   `snap-031377c9cffb8a417` of `vol-0431ebbab83214108` (the `kagent-postgresql` PVC's backing volume),
+   tagged `kagent-postgresql-pre-0.10-upgrade`. This is the rollback point if the DB migration on
+   upgrade goes wrong — restore a new volume from this snapshot and re-point the PVC. ~~verify
+   anonymous `ghcr.io` pulls from a node~~ **done, see open question #3**; confirm no in-flight
+   agent work (still outstanding — check before starting the upgrade itself).
 2. **Upgrade** `gitops/apps/kagent.yaml` + `kagent-crds` → `0.10.0-rc1` (CRDs first, existing wave
    order handles it). Set `substrate.enabled: false` per §7(a). Watch the controller roll.
 3. **Verify the fleet first, before touching probes** — all existing agents `Ready`, `investigation-loop`
