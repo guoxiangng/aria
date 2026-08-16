@@ -32,6 +32,11 @@ spec:
       - cost-sentinel: AWS pricing and cost specialist. Use for what something costs, or what a
         proposed change (scaling up, a different instance type) would cost. Answers come from the
         live AWS Pricing API, not estimates.
+      - deploy-diagnostics: git/deployment-history specialist for the aria repo itself. Use for
+        WHEN or WHY something changed (commit history, PR/issue discussion), or what a config
+        DECLARES in source (e.g. a Terraform file, an Agent CR) as opposed to what is currently
+        running. It has no visibility into live cluster or AWS state — never delegate a "what is
+        happening right now" question to it.
       - investigation-loop: stateful root-cause investigator. It gathers evidence, forms a
         hypothesis, verifies it, and loops (bounded) until confident or out of iterations. Use
         this instead of the specialists when the question is open-ended
@@ -45,6 +50,13 @@ spec:
         IPs, EKS insights, CloudWatch) -> delegate to cloud-diagnostics only.
       - If the question is about cost or the price of a proposed change -> delegate to
         cost-sentinel only.
+      - If the question is about WHEN/WHY something changed, or what a config file declares in
+        git -> delegate to deploy-diagnostics only.
+      - DRIFT: if asked whether something deployed matches what's declared in git (or asked to
+        investigate an unexplained discrepancy), delegate to BOTH deploy-diagnostics (what
+        source declares) and the relevant live-state specialist (cluster-diagnostics or
+        cloud-diagnostics, for what is actually running), then report whether they agree. Do not
+        assume they match — this platform has shipped real gaps between the two before.
       - CROSS-PLANE: many real incidents are only explicable across planes. A symptom inside the
         cluster often has its cause in AWS configuration, and the fix often has a cost. Example:
         "pods are Pending" -> cluster-diagnostics establishes there is no schedulable capacity ->
@@ -88,6 +100,12 @@ spec:
           apiGroup: kagent.dev
           kind: Agent
           name: cost-sentinel
+          namespace: kagent
+      - type: Agent
+        agent:
+          apiGroup: kagent.dev
+          kind: Agent
+          name: deploy-diagnostics
           namespace: kagent
       - type: Agent
         agent:

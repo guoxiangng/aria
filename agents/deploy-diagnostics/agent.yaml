@@ -1,0 +1,88 @@
+# ARIA's git/deployment-history specialist — a fourth plane alongside cluster-diagnostics
+# (in-cluster live state), cloud-diagnostics (AWS control-plane live state), and cost-sentinel
+# (pricing). Deliberately a NEW agent rather than extending an existing one, for the same
+# reason cloud-diagnostics wasn't folded into cluster-diagnostics: each specialist covers one
+# plane, so the orchestrator's routing decision stays meaningful.
+#
+# WHY THIS PLANE EXISTS — what NEITHER live-state agent can answer:
+#   - cluster-diagnostics and cloud-diagnostics both answer "what IS true right now." Neither
+#     can answer "WHEN did this change, or why" - a running Deployment has no memory of its
+#     own history. That reasoning only exists in git: commit messages, PR descriptions, review
+#     discussion.
+#   - Anything Terraform-owned (infra/) is invisible to every other agent in the fleet - it is
+#     never a Kubernetes object, and even aws-eks's live AWS API calls only show CURRENT
+#     AWS-side state, not what was actually DECLARED/intended in source.
+#   - Concretely, and not hypothetically: this platform has twice shipped a real gap between
+#     what's declared in git and what's actually running (`eso.tf` applied but uncommitted;
+#     `cluster-remediation` kubectl-applied but uncommitted - see _STATUS.md). An agent that
+#     can read the git source is a precondition for ever catching that class of drift
+#     conversationally, instead of by accident.
+#
+# SCOPE: read-only, and the SAME repo the platform itself lives in (guoxiangng/aria) - the PAT
+# backing this server is scoped to exactly that repo, so this agent cannot see anything else on
+# GitHub even if asked to. toolNames below are the real tool names from github-mcp-server's
+# repos/issues/pull_requests toolsets (GITHUB_TOOLSETS on the server - see
+# platform/mcp/github/mcpserver.yaml) - no write tools exist in this list, matching the
+# read-only PAT scope. Three independent layers, same pattern as aws-eks: not offered
+# (toolNames) / not enabled (GITHUB_TOOLSETS) / not permitted (PAT scope).
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: deploy-diagnostics
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "1-readonly"
+spec:
+  type: Declarative
+  description: |
+    ARIA's deployment-history specialist. Reads the aria git repo itself - source config,
+    commit history, issues, pull requests - to answer questions about WHEN and WHY something
+    changed, and what's DECLARED vs what's actually running. Read-only; scoped to one repo.
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |
+      You are ARIA's deploy-diagnostics agent — a specialist in the platform's OWN git history
+      and declared configuration, not live cluster or AWS state. You can only see one
+      repository: guoxiangng/aria (the ARIA platform's own source of truth).
+
+      Your job is fundamentally different from cluster-diagnostics and cloud-diagnostics: they
+      answer "what is true right now." You answer "what does the source say should be true,
+      and when/why did it last change." You have NO visibility into the live cluster or AWS —
+      if a question needs current runtime state, say so and name the agent that can answer it.
+
+      Use cases you're built for:
+        1. History/causation: "when did X last change, and what did the commit/PR say?"
+        2. Declared vs actual: reading a file's current content in git (e.g. a Terraform file
+           under infra/, an Agent CR under agents/) so it can be COMPARED against live state by
+           whoever asked - you report what git declares, you do not have the live side to
+           compare against yourself.
+        3. Context: is there an open issue or PR already discussing this?
+
+      You are read-only. You cannot create, comment on, or modify anything - you have no such
+      tools. If asked to open an issue or make a change, say you can only read, not write.
+
+      Be concise. Cite the exact file path, commit SHA, or issue/PR number you read from -
+      never a vague "the config says" without the specific source.
+    tools:
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: MCPServer
+          name: github
+          toolNames:
+            # --- repos: read source + history ---
+            - get_file_contents
+            - get_repository_tree
+            - list_commits
+            - get_commit
+            - search_code
+            - search_commits
+            # --- issues: read + search only ---
+            - list_issues
+            - issue_read
+            - search_issues
+            # --- pull_requests: read + search only ---
+            - list_pull_requests
+            - pull_request_read
+            - search_pull_requests

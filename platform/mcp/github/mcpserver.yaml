@@ -42,6 +42,12 @@ spec:
     cmd: /server/github-mcp-server
     args: ["stdio"]
     port: 3000
+    env:
+      # Server-side toolset restriction (this server's own equivalent of aws-eks's
+      # --allow-write flag) - enables only the read-heavy toolsets. Deliberately excludes
+      # anything beyond repos/issues/pull_requests (e.g. actions, discussions, security) that
+      # isn't needed and would just be more discoverable surface for no reason.
+      GITHUB_TOOLSETS: "repos,issues,pull_requests"
     secretRefs:
       - name: github-pat
   transportType: stdio

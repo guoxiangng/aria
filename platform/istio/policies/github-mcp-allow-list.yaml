@@ -1,15 +1,14 @@
 # Allow-list for the self-hosted GitHub MCP server (platform/mcp/github/).
 #
-# Shipped DENY-BY-DEFAULT from day one, before any agent references this server — learned the
-# hard way with the AWS servers (see mcp-servers-allow-list.yaml's header): a throwaway probe
-# pod running as the `default` ServiceAccount reached aws-documentation because no policy
-# existed yet to stop it. `action: ALLOW` with an empty principal list means nothing passes;
-# add a principal here in the SAME commit that wires an agent's Agent CR to this server, not
-# after. Also worth being deliberate about here specifically: this server holds a real
-# (if read-only-scoped) GitHub credential — the same "both sides" discipline as the AWS
-# allow-lists, applied earlier in the lifecycle this time.
+# First shipped DENY-BY-DEFAULT (empty rules), before any agent existed to reference this
+# server — applying the lesson learned the hard way with the AWS servers (see
+# mcp-servers-allow-list.yaml's header): a throwaway probe pod running as the `default`
+# ServiceAccount reached aws-documentation because no policy existed yet to stop it. Now that
+# deploy-diagnostics (agents/deploy-diagnostics/) is the one agent wired to this server, its
+# principal is added HERE, in the same commit — not after. Worth being deliberate about here
+# specifically: this server holds a real (if read-only-scoped) GitHub credential.
 #
-# GOTCHA, verified against Istio's docs before shipping this (easy to get backwards):
+# GOTCHA, verified against Istio's docs (easy to get backwards, kept for the next server added):
 #   rules: []      <- deny-all (THIS policy). Zero rules means nothing ever matches ALLOW.
 #   rules: [{}]    <- allow-all. One EMPTY RULE OBJECT always matches. Opposite meaning,
 #                     one pair of braces apart. Do not "simplify" this to rules: [{}].
@@ -23,4 +22,9 @@ spec:
     matchLabels:
       app.kubernetes.io/name: github
   action: ALLOW
-  rules: []
+  rules:
+    - from:
+        - source:
+            principals:
+              # the only agent whose CR references this server (kind: MCPServer, name: github)
+              - cluster.local/ns/kagent/sa/deploy-diagnostics
