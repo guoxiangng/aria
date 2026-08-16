@@ -88,6 +88,19 @@ Fixed with one additive rule in `infra/02-eks/main.tf`
 the node SG) — confirmed live: cross-node TCP to ate-api:443 failed before, succeeded after,
 no other change. AWS-layer, so it's in Terraform per `docs/deploy-layers.md`.
 
+## ✅ RESOLVED 2026-08-16: kagent upgraded to 0.10.0-rc1, substrate-probe is READY
+
+The kagent 0.9.10 → 0.10.0-rc1 upgrade (see `../../docs/execution-environment.md` §10 for the full
+account) fixed the registry mismatch below via `goAgentImage`, then surfaced two further issues on
+the way to actually working: a **stale `ActorTemplate`** cached before the upgrade (the controller
+generated a fresh, correctly-imaged one alongside it rather than updating it — the stuck `Sandbox`
+needed deleting to pick it up), and a genuine **capacity constraint** — `platform: substrate` and
+`platform: agent-sandbox` actors share ONE `WorkerPool`, previously sized for one occupant.
+`substrateWorkerPool.replicas` bumped 1→2. Confirmed: `substrate-probe` is `Ready: True`, running as
+an actor multiplexed inside the shared WorkerPool — no dedicated Pod, which is the whole point of the
+density model. **Still open: Phase 4, actually measuring suspend/resume latency** — the payload the
+spike exists to produce. Kept below for the historical record of the registry-mismatch diagnosis.
+
 ## Parked: golang-adk runtime image registry mismatch (upstream kagent bug)
 
 With the SG fix above, the pipeline runs all the way through: controller stable (no crashloop),

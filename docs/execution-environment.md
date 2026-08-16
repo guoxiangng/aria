@@ -4,9 +4,15 @@
 > spec docs (`spec-agent-substrate-integration.md`, `spec-agent-sandbox-integration.md`), which were
 > written before we understood how the pieces relate — treat those as historical build notes.
 >
-> Last updated: 2026-08-15 · researched against kagent docs + upstream repos + the live cluster.
+> Last updated: 2026-08-16 · researched against kagent docs + upstream repos + the live cluster.
 
----
+> ## ✅ MILESTONE (2026-08-16): both sandbox platforms now WORK
+>
+> The kagent 0.9.10 → 0.10.0-rc1 upgrade shipped. Both probes are `Ready: True` on the live cluster:
+> `substrate-probe` (an actor multiplexed inside the shared WorkerPool — genuinely no 1:1 Pod, that's
+> the point) and `agent-sandbox-probe` (a real k8s-sigs `Sandbox`, serving A2A discovery successfully
+> for 3+ days). §10 below is the full account — read it before touching this workstream again;
+> §§7-9 are the pre-upgrade plan, kept for the record.
 
 ## 1. The corrected mental model
 
@@ -165,8 +171,94 @@ Substrate as its own ArgoCD app from a *vendored, patched* 0.0.10 chart. Options
    behaviour + warm pools (Agent Sandbox). This is the article payload that's still missing.
 7. **Update**: this doc → `_STATUS.md` → `build-in-public-plan.md` (#5), per the status-ownership rule.
 
+## 10. The upgrade, executed — full account (2026-08-16)
+
+### Pre-flight
+- `ghcr.io` pull confirmed working (disposable self-cleaning Job; kubelet `Pulled` event).
+- Postgres PVC snapshotted: `snap-031377c9cffb8a417` of `vol-0431ebbab83214108` — the rollback point.
+- In-flight-work check surfaced an **unrelated concurrent thread**: a `github` MCPServer mid-setup
+  (`SecretSyncedError` on `github-pat`, harmlessly crashlooping 9h+). Confirmed orthogonal to the
+  kagent version (kmcp stays 0.3.0 either way) and left untouched — not this workstream's to fix.
+
+### Upgrade
+`gitops/apps/kagent-crds.yaml` + `kagent.yaml` → `0.10.0-rc1`, validated locally (`helm template`
+against our values, both charts render clean, substrate subchart confirmed still `condition: false`
+so our vendored app stays authoritative — only RBAC + the `WorkerPool` CR render from it). Pushed;
+ArgoCD synced both apps `Synced/Healthy`. Controller rolled `1/1 Running`, 0 restarts. **Postgres pod
+untouched, no restart** — no migration crash.
+
+### Fleet verification gate — passed clean
+All 10 declarative/BYO agents `Ready: True`; pods cycled to new images exactly as the lifecycle
+analysis (§ outline-lifecycle-layer.md) predicted — Python agents → `ghcr.io/.../app:0.10.0-rc1`,
+Go agents → `ghcr.io/.../golang-adk:0.10.0-rc1`. **`investigation-loop` (BYO) kept its own ECR image
+unchanged**, confirmed live evidence for the definition/runtime split: it answered the *new*
+controller's A2A discovery calls (`GET /.well-known/agent-card.json` → `200 OK` repeatedly) without
+being rebuilt or redeployed itself.
+
+### Retrying the probes — three real problems, each diagnosed and fixed in turn
+
+**1. `substrate-probe`: stale `ActorTemplate`, cached before the upgrade.** kagent's controller only
+regenerates a SandboxAgent's `ActorTemplate` when the *SandboxAgent spec* changes — it wasn't watching
+for the registry move, which came from the chart version bump, so the original `ActorTemplate` (with
+the dead `cr.kagent.dev/.../golang-adk` reference) sat untouched. The controller quietly created a
+**second**, correctly-imaged `ActorTemplate` (`substrate-probe-<hash>`) alongside it, but the live
+`Sandbox`/pod stayed pinned to the first. Fix: delete the stuck `Sandbox` (safe — `SandboxAgent` CR
+unchanged, nothing stateful to lose on a spike probe) so it regenerates from the current template.
+**Lesson for the OSS thread:** kagent doesn't garbage-collect a superseded `ActorTemplate` when it
+regenerates one — see step 3 below, this bit twice.
+
+**2. Real capacity constraint discovered: `platform: substrate` and `platform: agent-sandbox` actors
+share ONE `WorkerPool`.** This was not previously known and corrects an assumption in §§1-6 above —
+we'd treated the two platforms as fully separate capacity pools. In fact `ate-controller` manages
+`ActorTemplate`s for *both* platform selectors identically; `agent-sandbox-probe`'s actor (already
+running 3 days) occupied the lab's only worker (`WorkerPool.replicas: 1`), so `substrate-probe`'s
+resume failed with `no free workers available` even after fix #1 landed. Fix: bumped
+`substrateWorkerPool.replicas` 1→2 in `platform/kagent/values.yaml`, GitOps-committed. Pod-slot
+headroom was checked first (tight: ~30-32/35 per node, other concurrent threads also consuming
+capacity) — flagged inline in the values comment for whoever touches this next.
+
+**3. The dangling orphan.** Even after fix #1's replacement `ActorTemplate` existed, `ate-controller`
+kept retrying the **original, stale** one every ~4 minutes (still owned by the same `SandboxAgent`,
+never cleaned up). It cost real debugging time before the pattern was obvious. Fix: delete the stale,
+unsuffixed `ActorTemplate substrate-probe` directly (confirmed safe: same owner UID as the fresh one,
+clearly superseded). This is the same finding as #1's lesson, worth one upstream issue rather than two.
+
+### Result
+```
+$ kubectl get sandboxagent -n kagent
+NAME                  READY   ACCEPTED
+agent-sandbox-probe   False   ← see caveat below
+substrate-probe       True    True
+```
+`substrate-probe`: `Ready: True`, `"ActorTemplate golden snapshot is ready"`. Genuinely working — the
+Substrate density model in action: no Pod named `substrate-probe` exists at all; it's an actor
+multiplexed inside a shared `kagent-default-*` worker pod, which is the entire point of the runtime.
+
+**Caveat on `agent-sandbox-probe`'s `READY: False`:** the underlying `Sandbox` object shows
+`READY: True, DependenciesReady`, and its pod has been `Running` and answering A2A discovery calls for
+3+ days straight — the live serving path is fine. The top-level `SandboxAgent.status.Ready` flickers
+False because *golden-snapshot/warm-standby maintenance* (a background process distinct from the live
+pod) loses the worker-contention race intermittently. **A misleading status signal, not an outage** —
+worth knowing before assuming `Ready: False` means the agent is down. Could resolve by bumping
+`WorkerPool.replicas` to 3, at the cost of more pod-slots on an already-tight lab; not urgent.
+
+### What's actually still open
+- **Phase 4 (the article payload) — not yet done**: measure real suspend/resume + resume latency on
+  Substrate; observe isolation behaviour + warm-pool cold-start elimination on Agent Sandbox. This is
+  the part the whole spike existed to produce and hasn't been captured yet.
+- Open questions §8 #2 (substrate version pairing with rc1) and #5 (valkey patch still needed
+  upstream) — unaffected by this session, still open.
+- Open question §8 #1 (does rc1 fix the field-index bug) is **superseded** — the actual failure mode
+  turned out to be the ActorTemplate staleness/WorkerPool sharing above, not the old
+  `.metadata.owner` index bug, which didn't recur.
+- The `github` MCPServer setup (unrelated concurrent thread) is still broken — not this workstream's
+  concern, noted for whoever owns it.
+
 ## Related
 - `../platform/substrate/README.md`, `../platform/agent-sandbox/README.md` — component detail.
-- `../../articles/outline-lifecycle-layer.md` — the upgrade's blast-radius analysis (article #9).
+- `../../articles/outline-lifecycle-layer.md` — the upgrade's blast-radius analysis (article #9) —
+  **now largely CONFIRMED by §10's live evidence**, not just predicted from chart values.
+- `../../articles/outline-sandbox-layer.md` — article #5; §10 is now the payload for it.
 - `../../articles/oss-contributions.md` — upstream threads (note: PR target is `agent-substrate/substrate`).
+  **Add**: stale-`ActorTemplate`-not-garbage-collected-on-regeneration (§10 fixes #1/#3).
 - `spec-agent-substrate-integration.md`, `spec-agent-sandbox-integration.md` — superseded build specs.

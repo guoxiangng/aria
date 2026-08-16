@@ -102,7 +102,18 @@ error listing *v1alpha1.Sandbox: Index with name field:.metadata.owner does not 
 kagent 0.9.10 queries its controller-runtime cache using a field index it never registered — a bug
 in the kagent binary, not fixable from config. No public issue filed upstream.
 
-### Conclusion: kagent 0.9.10 cannot run `SandboxAgent` on EITHER platform
+## ✅ UPDATE 2026-08-16: kagent upgraded to 0.10.0-rc1
+
+Full account: `../../docs/execution-environment.md` §10. **The `.metadata.owner` index bug below did
+not recur** after upgrading — superseded, not directly confirmed fixed. `agent-sandbox-probe`'s actual
+serving pod has in fact been `Running` and answering A2A discovery calls continuously for 3+ days
+(started working before this upgrade, likely during earlier concurrent work on the same cluster). One
+caveat found post-upgrade: `SandboxAgent.status.Ready` flickers `False` even though the live pod is
+healthy — a background golden-snapshot/warm-standby process (shared with Substrate, see the
+`substrate/README.md` capacity note) loses a worker-contention race intermittently. Misleading status
+signal, not an outage.
+
+### Conclusion (historical — see update above): kagent 0.9.10 cannot run `SandboxAgent` on EITHER platform
 
 | platform | blocker on kagent 0.9.10 |
 |---|---|
