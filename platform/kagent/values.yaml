@@ -44,7 +44,13 @@ controller:
 substrateWorkerPool:
   create: true
   name: kagent-default
-  replicas: 1
+  # 1->2 (2026-08-16): both platform:substrate and platform:agent-sandbox actors share this SAME
+  # WorkerPool (ate-controller manages ActorTemplates for both, regardless of the SandboxAgent
+  # "platform" selector). With replicas:1, agent-sandbox-probe's actor occupied the only worker and
+  # substrate-probe's golden-actor resume failed: "no free workers available". NOTE: pod-slots are
+  # tight on this 2-node lab (~30-32/35 per node as of this change) - don't bump further without
+  # checking headroom (kubectl get pods -A -o wide | count per node vs 35).
+  replicas: 2
   ateomImage: ghcr.io/kagent-dev/substrate/ateom-gvisor:v0.0.10
 
 # --- UI (set replicas: 0 to save resources if you only use CLI/API) ---
