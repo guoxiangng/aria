@@ -60,15 +60,29 @@ Application therefore carries an `ignoreDifferences` entry for exactly that fiel
 
 No cert-manager dependency and no Helm `lookup` problem here — a cleaner GitOps story than Substrate's.
 
-## Secure-by-default networking (expect this to bite)
+## ❌ CORRECTED 2026-08-18: "secure-by-default networking" is NOT enforced here
 
-Agent Sandbox denies outbound network access unless explicitly allow-listed
+**This section previously claimed the deny-by-default egress behaviour below was verified. It wasn't —
+that was inferred from the CRD field's description text, never actually live-tested until this date.**
+A real test (see `../../docs/execution-environment.md` §11) reached a domain deliberately left off the
+allow-list, from inside `agent-sandbox-probe`, successfully. Nothing on the cluster enforces it — ruled
+out the mesh (Istio's `outboundTrafficPolicy` is left at its permissive default; no `AuthorizationPolicy`
+exists for this agent, and that resource governs inbound traffic anyway, not outbound egress). Also
+confirmed: no `RuntimeClass` exists on the cluster at all, so the kernel-isolation half of the story
+(gVisor/Kata) is equally unprovisioned — getting it active needs node-level runtime-handler
+installation, real infra work neither the manifest nor the `SandboxAgent` spec brings on its own.
+
+**The schema is real** — `spec.sandbox.network.allowedDomains` genuinely applies to the live `Sandbox`
+object — but the description text's *"outbound access is denied by default"* does not currently hold
+on this deployment/version. Original (incorrect) claim kept below, struck through, for the record.
+
+~~Agent Sandbox denies outbound network access unless explicitly allow-listed
 (`spec.sandbox.network.allowedDomains` on the SandboxAgent). A sandboxed agent with no allow-list
 **cannot reach its LLM provider** — that's the isolation boundary working, not a bug.
-`agent-sandbox-probe` allow-lists the Azure OpenAI endpoint from `platform/kagent/values.yaml`.
+`agent-sandbox-probe` allow-lists the Azure OpenAI endpoint from `platform/kagent/values.yaml`.~~
 
-This is the most interesting governance property of the project for ARIA's thesis: per-agent,
-declarative egress control living next to the agent definition.
+~~This is the most interesting governance property of the project for ARIA's thesis: per-agent,
+declarative egress control living next to the agent definition.~~
 
 ## Verify
 

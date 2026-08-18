@@ -4,15 +4,17 @@
 > spec docs (`spec-agent-substrate-integration.md`, `spec-agent-sandbox-integration.md`), which were
 > written before we understood how the pieces relate — treat those as historical build notes.
 >
-> Last updated: 2026-08-16 · researched against kagent docs + upstream repos + the live cluster.
+> Last updated: 2026-08-18 · researched against kagent docs + upstream repos + the live cluster.
 
-> ## ✅ MILESTONE (2026-08-16): both sandbox platforms now WORK
+> ## Status (2026-08-18): both platforms INSTALL and RUN; neither's headline feature is PROVEN
 >
-> The kagent 0.9.10 → 0.10.0-rc1 upgrade shipped. Both probes are `Ready: True` on the live cluster:
-> `substrate-probe` (an actor multiplexed inside the shared WorkerPool — genuinely no 1:1 Pod, that's
-> the point) and `agent-sandbox-probe` (a real k8s-sigs `Sandbox`, serving A2A discovery successfully
-> for 3+ days). §10 below is the full account — read it before touching this workstream again;
-> §§7-9 are the pre-upgrade plan, kept for the record.
+> The kagent 0.9.10 → 0.10.0-rc1 upgrade shipped and both probes are genuinely `Ready: True` — real
+> progress, see §10. But testing what each runtime actually promises (§11) came back negative on both:
+> Substrate never suspended `substrate-probe` over 2+ days idle, and Agent Sandbox's network/kernel
+> isolation for `agent-sandbox-probe` is accepted into the config but not enforced. Read §10 for the
+> install/upgrade story, §11 for what the promises turned out to be. Full write-up:
+> `../../articles/05-article-two-sandbox-runtimes.md` (private draft). §§7-9 are the pre-upgrade plan,
+> kept for the record.
 
 ## 1. The corrected mental model
 
@@ -243,9 +245,6 @@ worth knowing before assuming `Ready: False` means the agent is down. Could reso
 `WorkerPool.replicas` to 3, at the cost of more pod-slots on an already-tight lab; not urgent.
 
 ### What's actually still open
-- **Phase 4 (the article payload) — not yet done**: measure real suspend/resume + resume latency on
-  Substrate; observe isolation behaviour + warm-pool cold-start elimination on Agent Sandbox. This is
-  the part the whole spike existed to produce and hasn't been captured yet.
 - Open questions §8 #2 (substrate version pairing with rc1) and #5 (valkey patch still needed
   upstream) — unaffected by this session, still open.
 - Open question §8 #1 (does rc1 fix the field-index bug) is **superseded** — the actual failure mode
@@ -253,6 +252,46 @@ worth knowing before assuming `Ready: False` means the agent is down. Could reso
   `.metadata.owner` index bug, which didn't recur.
 - The `github` MCPServer setup (unrelated concurrent thread) is still broken — not this workstream's
   concern, noted for whoever owns it.
+
+## 11. Phase 4 — testing the actual headline promises (2026-08-16 → 2026-08-18)
+
+With both probes `Ready`, we tested what each runtime is actually *for*, not just whether it installs.
+Full narrative + evidence: `../../articles/05-article-two-sandbox-runtimes.md` (private draft) — this
+section is the canonical technical record; that draft is the write-up.
+
+**Substrate: suspend/resume never observed.** `substrate-probe` was left genuinely idle (no calls, no
+polling) and its `ActorTemplate` status polled periodically: `Ready` at resume (`04:21:28Z`), `Ready`
+at ~21 min idle, `Ready` at ~2h idle, **`Ready` at ~2 DAYS idle** (`2026-08-18T13:22:11Z`). It never
+suspended once. No configurable idle-timeout was found exposed in the chart's values or templates —
+likely hardcoded in the `ate-api`/`ate-controller` binaries, or the mechanism doesn't fire in this
+deployment shape. Stated as an observation, not a verdict — Substrate is explicitly pre-production and
+this is a single-actor, single-cluster sample.
+
+**Agent Sandbox: neither isolation lever is actually enforced.**
+- **Network**: `spec.sandbox.network.allowedDomains` is genuinely applied to the live `Sandbox` object
+  (confirmed in its spec), but a live test reaching a non-allow-listed domain (`example.com`) from
+  inside the pod **succeeded** — nothing blocks it. Checked and ruled out the obvious alternative
+  explanation (Istio, separately installed on this cluster for identity/authz by other work): mesh
+  `outboundTrafficPolicy` is left at Istio's own permissive default (`ALLOW_ANY`), and no
+  `AuthorizationPolicy` exists for this agent — and that resource type governs inbound traffic to a
+  workload, not its own outbound egress, so it's the wrong mechanism regardless.
+- **Kernel isolation**: `kubectl get runtimeclass` returns nothing — no `RuntimeClass` exists on the
+  cluster at all. Neither the vendored agent-sandbox manifest nor our `SandboxAgent` spec provisions
+  one; getting gVisor/Kata active needs node-level runtime-handler installation, genuine infra work
+  outside what either project's own manifest can bring. The agent runs on the plain default
+  container runtime today, not a sandboxed one.
+
+**Correction to earlier documentation:** `platform/agent-sandbox/README.md`'s "secure by default"
+section (written 2026-08-07) stated the network-deny behaviour as verified. It wasn't — that was
+inferred from the CRD field's description text, never live-tested until this session. Corrected in
+that README; noted here as a reminder to distinguish "the schema says X" from "X is true."
+
+**What this changes:** both control planes install cleanly and both agents reach a genuinely stable
+`Ready` state and answer real requests through kagent's controller — that part is solid and real. But
+neither runtime's own headline feature (density-via-suspend for Substrate; isolation-via-policy for
+Agent Sandbox) was observed working on this deployment, at these versions. That became the article's
+actual spine rather than a "here are the benchmark numbers" piece — see the draft for the full
+treatment.
 
 ## Related
 - `../platform/substrate/README.md`, `../platform/agent-sandbox/README.md` — component detail.
