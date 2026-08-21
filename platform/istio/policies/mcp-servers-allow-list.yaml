@@ -10,15 +10,25 @@
 # configuration constrains *intent*, identity+policy constrains *authority*.
 #
 # WHO IS ALLOWED — derived from real ztunnel access logs, not assumption:
-#   - ONLY the specific agent(s) whose Agent CR references that server. `kagent-controller` is
-#     deliberately NOT listed here — verified empirically (twice, including a fresh controller
-#     restart forcing a full reconcile) that it never connects to these pods. That's a real
-#     behavioural difference from RemoteMCPServer: a RemoteMCPServer object makes the controller
-#     connect to populate `status.discoveredTools` (live introspection); our Agent CRs reference
-#     the kmcp MCPServer resource DIRECTLY (kind: MCPServer), which renders `http_tools` purely
-#     from the Agent CR's own hand-written `toolNames` — no live call, no discovery. Trade-off
-#     worth knowing: leaner wiring, but a typo'd tool name won't surface until an agent tries to
-#     call it, since nothing ever asks the server what it actually exposes.
+#   - The specific agent(s) whose Agent CR references that server, AND `kagent-controller`.
+#
+#   - CORRECTED 2026-08-21 — kagent-controller MUST be listed. An earlier version of this file
+#     omitted it, on the belief (stated confidently in the comment, and wrong) that a direct
+#     `kind: MCPServer` reference means the controller never connects. It does connect: kagent runs
+#     a dedicated MCPServerToolController that reconciles EVERY MCPServer by calling `initialize`
+#     against it to fetch its tool list, independent of how any Agent references it. Denying it put
+#     all four servers into a permanent reconcile-error loop:
+#         "failed to upsert tool server for mcp server" ... mcpServer":"kagent/github"
+#         ... rejected by transport: Post "http://github.kagent:3000/mcp": read: connection reset by peer
+#     Agents kept working throughout (they connect as themselves, and were allow-listed), which is
+#     exactly why this went unnoticed — the break was in the controller's tool registry, not the
+#     data path.
+#
+#     HOW THE WRONG CONCLUSION WAS REACHED — worth recording, because the method was the bug:
+#     ztunnel is a DaemonSet (one pod per node). The "proof" was `kubectl logs ztunnel-<one-pod>`
+#     grepped for these services, which returned nothing. That pod was simply on a different node
+#     than the controller. Always use `-l app=ztunnel --prefix` to search the whole DaemonSet;
+#     a single-pod grep proves nothing about cluster-wide traffic.
 #
 # MAINTENANCE NOTE (the "both sides" rule): wiring a new agent to an MCP server means editing TWO
 # things — the Agent CR's tools list AND this file's principal list for that server. If you only do
@@ -44,6 +54,8 @@ spec:
             principals:
               # the only agent whose CR references this server (kind: MCPServer, name: aws-pricing)
               - cluster.local/ns/kagent/sa/cost-sentinel
+              # required: MCPServerToolController fetches this server's tool list every reconcile
+              - cluster.local/ns/kagent/sa/kagent-controller
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -61,6 +73,8 @@ spec:
             principals:
               # cluster-diagnostics uses this to ground remediation advice in real AWS docs.
               - cluster.local/ns/kagent/sa/cluster-diagnostics
+              # required: MCPServerToolController fetches this server's tool list every reconcile
+              - cluster.local/ns/kagent/sa/kagent-controller
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -81,3 +95,5 @@ spec:
               # mutating ones — see agents/cloud-diagnostics/agent.yaml). This server carries 16
               # AWS tools against a real (read-only) IAM role, so keep this list tight.
               - cluster.local/ns/kagent/sa/cloud-diagnostics
+              # required: MCPServerToolController fetches this server's tool list every reconcile
+              - cluster.local/ns/kagent/sa/kagent-controller

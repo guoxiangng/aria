@@ -28,3 +28,7 @@ spec:
             principals:
               # the only agent whose CR references this server (kind: MCPServer, name: github)
               - cluster.local/ns/kagent/sa/deploy-diagnostics
+              # required: kagent's MCPServerToolController calls `initialize` against every
+              # MCPServer each reconcile to fetch its tool list. Omitting this put all four
+              # servers into a permanent reconcile-error loop — see mcp-servers-allow-list.yaml.
+              - cluster.local/ns/kagent/sa/kagent-controller
