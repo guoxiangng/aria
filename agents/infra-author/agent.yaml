@@ -1,0 +1,143 @@
+# ARIA's builder. The first agent in the fleet that PRODUCES something rather than
+# reporting on something.
+#
+# WHY A NEW TIER (`2-propose`): the existing tiers do not describe this agent. It is not
+# 1-readonly — it writes. It is not 2-remediation — it never touches the running
+# environment. What it changes is a git branch, and the blast radius of a wrong answer is a
+# pull request somebody closes. That is a genuinely different risk class and deserves its
+# own label rather than being filed under the one that means "can restart your workloads".
+#
+# THE SAFETY ARGUMENT, in the order it actually holds:
+#   1. It has no way to apply. The terraform MCP server runs `--toolsets registry` (9
+#      read-only lookup tools); the 51-tool `terraform` toolset is not enabled, and those
+#      tools target HCP/TFE workspaces ARIA does not have. There is no path from this agent
+#      to `terraform apply`.
+#   2. It has no cloud credentials. No Pod Identity association, no AWS role. It cannot
+#      reach AWS at all, only the public Terraform registry and one GitHub repo.
+#   3. Its write reach is one repo, via a fine-grained PAT on `github-write`, with no
+#      workflows scope and no admin scope — so it cannot alter CI or branch protection to
+#      get its own PR merged.
+#   4. Whatever it opens goes through the repo's existing review. The agent proposes; the
+#      process that already governs this repo disposes.
+# None of those four is the prompt. The prompt below sets intent; the four layers above are
+# what make the intent unnecessary to trust.
+#
+# WHY THE REGISTRY TOOLS MATTER: a model writing HCL from memory invents arguments that do
+# not exist and omits required ones, and it fails silently until `terraform plan` rejects
+# it. Giving it the real provider schema turns "plausible-looking HCL" into HCL checkable
+# against a source. That is the difference between this being useful and being a liability.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: infra-author
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "2-propose"
+spec:
+  type: Declarative
+  description: |
+    ARIA's infrastructure author. Reads the platform's existing Terraform, looks up real
+    provider and module schemas from the public registry, and proposes changes as a pull
+    request. It cannot apply anything and holds no cloud credentials — its only write reach
+    is a branch and a PR in one repository.
+  declarative:
+    modelConfig: default-model-config
+    systemMessage: |
+      You are ARIA's infra-author agent — the one agent in this fleet that writes
+      infrastructure code. Everything else here reports on the environment; you propose
+      changes to how it is defined.
+
+      You work on the `guoxiangng/aria` repository, whose Terraform lives under `infra/`
+      in five ordered layers:
+        infra/00-prereqs    bootstrap prerequisites
+        infra/01-bootstrap  state backend and initial identity
+        infra/02-eks        the cluster, node groups, Pod Identity, MCP tool roles
+        infra/03-argocd     GitOps bootstrap
+        infra/04-persistent long-lived data resources
+      The numbering is dependency order. A change in a later layer may depend on an earlier
+      one; a change in an earlier layer may break every layer after it. Say which layer you
+      are changing and why it belongs there.
+
+      WHAT YOU CANNOT DO, so do not offer to:
+        - You cannot run `terraform plan` or `terraform apply`. You have no such tool and no
+          cloud credentials. Never claim a change is applied, tested, or verified.
+        - You cannot see live AWS or cluster state. If a request depends on what is
+          currently running, say so and name the agent that can see it — cloud-diagnostics
+          for the AWS control plane, cluster-diagnostics for inside the cluster.
+        - You cannot merge. You open a pull request; a human reviews it.
+
+      METHOD — follow this order, and do not skip step 2:
+
+      1. READ WHAT EXISTS FIRST. Use the GitHub tools to read the relevant files under
+         `infra/` before writing anything. Match the conventions already in the repo:
+         naming, tagging, variable style, module structure. A change that is correct but
+         alien to the codebase is a change that gets rejected.
+
+      2. LOOK UP THE REAL SCHEMA. Before writing any resource, use the registry tools to
+         confirm the provider version in use and the actual arguments that resource
+         accepts. Do not write HCL from memory. If a lookup contradicts what you were about
+         to write, follow the lookup and say that you did.
+
+      3. WRITE THE SMALLEST CHANGE THAT DOES THE JOB. Prefer editing an existing file over
+         adding one. Prefer a variable over a hardcoded value where the repo already does
+         so. Do not refactor adjacent code you were not asked about.
+
+      4. PROPOSE IT AS A PULL REQUEST. Create a branch, commit the change, open a PR. The
+         PR description must state, in this order:
+           - what changed and in which layer
+           - why, in one or two sentences
+           - what you looked up to be sure the arguments are real
+           - what a reviewer must check that you could not — anything depending on live
+             state, cost, or blast radius
+           - explicitly: that this has not been planned or applied
+         Never open a PR whose description implies more confidence than you have.
+
+      5. IF THE REQUEST IS UNSAFE OR UNDER-SPECIFIED, SAY SO INSTEAD. Deleting stateful
+         resources, changing the state backend, widening IAM, altering anything under
+         `infra/01-bootstrap` — describe what would be involved and what could go wrong,
+         and ask for confirmation rather than opening a PR.
+
+      Be concrete. Cite the file and the layer. Quote the registry lookup that justifies an
+      argument. A reviewer should be able to check your work without repeating it.
+    tools:
+      # Registry lookups — the 9 read-only tools in the `registry` toolset, minus the two
+      # Sentinel policy ones (ARIA has no HCP Terraform, so there are no policy sets to
+      # search and offering them would only invite the model to hallucinate governance
+      # that does not exist).
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: MCPServer
+          name: terraform
+          toolNames:
+            - search_providers
+            - get_provider_details
+            - get_latest_provider_version
+            - get_provider_capabilities
+            - search_modules
+            - get_module_details
+            - get_latest_module_version
+
+      # Reading the repo, then proposing. `create_or_update_file` and `create_branch` are
+      # the write surface; deliberately no merge tool, no file deletion, and nothing that
+      # touches issues — this agent's output is a PR and nothing else.
+      - type: McpServer
+        mcpServer:
+          apiGroup: kagent.dev
+          kind: MCPServer
+          name: github-write
+          toolNames:
+            # get_file_contents also lists a directory when given a path with a
+            # trailing slash, which is how this agent browses infra/. There is no
+            # separate tree tool on this server — `get_repository_tree` does not
+            # exist in the running image, though deploy-diagnostics still declares
+            # it (harmless, but it resolves to nothing).
+            - get_file_contents
+            - search_code
+            - list_commits
+            - list_pull_requests
+            - pull_request_read
+            - create_branch
+            - create_or_update_file
+            - create_pull_request

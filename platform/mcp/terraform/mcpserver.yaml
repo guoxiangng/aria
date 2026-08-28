@@ -1,0 +1,52 @@
+# HashiCorp's own Terraform MCP server, self-hosted in-cluster via kmcp — the same
+# flavour as the aws-* servers ("third-party, self-hosted", not one we wrote).
+#
+# WHY THIS SERVER EXISTS: infra-author writes Terraform. An LLM writing HCL from memory
+# invents arguments that do not exist and misses required ones, and the failure is silent
+# until `terraform plan` rejects it. This server gives the agent the *actual* provider and
+# module schemas from the public registry, so what it proposes is checkable against a real
+# source rather than against training data.
+#
+# NO CREDENTIALS, DELIBERATELY. The public registry needs none. TFE_TOKEN / TFE_ADDRESS are
+# only for HCP Terraform, Terraform Enterprise or private registries — ARIA uses none of
+# those (state is local/S3, see infra/), so there is no secret to leak here and no
+# secretRefs block. That is a property worth preserving: if a private registry is ever
+# added, add a SECOND server rather than putting a token on this one.
+#
+# THIS SERVER CANNOT APPLY ANYTHING. Two independent reasons, which is why it is safe to
+# give a write-capable agent:
+#   1. `--toolsets registry` limits it to the 9 read-only registry tools. The `terraform`
+#      toolset (51 tools: runs, plans, state, workspace management) is NOT enabled.
+#   2. Those operations target HCP Terraform / TFE workspaces over an API. ARIA has no
+#      workspace for them to act on, so even enabling them would find nothing to change.
+# ENABLE_TF_OPERATIONS is pinned false as a third, explicit layer — same "not offered /
+# not enabled / not permitted" pattern as aws-eks and github.
+#
+# VERIFY ON FIRST SYNC: `cmd` is the image's ENTRYPOINT binary (`./terraform-mcp-server`
+# from WORKDIR /server). If the pod CrashLoopBackOffs on exec, check the path with
+# `kubectl -n kagent logs deploy/terraform` — the upstream image layout is the one thing
+# here not confirmed against a running container.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: terraform
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  deployment:
+    image: hashicorp/terraform-mcp-server:1.3.0
+    cmd: /server/terraform-mcp-server
+    args:
+      - --toolsets
+      - registry
+    port: 3000
+    env:
+      # Explicitly off. Defaults to false upstream; pinned so a default change on a version
+      # bump cannot quietly hand this server destructive tools.
+      ENABLE_TF_OPERATIONS: "false"
+      # stdio is the upstream default when unset; stated rather than assumed, because the
+      # transportType below has to agree with it.
+      TRANSPORT_MODE: stdio
+  transportType: stdio
+  stdioTransport: {}

@@ -1,0 +1,56 @@
+# Identity-based allow-lists for the two MCP servers infra-author uses.
+#
+# Kept in its own file rather than appended to mcp-servers-allow-list.yaml because both
+# servers arrived with one agent and serve only that agent — the same reason github has its
+# own file. If a second agent is ever wired to either, this is the file to edit, and the
+# "both sides" rule from mcp-servers-allow-list.yaml applies: the Agent CR's tools list AND
+# the principal list here, or the agent is offered the tool and then gets connection-reset
+# at the mesh.
+#
+# `kagent-controller` is required on both, and is not optional. kagent runs an
+# MCPServerToolController that calls `initialize` against EVERY MCPServer each reconcile to
+# fetch its tool list, independent of which agent references it. Omitting it does not break
+# the agent's data path — it breaks the controller's tool registry, silently, which is
+# exactly why it went unnoticed the first time (see mcp-servers-allow-list.yaml).
+#
+# Ambient note: `action: ALLOW` makes each target DEFAULT-DENY — only listed principals
+# pass, everything else is refused at the node ztunnel before reaching the pod.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: terraform-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: terraform
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              # the only agent whose CR references this server (kind: MCPServer, name: terraform)
+              - cluster.local/ns/kagent/sa/infra-author
+              # required: MCPServerToolController fetches this server's tool list every reconcile
+              - cluster.local/ns/kagent/sa/kagent-controller
+---
+# Deliberately NOT reachable by deploy-diagnostics, which has its own read-only `github`
+# server. The whole reason there are two GitHub servers is that this one is backed by a
+# write-scoped PAT — so the mesh policy has to keep them apart too, not just the PATs.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: github-write-allow-list
+  namespace: kagent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: github-write
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/kagent/sa/infra-author
+              # required: MCPServerToolController fetches this server's tool list every reconcile
+              - cluster.local/ns/kagent/sa/kagent-controller

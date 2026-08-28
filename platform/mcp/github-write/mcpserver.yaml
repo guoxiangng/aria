@@ -1,0 +1,46 @@
+# A SECOND github-mcp-server instance, backed by a write-scoped PAT.
+#
+# WHY NOT JUST WIDEN THE EXISTING ONE: `platform/mcp/github/` is backed by a read-only PAT,
+# and deploy-diagnostics depends on that being true. Granting write scope to that token
+# would leave deploy-diagnostics' *toolNames* list as the only thing standing between a
+# read-only agent and the ability to push commits — one layer where there are currently
+# three. Splitting the servers keeps the read-only agent read-only at the credential level,
+# where a mistake in an allow-list cannot reach it.
+#
+# The cost of this choice is a second Deployment and a second secret. That is the right
+# trade: the whole point of the tiering is that the credential, not the prompt, is the
+# control.
+#
+# SECRET (create before this syncs — not in git):
+#   kubectl -n kagent create secret generic github-pat-write \
+#     --from-literal=GITHUB_PERSONAL_ACCESS_TOKEN=<token>
+# Scope it to the SINGLE repo infra-author is allowed to open PRs against, with Contents:RW
+# and Pull requests:RW and nothing else. A fine-grained PAT, not a classic one — a classic
+# token cannot be limited to one repository, and "all my repos" is not a scope any agent
+# should hold.
+#
+# WHAT IT STILL CANNOT DO: no `workflows` scope, so it cannot modify CI; no admin scope, so
+# it cannot change branch protection. A PR from this agent has to pass whatever review the
+# repo already requires, which is the actual safety property — the agent proposes, the
+# existing process disposes.
+apiVersion: kagent.dev/v1alpha1
+kind: MCPServer
+metadata:
+  name: github-write
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+spec:
+  deployment:
+    image: ghcr.io/github/github-mcp-server
+    cmd: /server/github-mcp-server
+    args: ["stdio"]
+    port: 3000
+    env:
+      # Narrower than the read-only server's toolsets: no `issues`. This server exists to
+      # read code and open pull requests, and nothing else needs to be reachable.
+      GITHUB_TOOLSETS: "repos,pull_requests"
+    secretRefs:
+      - name: github-pat-write
+  transportType: stdio
+  stdioTransport: {}
