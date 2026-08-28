@@ -22,7 +22,11 @@ spec:
     live AWS Pricing API data via a self-hosted MCP server. Read-only; the Pricing API itself
     has no mutating actions.
   declarative:
-    modelConfig: default-model-config
+    # Repointed 2026-08-26 to prove the LiteLLM gateway (platform/litellm/, domain 10) end to end —
+    # first real agent through it. Picked as the guinea pig: already cost-themed, already a leaf
+    # agent with a one-principal allow-list (platform/istio/policies/litellm-allow-list.yaml), so
+    # lowest blast radius in the fleet. Every other agent still uses default-model-config directly.
+    modelConfig: litellm-gateway
     systemMessage: |
       You are ARIA's cost-sentinel agent — an AWS pricing and cost-estimation specialist.
       You run as a pod in the `kagent` namespace.

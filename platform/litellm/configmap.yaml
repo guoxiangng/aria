@@ -1,0 +1,25 @@
+# LiteLLM's config.yaml. DB-less v1 (see README.md "Key decisions"): one Azure OpenAI route, one
+# master key, no model_list per-key budgets (those need general_settings.database_url — a Postgres
+# LiteLLM manages via its own migrations-job, deliberately not run here yet). Per-tenant attribution
+# for v1 comes from tagging requests with `user`/`metadata` at call time and reading it back in
+# Langfuse — see README.md's verification section.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: litellm-config
+  namespace: litellm
+data:
+  config.yaml: |
+    model_list:
+      - model_name: azure-gpt-5-4-mini
+        litellm_params:
+          model: azure/gpt-5.4-mini-ncs4-group4
+          api_base: https://oai-ladp-ncs-4.openai.azure.com
+          api_version: "2024-12-01-preview"
+          api_key: os.environ/AZURE_API_KEY
+
+    general_settings:
+      master_key: os.environ/LITELLM_MASTER_KEY
+
+    litellm_settings:
+      success_callback: ["langfuse"]

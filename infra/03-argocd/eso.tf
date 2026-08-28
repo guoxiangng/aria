@@ -84,6 +84,38 @@ resource "aws_secretsmanager_secret_version" "kagent_langfuse_otel" {
   }
 }
 
+# LiteLLM's own Langfuse integration (platform/litellm/) — separate from kagent_langfuse_otel above.
+# kagent traces via an OTel collector, which needs the composed Basic-Auth header; LiteLLM's native
+# Langfuse SDK callback wants the public/secret key pair split out instead. Same Langfuse project
+# (`aria`) either way — two instrumentation paths into one observability plane. TF-seeded like
+# kagent_azure since these values already exist as tfvars (they compose the header above).
+resource "aws_secretsmanager_secret" "litellm_langfuse" {
+  name        = "${local.sm_prefix}/litellm-langfuse"
+  description = "Langfuse public/secret key pair for LiteLLM's native success_callback (consumed via ESO ExternalSecret)."
+}
+
+resource "aws_secretsmanager_secret_version" "litellm_langfuse" {
+  secret_id = aws_secretsmanager_secret.litellm_langfuse.id
+  secret_string = jsonencode({
+    LANGFUSE_PUBLIC_KEY = var.langfuse_public_key
+    LANGFUSE_SECRET_KEY = var.langfuse_secret_key
+  })
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
+# LiteLLM proxy admin/master key (Authorization: Bearer <key> on every call). Container-only pattern
+# (like github_pat): Terraform creates the container only, value seeded out-of-band so it never
+# passes through tfvars or state.
+#
+#   aws secretsmanager put-secret-value --secret-id aria/litellm-master-key \
+#     --secret-string '{"LITELLM_MASTER_KEY":"<random value, e.g. openssl rand -hex 32>"}'
+resource "aws_secretsmanager_secret" "litellm_master_key" {
+  name        = "${local.sm_prefix}/litellm-master-key"
+  description = "LiteLLM proxy master key (consumed via ESO ExternalSecret). Seeded out-of-band, never in tfvars/state."
+}
+
 # --- IAM: the role ESO's ServiceAccount assumes via EKS Pod Identity ---
 
 data "aws_iam_policy_document" "eso_pod_identity_trust" {
@@ -114,6 +146,8 @@ data "aws_iam_policy_document" "eso_read" {
       aws_secretsmanager_secret.kagent_azure_embedding.arn,
       aws_secretsmanager_secret.kagent_langfuse_otel.arn,
       aws_secretsmanager_secret.github_pat.arn,
+      aws_secretsmanager_secret.litellm_langfuse.arn,
+      aws_secretsmanager_secret.litellm_master_key.arn,
     ]
   }
 }

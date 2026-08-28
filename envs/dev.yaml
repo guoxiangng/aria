@@ -33,6 +33,30 @@ namespaces:
       maxCpu: "2"
       maxMemory: "4Gi"
 
+  # LiteLLM model gateway (platform/litellm/) — single lightweight Deployment, not a platform
+  # namespace like kagent, so (unlike kagent) an explicit small quota is appropriate here.
+  # Ambient-mesh-enrolled: gets its own SPIFFE identity, reachable only per
+  # platform/istio/policies/litellm-allow-list.yaml.
+  - name: litellm
+    service: litellm
+    env: dev
+    labels:
+      istio.io/dataplane-mode: ambient
+    quota:
+      requestsCpu: "250m"
+      requestsMemory: "512Mi"
+      limitsCpu: "1"
+      limitsMemory: "1Gi"
+      pvcs: 0
+      pods: 3
+    limits:
+      defaultCpu: "250m"
+      defaultMemory: "512Mi"
+      defaultRequestCpu: "100m"
+      defaultRequestMemory: "256Mi"
+      maxCpu: "1"
+      maxMemory: "1Gi"
+
   # Actions Runner Controller (ARC) - CI infra, kept separate from agent/app namespaces
   # deliberately (isolation over convenience - see eval/README.md for the trade-off note).
   - name: arc-systems

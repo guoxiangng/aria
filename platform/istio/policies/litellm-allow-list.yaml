@@ -1,0 +1,31 @@
+# Identity allow-list for the LiteLLM model gateway (platform/litellm/) — domain 10.
+#
+# WHY: same gap class as mcp-servers-allow-list.yaml — a kagent ModelConfig's baseUrl is a
+# configuration pointer, not a network boundary. Without this, any pod in the mesh could reach
+# litellm.litellm:4000 and, if it also had the master key, call Azure OpenAI through it directly.
+#
+# WHO IS ALLOWED: only cost-sentinel — the one agent repointed at litellm-gateway
+# (platform/kagent/modelconfig-litellm.yaml). Every other agent still calls its provider directly,
+# so no other principal belongs here yet.
+#
+# UNLIKE the MCP-server allow-lists, kagent-controller is deliberately NOT listed here — verify
+# this stays true after any kagent version bump (`kagent-kmcp-controller-manager` reconciles
+# MCPServer via an `initialize` call at apply time; ModelConfig has no equivalent controller-side
+# call to the endpoint — it's read by the agent pod itself, at inference time, not by the
+# controller). If a future kagent version starts validating ModelConfig endpoints server-side,
+# this comment is the tripwire to catch it.
+apiVersion: security.istio.io/v1
+kind: AuthorizationPolicy
+metadata:
+  name: litellm-allow-list
+  namespace: litellm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+  action: ALLOW
+  rules:
+    - from:
+        - source:
+            principals:
+              - cluster.local/ns/kagent/sa/cost-sentinel

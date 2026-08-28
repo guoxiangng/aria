@@ -1,0 +1,30 @@
+# Wave 2 — LiteLLM model gateway (platform/litellm/), domain 10. Plain manifests, not a Helm chart
+# (BerriAI publishes no first-party chart source — see platform/litellm/README.md). Wave 2, not 1:
+# its Deployment envFrom's 3 Secrets that external-secrets-config (wave 1) creates via
+# ExternalSecret — same reasoning `models.yaml` already uses for the same race (ModelConfig CRs
+# referencing an ESO-created secret need the secret to exist first).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: litellm
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/guoxiangng/aria.git
+    targetRevision: main
+    path: platform/litellm
+    directory:
+      exclude: "README.md"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: litellm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # created by namespace-bootstrap (wave -1)
+      - ServerSideApply=true

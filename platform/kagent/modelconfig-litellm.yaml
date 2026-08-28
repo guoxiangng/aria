@@ -1,0 +1,25 @@
+# ARIA's first model-gateway ModelConfig — routes through the self-hosted LiteLLM proxy
+# (platform/litellm/) instead of calling Azure OpenAI directly. Additive: default-model-config and
+# the Bedrock ModelConfigs (modelconfig-bedrock.yaml) are untouched; only cost-sentinel opts in
+# (agents/cost-sentinel/agent.yaml), the rest of the fleet is unaffected.
+#
+# Field shapes (provider: OpenAI, openAI.baseUrl, top-level apiKeySecret/apiKeySecretKey) verified
+# live against the running 0.10.0-rc1 CRD: `kubectl explain modelconfig.spec --recursive`
+# (2026-08-26) — not assumed from generic kagent docs, per aria/docs/ARCHITECTURE.md §4's caution
+# about version-bump schema drift.
+#
+# model below (azure-gpt-5-4-mini) is the model_name alias defined in litellm's config.yaml
+# (platform/litellm/configmap.yaml), NOT the underlying Azure deployment name — LiteLLM does that
+# translation, kagent only ever sees the OpenAI-compatible alias.
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: litellm-gateway
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: azure-gpt-5-4-mini
+  apiKeySecret: litellm-gateway-key
+  apiKeySecretKey: LITELLM_MASTER_KEY
+  openAI:
+    baseUrl: http://litellm.litellm.svc.cluster.local:4000/v1

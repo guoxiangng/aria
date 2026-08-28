@@ -1,0 +1,88 @@
+# LiteLLM proxy — plain Deployment, not a Helm chart. BerriAI (upstream) publishes no first-party
+# chart repo/OCI source (only a container image); the only installable "litellm-helm" charts are
+# third-party mirrors, and BerriAI's own chart templates assume a Postgres migrations-job that v1's
+# DB-less design doesn't want. See README.md "Key decisions" for the full reasoning.
+#
+# Image tag verified live 2026-08-26 against ghcr.io/berriai/litellm's real manifest list (not
+# assumed) — re-check before bumping.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: litellm
+  namespace: litellm
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm
+  namespace: litellm
+  labels:
+    app.kubernetes.io/name: litellm
+    app.kubernetes.io/part-of: aria
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: litellm
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: litellm
+    spec:
+      serviceAccountName: litellm
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: litellm
+          image: ghcr.io/berriai/litellm:v1.83.14-stable
+          args: ["--config", "/etc/litellm/config.yaml", "--port", "4000"]
+          ports:
+            - name: http
+              containerPort: 4000
+          envFrom:
+            - secretRef:
+                name: litellm-azure
+            - secretRef:
+                name: litellm-langfuse
+            - secretRef:
+                name: litellm-master-key
+          env:
+            - name: LANGFUSE_HOST
+              value: "https://us.cloud.langfuse.com" # same Langfuse Cloud region as kagent's OTel export (infra/03-argocd/variables.tf)
+          volumeMounts:
+            - name: config
+              mountPath: /etc/litellm
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            httpGet:
+              path: /health/readiness
+              port: http
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health/liveliness
+              port: http
+            initialDelaySeconds: 15
+      volumes:
+        - name: config
+          configMap:
+            name: litellm-config
+        - name: tmp
+          emptyDir: {}
