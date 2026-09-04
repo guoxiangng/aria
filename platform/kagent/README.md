@@ -46,7 +46,10 @@ kagent's chart has no Bedrock provider entry, so Bedrock is wired via our own `M
    = the Pod-Identity-bound SA, and `enable_bedrock_pod_identity=true` in `infra/02-eks/terraform.tfvars`.
 2. **OpenAI-compat Bedrock endpoint** (`provider: OpenAI`, `baseUrl=…/openai/v1`) + a Bedrock API key — works,
    but static key.
-3. **LiteLLM proxy** — agents talk OpenAI to a LiteLLM pod that assumes a Pod-Identity role for Bedrock.
+3. **LiteLLM proxy** — built 2026-09-04, but for Azure OpenAI, not Bedrock: `platform/litellm/` runs a
+   self-hosted LiteLLM proxy (`litellm-gateway` ModelConfig), currently only `cost-sentinel` routed
+   through it. A Bedrock route via LiteLLM (this option, as originally scoped) is still open — see
+   `platform/litellm/README.md`'s Open items.
 
 ## Bringing in agents (the operator/CR workflow)
 1. Author (or reuse) an `Agent` CR under `agents/<name>/`. Your AIDA agents port over — adjust `namespace`,

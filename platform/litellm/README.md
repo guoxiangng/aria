@@ -68,24 +68,50 @@ against every `MCPServer` — inference calls happen from the agent pod itself, 
 holds after any kagent version bump before trusting it (this project has been burned by an unverified
 "the controller doesn't need this" assumption before).
 
-## `[VERIFY]` — resolve against live evidence before this README is called done
+## `[VERIFY]` — all resolved live, 2026-09-04
 
-- [ ] Image tag `ghcr.io/berriai/litellm:v1.83.14-stable` — confirmed to exist live via the ghcr.io
-      registry API (2026-08-26, anonymous pull token + manifest HEAD), not assumed. Re-check for a newer
-      stable tag if this sits unbuilt for long — BerriAI cuts weekly stable releases.
-- [ ] `ModelConfig` field shapes (`provider: OpenAI`, `openAI.baseUrl`, top-level
+- [x] Image tag `ghcr.io/berriai/litellm:v1.83.14-stable` — confirmed to exist live via the ghcr.io
+      registry API (anonymous pull token + manifest HEAD), not assumed. Re-check for a newer stable tag
+      if this sits unbuilt for long — BerriAI cuts weekly stable releases.
+- [x] `ModelConfig` field shapes (`provider: OpenAI`, `openAI.baseUrl`, top-level
       `apiKeySecret`/`apiKeySecretKey`) — confirmed live via `kubectl explain modelconfig.spec
-      --recursive` against the running 0.10.0-rc1 CRD (2026-08-26).
-- [ ] Pod actually reaches `Ready` with this config (health probe paths `/health/liveliness` /
-      `/health/readiness` confirmed correct from LiteLLM's own docs, not yet proven against the live pod).
-- [ ] A real Azure completion round-trips through the proxy (`cost-sentinel` → `litellm-gateway` →
-      Azure) — not yet run.
-- [ ] `AuthorizationPolicy` actually denies a non-`cost-sentinel` caller (mirror the
-      `platform/istio/test/rogue-agent-demo` pattern) — not yet run.
-- [ ] Langfuse shows the trace landing under LiteLLM's own callback, distinguishable from kagent's OTel
-      traces, in the same `aria` project — not yet checked.
-- [ ] Two `user=tenant-a`/`user=tenant-b`-tagged calls show separable cost in Langfuse — the DB-less
-      "two tenants" proof from `LADP/docs/direction-2-*.md`'s MVP scope. Not yet run.
+      --recursive` against the running 0.10.0-rc1 CRD.
+- [x] Pod reaches `Ready` — `litellm-7c79f9876-p85tn`, `1/1 Running`, health probes returning 200.
+- [x] A real Azure completion round-trips through the proxy — confirmed twice: a direct
+      `/v1/chat/completions` call from an in-mesh probe, and (after fixing the rollout below) a genuine
+      `cost-sentinel` A2A question, whose 3 LLM calls appear in LiteLLM's own logs at the exact same
+      timestamps as the A2A task's tool-use loop.
+- [x] `AuthorizationPolicy` denies a non-`cost-sentinel` caller — probe pod as `default` SA got
+      `Connection reset by peer` (HTTP_CODE 000); the identical probe as `cost-sentinel` SA got HTTP 200.
+- [x] Langfuse shows the trace landing under LiteLLM's own callback (`litellm-acompletion`), queried live
+      via the Langfuse public API — and, worth noting, kagent's own OTel traces (`POST /`) show up
+      alongside it in the same query: real confirmation this is one project, two instrumentation paths,
+      not an assumption.
+- [x] Two `user=`-tagged calls show separable attribution in Langfuse — **`userId` works**
+      (`tenant-a`/`tenant-b` came through cleanly, queried live), **`metadata.tags` does not**: LiteLLM
+      logged `Stripped caller-supplied tags from metadata: this key/team does not have
+      allow_client_tags: true` and the traces confirm it — `tags: []` on both. So the DB-less "two
+      tenants" story from `LADP/docs/direction-2-*.md` is proven via `user`, not via tags as originally
+      assumed. Fix (not yet applied): add `general_settings.allow_client_tags: true` to
+      `configmap.yaml` if tag-based attribution is wanted later.
+
+## Real findings from the live build (2026-09-04)
+
+- **The `cost-sentinel` repoint didn't take effect until a stuck rollout was manually unstuck.**
+  Changing `Agent.spec.declarative.modelConfig` triggered a new ReplicaSet (config-hash changed) as
+  expected, but the new pod sat `Pending` for 9+ minutes — `0/2 nodes are available: 1 Too many pods, 2
+  Insufficient cpu`. The cluster's 2×t3.large node pair is genuinely near its pod-count ceiling (30/35,
+  32/35 at the time). A surge rollout on a capacity-constrained cluster can silently stall rather than
+  fail loud — the Agent CR, the ModelConfig, and the Deployment's pod template all looked correct the
+  whole time; only `kubectl describe pod` on the *new* pod showed the real blocker. Resolved by deleting
+  the old pod manually to free room; the rollout then completed normally. Worth remembering for the next
+  increment that adds a workload here — this cluster has little headroom left.
+- **ArgoCD app refresh lag, not a wave-ordering bug.** `external-secrets-config` (wave 1) initially
+  didn't pick up the new `ExternalSecret` manifests even after `litellm` (wave 2) had already synced the
+  same commit — each `Application` polls its own path on its own schedule, wave ordering doesn't force a
+  simultaneous re-poll across apps on a fresh commit. A `kubectl annotate application ...
+  argocd.argoproj.io/refresh=hard` forced it immediately; otherwise it would have caught up within the
+  default poll interval on its own.
 
 ## Open items (deferred, not blocking)
 
