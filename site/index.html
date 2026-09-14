@@ -479,6 +479,25 @@
   .road-col.later li::before { content: "·"; position: absolute; left: 5px; color: var(--text-faint); font-size: 20px; top: -4px; }
   @media (max-width: 700px) { .road { grid-template-columns: 1fr; gap: 26px; } }
 
+  /* ---------- writing ---------- */
+  .writing-list { display: flex; flex-direction: column; gap: 10px; }
+  .wr {
+    display: flex; align-items: baseline; gap: 14px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 15px 18px;
+    transition: border-color .15s;
+  }
+  .wr:hover { border-color: var(--cyan); text-decoration: none; }
+  .wr-n { font-family: var(--mono); font-size: 11px; color: var(--cyan); flex: 0 0 auto; letter-spacing: 0.06em; }
+  .wr-body { flex: 1; }
+  .wr-t { font-size: 15px; color: var(--text); font-weight: 600; line-height: 1.35; }
+  .wr:hover .wr-t { color: var(--cyan); }
+  .wr-d { font-size: 13.5px; color: var(--text-dim); margin-top: 4px; }
+  .wr-s { font-family: var(--mono); font-size: 10px; letter-spacing: 0.07em; text-transform: uppercase; flex: 0 0 auto; color: var(--text-faint); }
+  .wr-s.live { color: var(--good); }
+
   /* ---------- footer ---------- */
   footer { padding: 40px 0 64px; }
   .foot-grid { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
@@ -490,13 +509,14 @@
 
 <nav>
   <div class="wrap">
-    <div class="brand"><span class="led"></span>ARIA<span class="draft-tag">draft</span></div>
+    <div class="brand"><span class="led"></span>ARIA<span class="draft-tag">building</span></div>
     <div class="navlinks">
       <a href="#scope">Scope</a>
       <a href="#stack">Open stack</a>
       <a href="#trust">Trust loop</a>
       <a href="#delivery">Delivery</a>
       <a href="#roadmap">Roadmap</a>
+      <a href="#writing">Writing</a>
     </div>
   </div>
 </nav>
@@ -517,7 +537,8 @@
     <div class="hero-tags">
       <span class="tag"><b>100%</b> open-source core</span>
       <span class="tag"><b>GitOps</b> by default</span>
-      <span class="tag"><b>eval-gated</b> deployment</span>
+      <span class="tag"><b>identity-scoped</b> agents</span>
+      <span class="tag"><b>approval-gated</b> mutations</span>
       <span class="tag">kagent · EKS</span>
     </div>
   </div>
@@ -583,8 +604,15 @@
           <div class="layer-name">Runtime</div>
           <div class="layer-tools">
             <span class="chip">kagent <span class="oss">OSS</span></span>
-            <span class="chip">MCP tools <span class="oss">OSS</span></span>
+            <span class="chip">kmcp self-hosted MCP <span class="oss">OSS</span></span>
             <span class="chip">A2A protocol <span class="oss">OSS</span></span>
+          </div>
+        </div>
+        <div class="stack-layer aria">
+          <div class="layer-name">Memory</div>
+          <div class="layer-tools">
+            <span class="chip">pgvector <span class="oss">OSS</span></span>
+            <span class="chip">context compaction <span class="oss">OSS</span></span>
           </div>
         </div>
         <div class="stack-layer aria">
@@ -600,7 +628,8 @@
           <div class="layer-tools">
             <span class="chip">promptfoo eval <span class="oss">OSS</span></span>
             <span class="chip">AuthorizationPolicy <span class="oss">OSS</span></span>
-            <span class="chip">Kyverno <span class="oss">OSS</span></span>
+            <span class="chip">requireApproval HITL <span class="oss">OSS</span></span>
+            <span class="chip pluggable">Kyverno <span class="oss">planned</span></span>
           </div>
         </div>
         <div class="stack-layer aria">
@@ -649,7 +678,7 @@
         <div class="value">
           <div class="vnum">02</div>
           <h3>Governed by construction</h3>
-          <p>Enforcement in the platform, not a policy PDF: <b>cryptographic identity at the mesh</b> (per-agent SPIFFE + mTLS + allow-lists — an agent is reachable only by who's authorized, by identity not network position) and an <b>eval gate at runtime</b> (answers checked against real tool evidence, in CI). Admission-time policy (Kyverno) is next.</p>
+          <p>Enforcement in the platform, not a policy PDF: <b>cryptographic identity at the mesh</b> (per-agent SPIFFE + mTLS + allow-lists — an agent is reachable only by who's authorized, by identity not network position), an <b>eval gate</b> (answers checked against real tool evidence, in CI), and a <b>human approval gate</b> (a mutating tool call is physically held until someone says yes). Admission-time policy (Kyverno) is next.</p>
         </div>
         <div class="value">
           <div class="vnum">03</div>
@@ -677,26 +706,50 @@
       </p>
       <div class="fleet">
         <div class="agent">
+          <div class="a-tier">Tier 3 · orchestrator</div>
+          <div class="a-name">incident-commander</div>
+          <div class="a-desc">Routes a question across five delegates spanning three planes — Kubernetes, AWS, cost — and synthesizes one answer. Sub-agents are declared as tools, so composition is a manifest change.</div>
+          <div class="a-badge">running</div>
+        </div>
+        <div class="agent">
           <div class="a-tier">Tier 1 · read-only</div>
           <div class="a-name">cluster-diagnostics</div>
           <div class="a-desc">Kubernetes diagnosis with every mutating tool deliberately stripped out — investigates, never touches.</div>
           <div class="a-badge">running</div>
         </div>
         <div class="agent">
-          <div class="a-tier">Tier 3 · orchestrator</div>
-          <div class="a-name">incident-commander</div>
-          <div class="a-desc">Routes a question across specialists — its own and kagent's stock ones — and synthesizes one root-cause answer.</div>
+          <div class="a-tier">Tier 1 · read-only</div>
+          <div class="a-name">cloud-diagnostics</div>
+          <div class="a-desc">The AWS control-plane view — EKS insights, VPC/subnet capacity, CloudWatch — via self-hosted AWS MCP servers.</div>
+          <div class="a-badge">running</div>
+        </div>
+        <div class="agent">
+          <div class="a-tier">Tier 1 · read-only</div>
+          <div class="a-name">cost-sentinel</div>
+          <div class="a-desc">FinOps on live AWS Pricing data rather than a static sheet — the platform dogfooding its own cost visibility.</div>
+          <div class="a-badge">running</div>
+        </div>
+        <div class="agent">
+          <div class="a-tier">Tier 1 · read-only</div>
+          <div class="a-name">deploy-diagnostics</div>
+          <div class="a-desc">Answers "when and why did this change" from git history — the drift question neither live-state agent could reach.</div>
           <div class="a-badge">running</div>
         </div>
         <div class="agent">
           <div class="a-tier">Tier 2 · BYO</div>
           <div class="a-name">investigation-loop</div>
-          <div class="a-desc">A hand-built LangGraph agent that gathers, hypothesizes, verifies, and loops — bounded, stateful reasoning.</div>
+          <div class="a-desc">A hand-built LangGraph agent that gathers, hypothesizes, verifies, and loops — the branch decided by testable code, not by the model.</div>
+          <div class="a-badge">running</div>
+        </div>
+        <div class="agent">
+          <div class="a-tier">Tier 4 · mutating</div>
+          <div class="a-name">cluster-remediation</div>
+          <div class="a-desc">The only agent that can change the cluster — reversible tools only, each mutation held for an explicit human approval before it executes.</div>
           <div class="a-badge">running</div>
         </div>
       </div>
       <p class="fleet-note">
-        + kagent's stock experts (k8s, helm, istio, cilium, promql, argo-rollouts, kgateway…) available to delegate to, unmodified.
+        + kagent's stock experts (k8s, helm, istio, promql…) available to delegate to, unmodified — 11 agents running in total.
       </p>
     </div>
   </section>
@@ -737,13 +790,19 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
     <div class="wrap">
       <div class="sec-label" data-n="06">Signature capability</div>
       <div class="signature">
-        <span class="sig-badge">Where trust meets delivery</span>
+        <span class="sig-badge">Design target · not yet wired end to end</span>
         <h3>Eval-gated progressive delivery</h3>
         <p>
-          The trust loop and the deployment pipeline are the same loop. A new agent version
-          canary-deploys to a slice of real traffic; its groundedness scores are measured live;
-          it promotes itself only if it holds the bar, and rolls back if it doesn't — no human
-          watching a dashboard at 3am to make the call.
+          Where this is heading: the trust loop and the deployment pipeline become the same loop. A new
+          agent version canary-deploys to a slice of real traffic; its groundedness scores are measured
+          live; it promotes only if it holds the bar, and rolls back if it doesn't — no human watching a
+          dashboard at 3am to make the call.
+        </p>
+        <p>
+          <b>Honest status:</b> the two halves exist and run independently — the eval gate grades
+          groundedness in CI today, and Argo Rollouts handles progressive delivery. What isn't built is
+          the join: promotion driven by a live groundedness score. It's the next real increment, not a
+          shipped feature.
         </p>
         <div class="pipeline">
           <div class="pstep">
@@ -792,13 +851,18 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
         <div class="road-col shipped">
           <h3>Shipped</h3>
           <ul>
-            <li>Multi-agent fleet <span>read-only, orchestrator, BYO loop</span></li>
-            <li>Identity plane <span>Istio ambient: per-agent SPIFFE + mTLS + authz allow-lists</span></li>
-            <li>GitOps secrets <span>ESO + AWS Secrets Manager, out of Terraform</span></li>
+            <li>Multi-agent fleet <span>11 agents — read-only tier, orchestrator, BYO loop, mutating tier</span></li>
+            <li>Identity plane <span>Istio ambient: per-agent SPIFFE + mTLS + authz allow-lists, deny proven live</span></li>
+            <li>Approval-gated remediation <span>mutations physically held until a human says yes</span></li>
+            <li>Self-hosted MCP tool layer <span>kmcp: AWS + GitHub servers, per-server identity allow-lists</span></li>
+            <li>Long-term memory <span>pgvector in-cluster — no SaaS vector DB</span></li>
             <li>Continuous eval gate <span>groundedness-checked, in CI</span></li>
-            <li>Full GitOps delivery <span>OpenTofu + ArgoCD</span></li>
+            <li>FinOps agent <span>live AWS Pricing, self-dogfooded</span></li>
+            <li>GitOps secrets <span>ESO + AWS Secrets Manager, out of Terraform</span></li>
+            <li>Full GitOps delivery <span>Terraform + ArgoCD, two layers, no manual helm</span></li>
             <li>OTel → Langfuse tracing <span>declarative &amp; BYO agents</span></li>
             <li>In-cluster CI runner <span>self-hosted, ephemeral</span></li>
+            <li>Control-plane upgrade, for real <span>0.9.10 → 0.10.0-rc1 on the live fleet</span></li>
           </ul>
         </div>
         <div class="road-col next">
@@ -806,21 +870,50 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
           <ul>
             <li>Agent template chart <span>render agents, stop hand-authoring YAML</span></li>
             <li>Kyverno admission policies <span>governance at deploy time</span></li>
-            <li>Eval-gated rollouts <span>wire the signature loop end to end</span></li>
+            <li>Eval-gated rollouts <span>join the eval gate to progressive delivery</span></li>
             <li>Open model gateway <span>route by cost / sensitivity, self-host option</span></li>
-            <li>Approval-gated remediation <span>human-in-the-loop action</span></li>
+            <li>Self-service front door <span>Backstage template built, not yet run live</span></li>
+            <li>More BYO frameworks <span>LangGraph done; Strands and Claude Agent SDK next</span></li>
           </ul>
         </div>
         <div class="road-col later">
           <h3>Later</h3>
           <ul>
-            <li>Least-privilege RBAC <span>real boundary under tool scoping</span></li>
-            <li>FinOps agent <span>cost visibility, self-dogfooded</span></li>
+            <li>Least-privilege RBAC <span>the real boundary under tool scoping — still the honest gap</span></li>
+            <li>Kernel-level isolation <span>both runtimes installed and tested; neither's headline claim held up</span></li>
             <li>Red-team scenarios <span>refusal &amp; injection resistance</span></li>
             <li>Agent registry / catalog <span>curate what's deployed</span></li>
           </ul>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- WRITING -->
+  <section id="writing">
+    <div class="wrap">
+      <div class="sec-label" data-n="08">Written up</div>
+      <h2>Each layer gets a technical piece as it lands.</h2>
+      <p class="lede">
+        The build is documented in public as it happens — concept-first articles using ARIA as the
+        worked example, with real command output rather than paraphrase. Published as they're earned,
+        not front-loaded.
+      </p>
+      <div class="writing-list">
+        <a class="wr" href="https://medium.com/towards-artificial-intelligence/kagent-on-kubernetes-what-does-it-give-your-ai-platform-02050dc3aeff" target="_blank" rel="noopener">
+          <span class="wr-n">01</span>
+          <span class="wr-body">
+            <span class="wr-t">Kagent on Kubernetes: What does it give your AI platform?</span>
+            <span class="wr-d">Where the operator's ownership ends and your platform's begins — the Agent CRD, Declarative vs BYO, MCP and A2A, and a full boundary map.</span>
+          </span>
+          <span class="wr-s live">live</span>
+        </a>
+      </div>
+      <p class="fleet-note">
+        More in the series as increments land — the eval gate, the identity plane, the tool layer,
+        agent memory, and the two isolation runtimes. Follow along at
+        <a href="https://medium.com/@guoxlostinthecloud" target="_blank" rel="noopener">@guoxlostinthecloud</a>.
+      </p>
     </div>
   </section>
 
@@ -840,10 +933,11 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
         <a href="https://github.com/guoxiangng/aria">github.com/guoxiangng/aria</a>
         <a href="#stack">The open stack</a>
         <a href="#roadmap">Roadmap</a>
+        <a href="#writing">Writing</a>
       </div>
     </div>
     <div class="foot-meta">
-      <span>draft — iterating as the platform is built</span><span>·</span><span>built on kagent + EKS</span><span>·</span><span>notes as of 2026-07</span>
+      <span>actively built — this page updates as increments land</span><span>·</span><span>built on kagent + EKS</span><span>·</span><span>notes as of 2026-09</span>
     </div>
   </div>
 </footer>
