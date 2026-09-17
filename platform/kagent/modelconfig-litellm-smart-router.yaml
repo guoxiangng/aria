@@ -1,0 +1,19 @@
+# Routes through LiteLLM's complexity Auto Router (`smart-router` in platform/litellm/configmap.yaml)
+# instead of a single model. The router scores each request and picks one of four tiers:
+# Azure gpt-5.4-mini → Bedrock Haiku 4.5 → Sonnet 5 → Opus 5.
+#
+# Same proxy, baseUrl and key as modelconfig-litellm.yaml — only `model` differs. kagent sees one
+# OpenAI-compatible model name; which real model answered is LiteLLM's decision, visible in its logs
+# and in Langfuse, not in anything kagent reports.
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: litellm-smart-router
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: smart-router
+  apiKeySecret: litellm-gateway-key
+  apiKeySecretKey: LITELLM_MASTER_KEY
+  openAI:
+    baseUrl: http://litellm.litellm.svc.cluster.local:4000/v1

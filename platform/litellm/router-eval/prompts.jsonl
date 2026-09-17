@@ -1,0 +1,30 @@
+{"id":"s1","category":"simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"What is a Kubernetes namespace? One sentence."}
+{"id":"s2","category":"simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"Hi, are you working?"}
+{"id":"s3","category":"simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"Define the term 'latency'."}
+{"id":"s4","category":"simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"What does AWS stand for?"}
+{"id":"s5","category":"simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"Thanks, that helped."}
+{"id":"s6","category":"simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"What is the capital of Singapore?"}
+{"id":"s7","category":"simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"Translate 'good morning' into Malay."}
+{"id":"s8","category":"simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"Is 97 a prime number?"}
+{"id":"h1","category":"hard","acceptable":["COMPLEX","REASONING"],"prompt":"Think step by step. An EKS cluster has two t3.large nodes with 35 max pods each. 62 pods are running, spread 35 and 27. A Deployment with 1 replica, default RollingUpdate strategy (maxSurge 25%, maxUnavailable 25%), requests 500m CPU and its node has 200m CPU free. Explain exactly what happens when its pod template changes, why, and give two different fixes with their trade-offs."}
+{"id":"h2","category":"hard","acceptable":["COMPLEX","REASONING"],"prompt":"Design a multi-tenant LLM gateway for 3 customers sharing one proxy. First define the isolation requirements, then compare per-tenant virtual keys versus request-level user tagging for cost attribution, then describe the failure mode where attribution silently breaks, and finally propose how to detect it."}
+{"id":"h3","category":"hard","acceptable":["COMPLEX","REASONING"],"prompt":"Write a Python function that takes a list of Kubernetes pod JSON objects and returns, per node, the number of pods, the sum of CPU requests in millicores (handling values like '250m', '1', '0.5'), and flags any node above 90% of a given allocatable CPU. Include edge cases and unit tests."}
+{"id":"h4","category":"hard","acceptable":["COMPLEX","REASONING"],"prompt":"Analyze the trade-offs between Istio ambient mesh L4 AuthorizationPolicy enforced by ztunnel and Kubernetes NetworkPolicy for restricting which AI agent pods can call an internal model gateway. Consider identity, port-forward bypass, multi-cluster, and observability. Conclude with a recommendation and the conditions under which it would change."}
+{"id":"h5","category":"hard","acceptable":["COMPLEX","REASONING"],"prompt":"A monthly LLM bill rose 40% while request count stayed flat. Reason through at least five distinct root causes across prompts, routing, caching, retries, and model versions, and for each give the specific metric or log you would check to confirm or rule it out."}
+{"id":"h6","category":"hard","acceptable":["COMPLEX","REASONING"],"prompt":"Explain step by step why prefill and decode have different compute profiles in transformer inference, then derive why disaggregating them onto separate GPU pools can improve throughput, and identify the KV-cache transfer cost that can erase the gain."}
+{"id":"h7","category":"hard","acceptable":["COMPLEX","REASONING"],"prompt":"Write a Terraform module that creates an IAM role usable via EKS Pod Identity for exactly one ServiceAccount, grants bedrock:InvokeModel on two specific inference-profile ARNs only, and explain every trust-policy condition and why a wildcard resource would be a problem."}
+{"id":"h8","category":"hard","acceptable":["COMPLEX","REASONING"],"prompt":"First list the assumptions, then prove or disprove: routing each request to the cheapest model that 'looks capable' always lowers total cost in a multi-turn agent loop that uses prompt caching. Provide a numeric counterexample if one exists."}
+{"id":"t1","category":"technical-but-simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"What port does the Kubernetes API server listen on by default?"}
+{"id":"t2","category":"technical-but-simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"What is the kubectl command to list pods in the kagent namespace?"}
+{"id":"t3","category":"technical-but-simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"What does EKS stand for in AWS EKS?"}
+{"id":"t4","category":"technical-but-simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"Which AWS region code is Singapore?"}
+{"id":"t5","category":"technical-but-simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"What is the default port for PostgreSQL? Just the number."}
+{"id":"t6","category":"technical-but-simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"Is Terraform state stored as JSON or YAML?"}
+{"id":"t7","category":"technical-but-simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"What does the Kubernetes Deployment field replicas control?"}
+{"id":"t8","category":"technical-but-simple","acceptable":["SIMPLE","MEDIUM"],"prompt":"How many vCPUs does an AWS t3.large instance have?"}
+{"id":"x1","category":"simple-sounding-hard","acceptable":["COMPLEX","REASONING"],"prompt":"Why would a pod stay Pending?"}
+{"id":"x2","category":"simple-sounding-hard","acceptable":["COMPLEX","REASONING"],"prompt":"Is it safe to give an AI agent write access to production?"}
+{"id":"x3","category":"simple-sounding-hard","acceptable":["COMPLEX","REASONING"],"prompt":"How many weighings are needed to find one heavier coin among 12 coins with a balance scale, and how?"}
+{"id":"x4","category":"simple-sounding-hard","acceptable":["COMPLEX","REASONING"],"prompt":"Should we cache LLM responses?"}
+{"id":"x5","category":"simple-sounding-hard","acceptable":["COMPLEX","REASONING"],"prompt":"What's wrong with this: SELECT * FROM orders WHERE created_at > NOW() - INTERVAL '1 day' ORDER BY id LIMIT 10 OFFSET 100000;"}
+{"id":"x6","category":"simple-sounding-hard","acceptable":["COMPLEX","REASONING"],"prompt":"A bat and a ball cost $1.10 in total. The bat costs $1.00 more than the ball. How much does the ball cost?"}

@@ -1,8 +1,11 @@
-# LiteLLM's config.yaml. DB-less v1 (see README.md "Key decisions"): one Azure OpenAI route, one
-# master key, no model_list per-key budgets (those need general_settings.database_url — a Postgres
-# LiteLLM manages via its own migrations-job, deliberately not run here yet). Per-tenant attribution
-# for v1 comes from tagging requests with `user`/`metadata` at call time and reading it back in
-# Langfuse — see README.md's verification section.
+# LiteLLM's config.yaml. DB-less (see README.md "Key decisions"): one master key, no per-key budgets
+# (those need general_settings.database_url — a Postgres LiteLLM manages via its own migrations-job,
+# deliberately not run here). Per-tenant attribution comes from the request's `user` field, read back
+# in Langfuse — see README.md's verification section.
+#
+# v2 (domain 10): adds three Bedrock deployments and `smart-router`, LiteLLM's complexity Auto Router,
+# which scores each request and picks a tier. `azure-gpt-5-4-mini` stays reachable directly — the v1
+# `litellm-gateway` ModelConfig still uses it.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -17,6 +20,47 @@ data:
           api_base: https://oai-ladp-ncs-4.openai.azure.com
           api_version: "2024-12-01-preview"
           api_key: os.environ/AZURE_API_KEY
+        model_info:
+          # The deployment name isn't a model LiteLLM knows, so without this it logged "Could not
+          # identify azure model" and priced every call at zero. azure/gpt-5.4-mini exists in
+          # model_prices_and_context_window.json at v1.100.1.
+          base_model: azure/gpt-5.4-mini
+
+      # Bedrock: no api key. Credentials come from EKS Pod Identity — the `litellm` ServiceAccount is
+      # bound to the aria-bedrock IAM role (infra/02-eks/litellm.tf). Global inference profiles,
+      # confirmed ACTIVE in ap-southeast-1 on 2026-09-14.
+      - model_name: bedrock-haiku-4-5
+        litellm_params:
+          model: bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0
+          aws_region_name: ap-southeast-1
+      - model_name: bedrock-sonnet-5
+        litellm_params:
+          model: bedrock/global.anthropic.claude-sonnet-5
+          aws_region_name: ap-southeast-1
+      - model_name: bedrock-opus-5
+        litellm_params:
+          model: bedrock/global.anthropic.claude-opus-5
+          aws_region_name: ap-southeast-1
+
+      # Complexity Auto Router. Default heuristic classifier: scores the newest human ask locally,
+      # no extra API call. Tiers reference model_name entries above. Four distinct models on purpose,
+      # so the model that served a call shows which tier the router chose. session_affinity left at
+      # its default (off) for the first run — testing whether that matters inside an agent tool loop
+      # is part of the build (README.md, v2).
+      - model_name: smart-router
+        litellm_params:
+          model: auto_router/complexity_router
+          complexity_router_config:
+            tiers:
+              SIMPLE: azure-gpt-5-4-mini
+              MEDIUM: bedrock-haiku-4-5
+              COMPLEX: bedrock-sonnet-5
+              REASONING: bedrock-opus-5
+            # Response body `model` names the real model that answered instead of echoing
+            # "smart-router" — per-call ground truth for which tier was chosen, used by
+            # router-eval/run.py.
+            return_raw_model_name: true
+          complexity_router_default_model: bedrock-sonnet-5
 
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY
