@@ -37,16 +37,23 @@ namespaces:
   # namespace like kagent, so (unlike kagent) an explicit small quota is appropriate here.
   # Ambient-mesh-enrolled: gets its own SPIFFE identity, reachable only per
   # platform/istio/policies/litellm-allow-list.yaml.
+  #
+  # The quota must fit TWO pods even though only one runs. 2026-09-18: it was sized to exactly one
+  # pod's limits (limits.cpu 1 / 1Gi), which silently made rolling updates impossible — a
+  # RollingUpdate surges a second pod before retiring the first, so the replacement was rejected at
+  # admission (`exceeded quota: compute-quota`), not merely left Pending. The gateway then sat with
+  # no running pod at all and the whole fleet lost its model. Headroom here is not slack, it is what
+  # makes the deployment updatable.
   - name: litellm
     service: litellm
     env: dev
     labels:
       istio.io/dataplane-mode: ambient
     quota:
-      requestsCpu: "250m"
-      requestsMemory: "512Mi"
-      limitsCpu: "1"
-      limitsMemory: "1Gi"
+      requestsCpu: "500m"
+      requestsMemory: "1Gi"
+      limitsCpu: "2"
+      limitsMemory: "2Gi"
       pvcs: 0
       pods: 3
     limits:
