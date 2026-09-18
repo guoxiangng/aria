@@ -1,0 +1,27 @@
+# Embedding ModelConfig for kagent's INTERNAL long-term memory (domain 8), via the LiteLLM gateway.
+#
+# Replaces azure-embedding (modelconfig-azure-embedding.yaml), which died with the Azure OpenAI
+# resource on 2026-09-18. An agent's `spec.declarative.memory.modelConfig` needs a provider that
+# supplies EMBEDDINGS, not chat — so this is separate from litellm-gateway.
+#
+# Model choice: Bedrock Titan embeddings are not offered in ap-southeast-1, so this is Cohere Embed
+# v4 through its global inference profile (verified live in-region). Credentials come from the
+# gateway's Pod Identity, so there is no embedding API key anywhere any more.
+#
+# [VERIFY] Not yet proven end to end: NO agent currently sets spec.declarative.memory, so nothing
+# exercises this path. Two things to confirm when memory is next enabled — that kagent's embedder
+# accepts provider: OpenAI with a custom baseUrl (the old config used provider: AzureOpenAI), and
+# that vector dimensions match what the pgvector store already holds (Cohere Embed v4 differs from
+# text-embedding-3-large, so existing rows may need reindexing).
+apiVersion: kagent.dev/v1alpha2
+kind: ModelConfig
+metadata:
+  name: litellm-embedding
+  namespace: kagent
+spec:
+  provider: OpenAI
+  model: cohere-embed-v4
+  apiKeySecret: litellm-gateway-key
+  apiKeySecretKey: LITELLM_MASTER_KEY
+  openAI:
+    baseUrl: http://litellm.litellm.svc.cluster.local:4000/v1

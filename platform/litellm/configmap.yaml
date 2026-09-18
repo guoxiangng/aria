@@ -39,6 +39,16 @@ data:
           model: bedrock/global.anthropic.claude-opus-5
           aws_region_name: ap-southeast-1
 
+      # Embeddings for kagent's long-term memory (domain 8), replacing the dead Azure
+      # text-embedding-3-large. Bedrock Titan embeddings are NOT offered in ap-southeast-1 (only
+      # us-east-1), so this is Cohere Embed v4 via its global inference profile — verified live in
+      # ap-southeast-1 on 2026-09-18. On-demand `cohere.embed-v4:0` is rejected; the `global.`
+      # profile id is required.
+      - model_name: cohere-embed-v4
+        litellm_params:
+          model: bedrock/global.cohere.embed-v4:0
+          aws_region_name: ap-southeast-1
+
       # Complexity Auto Router. Default heuristic classifier: scores the newest human ask locally,
       # no extra API call. Tiers reference model_name entries above. session_affinity left at its
       # default (off) for the first run — testing whether that matters inside an agent tool loop is
