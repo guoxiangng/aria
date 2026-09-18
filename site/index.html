@@ -596,8 +596,9 @@
           <div class="layer-name">Delivery</div>
           <div class="layer-tools">
             <span class="chip">ArgoCD <span class="oss">OSS</span></span>
-            <span class="chip">OpenTofu <span class="oss">OSS</span></span>
-            <span class="chip">Argo Rollouts <span class="oss">OSS</span></span>
+            <span class="chip">Terraform <span class="oss">OSS</span></span>
+            <span class="chip">GitHub Actions + ARC <span class="oss">OSS</span></span>
+            <span class="chip pluggable">Argo Rollouts <span class="oss">planned</span></span>
           </div>
         </div>
         <div class="stack-layer aria">
@@ -642,6 +643,7 @@
         <div class="stack-layer aria">
           <div class="layer-name">Model access</div>
           <div class="layer-tools">
+            <span class="chip">LiteLLM gateway <span class="oss">OSS</span></span>
             <span class="chip pluggable">OpenAI-compatible API <span class="oss">open std</span></span>
             <span class="chip pluggable">self-host vLLM <span class="oss">OSS</span></span>
             <span class="chip pluggable">Azure · Bedrock <span class="oss">swappable</span></span>
@@ -742,6 +744,12 @@
           <div class="a-badge">running</div>
         </div>
         <div class="agent">
+          <div class="a-tier">Tier 2 · propose</div>
+          <div class="a-name">infra-author</div>
+          <div class="a-desc">The only agent that produces rather than reports — reads the Terraform under <code>infra/</code>, looks up real provider and module schemas so it can't invent arguments, and opens a pull request. It never touches the running environment; the blast radius of a wrong answer is a PR someone closes.</div>
+          <div class="a-badge">running · PR path not wired yet</div>
+        </div>
+        <div class="agent">
           <div class="a-tier">Tier 4 · mutating</div>
           <div class="a-name">cluster-remediation</div>
           <div class="a-desc">The only agent that can change the cluster — reversible tools only, each mutation held for an explicit human approval before it executes.</div>
@@ -749,7 +757,7 @@
         </div>
       </div>
       <p class="fleet-note">
-        + kagent's stock experts (k8s, helm, istio, promql…) available to delegate to, unmodified — 11 agents running in total.
+        + kagent's stock experts (k8s, helm, istio, promql…) available to delegate to, unmodified — 12 agents running in total.
       </p>
     </div>
   </section>
@@ -799,10 +807,10 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
           dashboard at 3am to make the call.
         </p>
         <p>
-          <b>Honest status:</b> the two halves exist and run independently — the eval gate grades
-          groundedness in CI today, and Argo Rollouts handles progressive delivery. What isn't built is
-          the join: promotion driven by a live groundedness score. It's the next real increment, not a
-          shipped feature.
+          <b>Honest status:</b> one half of this exists. The eval gate grades groundedness in CI today.
+          The delivery half doesn't — Argo Rollouts isn't installed on the cluster, so there's no canary to
+          measure and no promotion to gate. Both the progressive-delivery mechanism and the join to the eval
+          score are still ahead, not shipped.
         </p>
         <div class="pipeline">
           <div class="pstep">
@@ -851,10 +859,10 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
         <div class="road-col shipped">
           <h3>Shipped</h3>
           <ul>
-            <li>Multi-agent fleet <span>11 agents — read-only tier, orchestrator, BYO loop, mutating tier</span></li>
+            <li>Multi-agent fleet <span>12 agents — read-only tier, orchestrator, BYO loop, propose tier, mutating tier</span></li>
             <li>Identity plane <span>Istio ambient: per-agent SPIFFE + mTLS + authz allow-lists, deny proven live</span></li>
             <li>Approval-gated remediation <span>mutations physically held until a human says yes</span></li>
-            <li>Self-hosted MCP tool layer <span>kmcp: AWS + GitHub servers, per-server identity allow-lists</span></li>
+            <li>Self-hosted MCP tool layer <span>kmcp: AWS, GitHub and Terraform-registry servers, per-server identity allow-lists</span></li>
             <li>Long-term memory <span>pgvector in-cluster — no SaaS vector DB</span></li>
             <li>Continuous eval gate <span>groundedness-checked, in CI</span></li>
             <li>FinOps agent <span>live AWS Pricing, self-dogfooded</span></li>
@@ -863,6 +871,7 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
             <li>OTel → Langfuse tracing <span>declarative &amp; BYO agents</span></li>
             <li>In-cluster CI runner <span>self-hosted, ephemeral</span></li>
             <li>Control-plane upgrade, for real <span>0.9.10 → 0.10.0-rc1 on the live fleet</span></li>
+            <li>Model gateway, v1 <span>self-hosted LiteLLM in front of Azure OpenAI — one agent repointed, verified end to end</span></li>
           </ul>
         </div>
         <div class="road-col next">
@@ -871,7 +880,8 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
             <li>Agent template chart <span>render agents, stop hand-authoring YAML</span></li>
             <li>Kyverno admission policies <span>governance at deploy time</span></li>
             <li>Eval-gated rollouts <span>join the eval gate to progressive delivery</span></li>
-            <li>Open model gateway <span>route by cost / sensitivity, self-host option</span></li>
+            <li>Gateway v2 — real routing <span>multi-provider, route by cost / sensitivity, virtual keys + budgets (v1 is Azure-only and DB-less)</span></li>
+            <li>Fleet-wide gateway cutover <span>every agent behind it, not just one</span></li>
             <li>Self-service front door <span>Backstage template built, not yet run live</span></li>
             <li>More BYO frameworks <span>LangGraph done; Strands and Claude Agent SDK next</span></li>
           </ul>
