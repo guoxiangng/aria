@@ -1,0 +1,40 @@
+[project]
+name = "strands-investigator"
+version = "0.1.0"
+description = "ARIA's Strands-based BYO agent — same investigation task as investigation-loop, but the loop is the model's, not a hand-built graph."
+readme = "README.md"
+requires-python = ">=3.10"
+
+# Every pin below is deliberate — unbounded `>=` ranges broke the first build.
+# Resolved 2026-09-14 against kagent controller 0.10.0-rc1.
+dependencies = [
+    # The framework under test. Brings its own `mcp` dependency.
+    "strands-agents>=1.55,<2",
+    # kagent's framework-AGNOSTIC integration layer: task store, request-context
+    # builder, config, tracing. This is the package that makes a non-LangGraph BYO
+    # agent cheap — see aria/docs/spec-byo-frameworks.md §3. Minor-pinned to the
+    # controller line.
+    "kagent-core>=0.10.1,<0.11",
+    # A2A protocol server. UPPER-BOUNDED ON PURPOSE: kagent-core declares
+    # `a2a-sdk[http-server]>=0.3.26` with no ceiling, so pip resolves a2a-sdk 1.x,
+    # a breaking restructure (a2a.server.apps -> a2a.server.routes) that kagent-core
+    # is not written for. Same bug class that cost investigation-loop 4 bugs.
+    "a2a-sdk[http-server]>=0.3.26,<0.4",
+    # Not used directly: kagent.core's tracing imports OpenAI instrumentation, which
+    # fails to import without it. LangGraph agents get it transitively; Strands doesn't.
+    "openai>=1.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.scripts]
+strands-investigator = "strands_investigator.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["strands_investigator"]

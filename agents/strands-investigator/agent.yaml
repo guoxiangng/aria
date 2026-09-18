@@ -1,0 +1,49 @@
+# BYO Agent CR — the Strands implementation of the same task as investigation-loop.
+#
+# Two deliberate differences from investigation-loop/agent.yaml, and nothing else:
+#   1. the image (Strands instead of LangGraph)
+#   2. NO model credential in env — Strands defaults to Bedrock, and Bedrock auth
+#      comes from EKS Pod Identity bound to this agent's ServiceAccount. Zero
+#      static keys, same pattern the self-hosted MCP servers already use.
+#
+# PREREQUISITE (infra, not GitOps): the Pod Identity association must exist first.
+# In infra/02-eks/terraform.tfvars set:
+#     enable_bedrock_pod_identity = true
+#     agent_service_account       = "strands-investigator"
+# then `terraform apply`. kagent auto-creates a ServiceAccount named after the
+# agent, so the association binds this agent alone — not the whole namespace.
+# Until then the pod runs but every Bedrock call fails with AccessDenied.
+#
+# NOTE: once committed, ArgoCD's `agents` Application (glob `*/*.yaml`) syncs this
+# immediately. Until the image is built + pushed the pod sits in ImagePullBackOff —
+# expected and self-resolving, not a bug to chase.
+apiVersion: kagent.dev/v1alpha2
+kind: Agent
+metadata:
+  name: strands-investigator
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+    aria.dev/tier: "2-byo"
+spec:
+  type: BYO
+  description: |
+    ARIA's Strands-based investigation agent - same task as investigation-loop, but the
+    loop is model-driven inside the Strands SDK rather than a hand-built graph.
+    Read-only tools only - see agents/strands-investigator/README.md.
+  byo:
+    deployment:
+      image: 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/strands-investigator:latest
+      # Mutable :latest during active development — see investigation-loop/agent.yaml
+      # for why IfNotPresent silently serves stale images off a node cache.
+      imagePullPolicy: Always
+      env:
+        - name: MCP_SERVER_URL
+          value: "http://kagent-tools.kagent:8084/mcp"
+        # Matches the cluster's existing `bedrock-sonnet` ModelConfig. A BYO agent
+        # never reads a ModelConfig CR — this is the same model named a second time,
+        # in the only place a BYO agent can be told anything: its env.
+        - name: BEDROCK_MODEL_ID
+          value: "global.anthropic.claude-sonnet-4-6"
+        - name: AWS_REGION
+          value: "ap-southeast-1"

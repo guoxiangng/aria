@@ -1,0 +1,19 @@
+{
+  "name": "strands-investigator",
+  "description": "ARIA's Strands-based BYO agent - the same root-cause investigation task as investigation-loop, but the loop is model-driven inside the Strands SDK rather than a hand-built graph. Read-only tools only.",
+  "url": "strands-investigator.kagent:8080",
+  "version": "0.1.0",
+  "capabilities": {
+    "streaming": false
+  },
+  "defaultInputModes": ["text"],
+  "defaultOutputModes": ["text"],
+  "skills": [
+    {
+      "id": "model-driven-investigation",
+      "name": "Model-Driven Root-Cause Investigation",
+      "description": "Investigates Kubernetes issues by gathering evidence, hypothesizing and verifying - with the loop's control flow decided by the model inside Strands' event loop, not by application code.",
+      "tags": ["kubernetes", "diagnostics", "root-cause", "strands", "bedrock"]
+    }
+  ]
+}
