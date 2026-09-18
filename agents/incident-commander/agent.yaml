@@ -16,7 +16,12 @@ spec:
     agent(s) and synthesizes their findings into a single coherent answer. Does not have direct
     tool access itself - it only delegates.
   declarative:
-    modelConfig: default-model-config
+    # 2026-09-18: was default-model-config (Azure OpenAI). That resource was removed — in-cluster
+    # DNS returns NXDOMAIN — which took the whole declarative fleet down while every ModelConfig
+    # still reported Accepted=True. Repointed through the LiteLLM gateway (domain 10), now
+    # Bedrock-backed, so the fleet has one model plane with per-agent cost/traces in Langfuse.
+    # Requires this agent's SA on platform/istio/policies/litellm-allow-list.yaml.
+    modelConfig: litellm-gateway
     systemMessage: |
       You are ARIA's incident-commander — an orchestrator for infrastructure investigations.
       You do not have direct tools of your own. You investigate ONLY by delegating to specialist

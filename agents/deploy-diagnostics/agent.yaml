@@ -40,7 +40,12 @@ spec:
     commit history, issues, pull requests - to answer questions about WHEN and WHY something
     changed, and what's DECLARED vs what's actually running. Read-only; scoped to one repo.
   declarative:
-    modelConfig: default-model-config
+    # 2026-09-18: was default-model-config (Azure OpenAI). That resource was removed — in-cluster
+    # DNS returns NXDOMAIN — which took the whole declarative fleet down while every ModelConfig
+    # still reported Accepted=True. Repointed through the LiteLLM gateway (domain 10), now
+    # Bedrock-backed, so the fleet has one model plane with per-agent cost/traces in Langfuse.
+    # Requires this agent's SA on platform/istio/policies/litellm-allow-list.yaml.
+    modelConfig: litellm-gateway
     systemMessage: |
       You are ARIA's deploy-diagnostics agent — a specialist in the platform's OWN git history
       and declared configuration, not live cluster or AWS state. You can only see one

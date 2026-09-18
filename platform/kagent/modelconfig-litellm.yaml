@@ -8,8 +8,11 @@
 # (2026-08-26) — not assumed from generic kagent docs, per aria/docs/ARCHITECTURE.md §4's caution
 # about version-bump schema drift.
 #
-# model below (azure-gpt-5-4-mini) is the model_name alias defined in litellm's config.yaml
-# (platform/litellm/configmap.yaml), NOT the underlying Azure deployment name — LiteLLM does that
+# 2026-09-18: was azure-gpt-5-4-mini until the Azure OpenAI resource was removed (NXDOMAIN from
+# in-cluster DNS), which broke this route and with it cost-sentinel. Now Bedrock Haiku 4.5.
+#
+# model below (bedrock-haiku-4-5) is the model_name alias defined in litellm's config.yaml
+# (platform/litellm/configmap.yaml), NOT the underlying Bedrock inference-profile id — LiteLLM does that
 # translation, kagent only ever sees the OpenAI-compatible alias.
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
@@ -18,7 +21,7 @@ metadata:
   namespace: kagent
 spec:
   provider: OpenAI
-  model: azure-gpt-5-4-mini
+  model: bedrock-haiku-4-5
   apiKeySecret: litellm-gateway-key
   apiKeySecretKey: LITELLM_MASTER_KEY
   openAI:

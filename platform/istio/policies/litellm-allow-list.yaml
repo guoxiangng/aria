@@ -2,11 +2,14 @@
 #
 # WHY: same gap class as mcp-servers-allow-list.yaml — a kagent ModelConfig's baseUrl is a
 # configuration pointer, not a network boundary. Without this, any pod in the mesh could reach
-# litellm.litellm:4000 and, if it also had the master key, call Azure OpenAI through it directly.
+# litellm.litellm:4000 and, if it also had the master key, call Bedrock through it directly.
 #
-# WHO IS ALLOWED: only cost-sentinel — the one agent repointed at litellm-gateway
-# (platform/kagent/modelconfig-litellm.yaml). Every other agent still calls its provider directly,
-# so no other principal belongs here yet.
+# WHO IS ALLOWED: every agent in the fleet, as of 2026-09-18. It was cost-sentinel alone until the
+# Azure OpenAI resource was removed and the whole declarative fleet lost its model; the fleet was
+# repointed at litellm-gateway, so the gateway is now the single model plane rather than one agent's
+# experiment. The "both sides" rule from mcp-servers-allow-list.yaml applies here too: giving an
+# agent `modelConfig: litellm-gateway` without adding its SA below gets it connection-reset at the
+# mesh, and the agent will report the failure as a plain API error.
 #
 # UNLIKE the MCP-server allow-lists, kagent-controller is deliberately NOT listed here — verify
 # this stays true after any kagent version bump (`kagent-kmcp-controller-manager` reconciles
@@ -29,3 +32,11 @@ spec:
         - source:
             principals:
               - cluster.local/ns/kagent/sa/cost-sentinel
+              - cluster.local/ns/kagent/sa/cluster-diagnostics
+              - cluster.local/ns/kagent/sa/cloud-diagnostics
+              - cluster.local/ns/kagent/sa/deploy-diagnostics
+              - cluster.local/ns/kagent/sa/incident-commander
+              - cluster.local/ns/kagent/sa/cluster-remediation
+              - cluster.local/ns/kagent/sa/infra-author
+              - cluster.local/ns/kagent/sa/substrate-probe
+              - cluster.local/ns/kagent/sa/agent-sandbox-probe

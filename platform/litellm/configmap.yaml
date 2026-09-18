@@ -3,9 +3,16 @@
 # deliberately not run here). Per-tenant attribution comes from the request's `user` field, read back
 # in Langfuse — see README.md's verification section.
 #
-# v2 (domain 10): adds three Bedrock deployments and `smart-router`, LiteLLM's complexity Auto Router,
-# which scores each request and picks a tier. `azure-gpt-5-4-mini` stays reachable directly — the v1
-# `litellm-gateway` ModelConfig still uses it.
+# 2026-09-18: ALL-BEDROCK. The Azure OpenAI resource is gone — oai-ladp-ncs-4.openai.azure.com now
+# returns NXDOMAIN from inside the cluster, so it isn't a revoked key, the resource itself was
+# removed. Every Azure route here was dead, including the one the v1 `litellm-gateway` ModelConfig
+# used, which meant cost-sentinel was failing. Bedrock was already reachable (Pod Identity, no keys).
+#
+# Bedrock auth: no api_key anywhere below. The `litellm` ServiceAccount is bound to the aria-bedrock
+# IAM role via EKS Pod Identity (infra/02-eks/litellm.tf).
+#
+# Tier spread (input $/1M): haiku-3 0.25 → haiku-4.5 1.00 → sonnet-5 2.00 → opus-5 5.00. Four
+# distinct models on purpose, so the model that served a call names the tier the router chose.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -14,21 +21,11 @@ metadata:
 data:
   config.yaml: |
     model_list:
-      - model_name: azure-gpt-5-4-mini
+      # Regional APAC profile — the older, much cheaper Haiku. The floor of the tier ladder.
+      - model_name: bedrock-haiku-3
         litellm_params:
-          model: azure/gpt-5.4-mini-ncs4-group4
-          api_base: https://oai-ladp-ncs-4.openai.azure.com
-          api_version: "2024-12-01-preview"
-          api_key: os.environ/AZURE_API_KEY
-        model_info:
-          # The deployment name isn't a model LiteLLM knows, so without this it logged "Could not
-          # identify azure model" and priced every call at zero. azure/gpt-5.4-mini exists in
-          # model_prices_and_context_window.json at v1.100.1.
-          base_model: azure/gpt-5.4-mini
-
-      # Bedrock: no api key. Credentials come from EKS Pod Identity — the `litellm` ServiceAccount is
-      # bound to the aria-bedrock IAM role (infra/02-eks/litellm.tf). Global inference profiles,
-      # confirmed ACTIVE in ap-southeast-1 on 2026-09-14.
+          model: bedrock/apac.anthropic.claude-3-haiku-20240307-v1:0
+          aws_region_name: ap-southeast-1
       - model_name: bedrock-haiku-4-5
         litellm_params:
           model: bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0
@@ -43,16 +40,15 @@ data:
           aws_region_name: ap-southeast-1
 
       # Complexity Auto Router. Default heuristic classifier: scores the newest human ask locally,
-      # no extra API call. Tiers reference model_name entries above. Four distinct models on purpose,
-      # so the model that served a call shows which tier the router chose. session_affinity left at
-      # its default (off) for the first run — testing whether that matters inside an agent tool loop
-      # is part of the build (README.md, v2).
+      # no extra API call. Tiers reference model_name entries above. session_affinity left at its
+      # default (off) for the first run — testing whether that matters inside an agent tool loop is
+      # part of the build (README.md, v2).
       - model_name: smart-router
         litellm_params:
           model: auto_router/complexity_router
           complexity_router_config:
             tiers:
-              SIMPLE: azure-gpt-5-4-mini
+              SIMPLE: bedrock-haiku-3
               MEDIUM: bedrock-haiku-4-5
               COMPLEX: bedrock-sonnet-5
               REASONING: bedrock-opus-5

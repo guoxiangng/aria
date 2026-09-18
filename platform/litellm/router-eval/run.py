@@ -28,7 +28,7 @@ CTX = os.environ.get("KCTX")  # kubectl context for the aria cluster; current co
 
 # Substring of the served model name → tier (platform/litellm/configmap.yaml `smart-router`).
 TIER_BY_MODEL = [
-    ("gpt-5.4-mini", "SIMPLE"),
+    ("claude-3-haiku", "SIMPLE"),   # checked before haiku-4-5: both contain "haiku"
     ("haiku-4-5", "MEDIUM"),
     ("sonnet-5", "COMPLEX"),
     ("opus-5", "REASONING"),
