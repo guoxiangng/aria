@@ -93,6 +93,14 @@ def call(key, model, prompt):
 
 
 def main():
+    # Model answers contain non-cp1252 characters (arrows, dashes). On Windows the default console
+    # encoding kills the run mid-way with UnicodeEncodeError, losing everything after it.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except AttributeError:
+            pass
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="smart-router")
     parser.add_argument("--prompts", default=str(Path(__file__).with_name("prompts.jsonl")))

@@ -66,6 +66,18 @@ data:
             # "smart-router" — per-call ground truth for which tier was chosen, used by
             # router-eval/run.py.
             return_raw_model_name: true
+            # 2026-09-19: switched from the default heuristic scorer to an LLM classifier after the
+            # 30-prompt eval (router-eval/) showed the heuristic escalated 0 of 14 genuinely hard
+            # prompts. Its hardest score was 0.340 against a 0.35 COMPLEX boundary, and 11 of 14 hard
+            # prompts scored at or below a trivial "what port does the API server listen on" (0.300),
+            # so no boundary tuning separates them — best achievable was 77% and only by escalating
+            # nearly everything. The classifier costs one extra small call per request; Haiku 3 is the
+            # cheapest route here ($0.25/1M in), and it goes through this same proxy so budgets,
+            # Langfuse logging and fallbacks all still apply to it.
+            classifier_type: llm
+            classifier_llm_config:
+              model: bedrock-haiku-3
+              timeout_ms: 4000
           complexity_router_default_model: bedrock-sonnet-5
 
     general_settings:
