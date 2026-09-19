@@ -1,6 +1,6 @@
 # platform/litellm — model gateway (domain 10)
 
-> **Doc version: v2 · Last updated: 2026-09-19 · Status: live, verified**
+> **Doc version: v2.1 · Last updated: 2026-09-19 · Status: live, verified**
 > Supersedes v1 (2026-09-04), archived at `_archive/README.v1.2026-09-04.md`.
 > Versioning rule for this doc: bump the version and archive a snapshot when the component's *shape*
 > changes (a provider swapped, a consumer added fleet-wide). Routine status edits just move the date.
@@ -95,9 +95,16 @@ traces alongside kagent's OTel traces in the same project; per-tenant attributio
 
 ## Open items
 
-- **The Auto Router is deployed but unproven.** `platform/litellm/router-eval/` holds 30 labeled prompts
-  and a runner; the tier-accuracy, cost and misrouting results are not collected yet. Early signal from
-  the smoke test: a hard reasoning prompt landed in MEDIUM, not COMPLEX/REASONING.
+- ~~The Auto Router is deployed but unproven.~~ **Measured 2026-09-19, results in
+  `router-eval/results/`.** The default heuristic classifier escalated **0 of 14** hard prompts — the
+  COMPLEX and REASONING tiers were never used. Offline scoring against the same scorer shows why: the
+  hardest prompt scores 0.340 against a 0.35 boundary, and easy/hard score ranges overlap (a trivial
+  "what port does the API server listen on" scores 0.300, same as hard prompts), so **no boundary tuning
+  fixes it** — best achievable 77%, only by escalating nearly everything. Switching to
+  `classifier_type: llm` (Haiku 3, the cheapest route) took it to **27/30 with 8/8 hard prompts
+  correct** — that is the config now live. Cost caveat, measured: correct routing cost **1.8x** an
+  all-Sonnet baseline, because escalating correctly means paying Opus prices for long answers. Routing
+  is a quality mechanism here, not a cost one.
 - **`litellm-smart-router` is not wired to any agent** — deciding that needs the eval results first.
 - **Embeddings unexercised**: no agent currently sets `spec.declarative.memory`. When one does, confirm
   kagent's embedder accepts `provider: OpenAI` with a custom baseUrl, and note Cohere Embed v4's vector
@@ -110,5 +117,6 @@ traces alongside kagent's OTel traces in the same project; per-tenant attributio
 
 | Version | Date | Change |
 |---|---|---|
+| v2.1 | 2026-09-19 | Auto Router measured (30-prompt eval): heuristic escalates nothing → switched to LLM classifier; metrics-server added cluster-side |
 | v2 | 2026-09-19 | All-Bedrock after the Azure resource was deleted; fleet-wide adoption (9 agents); Auto Router added; Cohere embeddings; image → `v1.100.1`; quota fixed to allow rolling updates |
 | v1 | 2026-09-04 | First build: Azure OpenAI only, DB-less, `cost-sentinel` the single consumer — archived |

@@ -24,6 +24,12 @@ module "eks" {
     kube-proxy             = {}
     vpc-cni                = {}
     eks-pod-identity-agent = {} # enables Pod Identity (used for Bedrock + EBS CSI)
+    # Added 2026-09-19. Without it `kubectl top` fails with "Metrics API not available", so the only
+    # visible numbers are resource *requests* — which is how this cluster ran at 96-97% of requested
+    # CPU while nobody could see actual utilisation. Agents reserve 100m each and spend most of their
+    # life blocked on an LLM call, so requests almost certainly overstate real use; this is what
+    # makes that measurable (and right-sizing possible) rather than guessed.
+    metrics-server = {}
     aws-ebs-csi-driver = {
       # Controller needs EC2 perms; bind its SA to a dedicated IAM role via Pod Identity.
       pod_identity_association = [{
@@ -58,6 +64,20 @@ module "eks" {
       to_port     = 443
       type        = "ingress"
       self        = true
+    }
+    # Same class of bug as ingress_self_443, different direction. The metrics-server addon (added
+    # 2026-09-19) serves on 10251, and the Kubernetes API server must reach it to back the
+    # metrics.k8s.io APIService. The module's defaults do not open that port from the CONTROL PLANE
+    # to the nodes, so the pods ran happily, the addon reported ACTIVE, and `kubectl top` still
+    # failed — the APIService showed the real cause:
+    #   Available=False ... dial https://<pod-ip>:10251/apis/metrics.k8s.io/v1beta1: Client.Timeout
+    ingress_cluster_metrics_server = {
+      description                   = "Control plane to metrics-server (10251) - backs metrics.k8s.io"
+      protocol                      = "tcp"
+      from_port                     = 10251
+      to_port                       = 10251
+      type                          = "ingress"
+      source_cluster_security_group = true
     }
   }
 }
