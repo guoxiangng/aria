@@ -1,5 +1,11 @@
 # platform/kagent — kagent runtime + models
 
+> **Doc version: v2 · Last updated: 2026-09-19.** The Azure OpenAI sections below are HISTORICAL:
+> that resource was deleted on/before 2026-09-18 (in-cluster DNS → NXDOMAIN) and the whole fleet now
+> reaches Bedrock through the LiteLLM gateway. Install steps referencing an Azure key are kept only
+> because they describe how this cluster was originally bootstrapped. Live model routing lives in
+> `platform/litellm/README.md`.
+
 kagent is an **operator**: installing it (Helm) deploys the **CRDs** (`Agent`, `ModelConfig`,
 `ToolServer`/`RemoteMCPServer`, …) and the **controller** that reconciles them. After install, you bring in
 agents/models/tools by **applying CRs** — same on EKS or OpenShift.
@@ -32,24 +38,29 @@ Check chart values: `helm show values oci://ghcr.io/kagent-dev/kagent/helm/kagen
 ## Models available to agents
 | ModelConfig | Provider | Auth | Notes |
 |---|---|---|---|
-| `default-model-config` | Azure OpenAI (`gpt-4o`) | `kagent-azure-openai` secret | chart-created; known-good default |
-| `bedrock-sonnet` | Bedrock (Claude Sonnet 4.6) | **Pod Identity, no key** | preferred once verified |
-| `bedrock-haiku` | Bedrock (Claude Haiku 4.5) | Pod Identity | cheap; eval-judge / high-volume |
+| `litellm-gateway` | via LiteLLM → Bedrock Haiku 4.5 | master key (ESO) | **what all 9 agents use** |
+| `litellm-smart-router` | via LiteLLM → complexity Auto Router | master key (ESO) | deployed, not yet wired to an agent |
+| `litellm-embedding` | via LiteLLM → Cohere Embed v4 | master key (ESO) | embeddings for long-term memory |
+| `bedrock-sonnet`, `bedrock-haiku` | Bedrock direct | **Pod Identity, no key** | still defined; bypass the gateway |
+| ~~`default-model-config`~~ | ~~Azure OpenAI~~ | — | **DEAD** — Azure resource deleted 2026-09-18 |
+| ~~`azure-embedding`~~ | ~~Azure OpenAI~~ | — | **DEAD** — replaced by `litellm-embedding` |
 
-An `Agent` picks one via `spec.declarative.modelConfig: <name>`. Good practice: run agents on one provider,
-the **eval-judge on another** (model diversity).
+An `Agent` picks one via `spec.declarative.modelConfig: <name>`. Anything pointed at the gateway must
+also have its ServiceAccount on `platform/istio/policies/litellm-allow-list.yaml`, or it gets
+connection-reset at the mesh and reports it as a plain API error.
 
-## Bedrock provider — DECIDE AT INSTALL (Azure works meanwhile)
+## Bedrock provider — RESOLVED 2026-09-18 (option 3; Azure is gone)
 kagent's chart has no Bedrock provider entry, so Bedrock is wired via our own `ModelConfig` CRs. Paths, best-first:
 1. **Native `provider: Bedrock` + Pod Identity (no key)** — *verify kagent's ADK runtime supports the Bedrock
    provider via the AWS credential chain.* Needs `controller.agentDeployment.serviceAccountName` (or per-agent SA)
    = the Pod-Identity-bound SA, and `enable_bedrock_pod_identity=true` in `infra/02-eks/terraform.tfvars`.
 2. **OpenAI-compat Bedrock endpoint** (`provider: OpenAI`, `baseUrl=…/openai/v1`) + a Bedrock API key — works,
    but static key.
-3. **LiteLLM proxy** — built 2026-09-04, but for Azure OpenAI, not Bedrock: `platform/litellm/` runs a
-   self-hosted LiteLLM proxy (`litellm-gateway` ModelConfig), currently only `cost-sentinel` routed
-   through it. A Bedrock route via LiteLLM (this option, as originally scoped) is still open — see
-   `platform/litellm/README.md`'s Open items.
+3. **LiteLLM proxy — CHOSEN, live since 2026-09-18.** `platform/litellm/` fronts Bedrock for the whole
+   fleet (`litellm-gateway`), with credentials from Pod Identity, so options 1 and 2 are moot: kagent
+   never speaks Bedrock itself, it speaks OpenAI to the gateway. This became the fleet-wide answer by
+   force rather than by plan — Azure's removal took every agent down at once. See
+   `platform/litellm/README.md`.
 
 ## Bringing in agents (the operator/CR workflow)
 1. Author (or reuse) an `Agent` CR under `agents/<name>/`. Your AIDA agents port over — adjust `namespace`,
@@ -86,9 +97,11 @@ kagent has **two** memory paths; don't conflate them:
    `database migration failed … vector migrations require pgvector`. Swapped to `pgvector/pgvector:pg18` —
    same Postgres major version, so the existing PVC data directory stayed compatible (image swap, not a
    migration). Extension then installed: `vector|0.8.6`. Data intact (13 tables).
-3. An **embedding** ModelConfig — `modelconfig-azure-embedding.yaml` (`text-embedding-3-large`). The chat
-   model cannot vectorize. Its key comes from Secrets Manager via ESO (`kagent-azure-embedding`); the value
-   was written with the CLI, never through tfvars/TF state (see `infra/03-argocd/eso.tf`).
+3. An **embedding** ModelConfig — the chat model cannot vectorize. Was
+   `modelconfig-azure-embedding.yaml` (`text-embedding-3-large`); since 2026-09-18 that is dead with the
+   rest of Azure, replaced by `modelconfig-litellm-embedding.yaml` → Cohere Embed v4 through the gateway,
+   with no key at all (Pod Identity). ⚠️ Vector dimensions differ from `text-embedding-3-large`, so
+   existing pgvector rows may need reindexing before recall works again.
 
 ### The gotcha: memory is scoped per user, and A2A invents a user per conversation
 Calling an agent's A2A endpoint **directly** (unauthenticated) makes every new conversation a new user, so
