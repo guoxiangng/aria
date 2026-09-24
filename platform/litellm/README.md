@@ -1,16 +1,25 @@
 # platform/litellm — model gateway (domain 10)
 
-> **Doc version: v2.1 · Last updated: 2026-09-19 · Status: live, verified**
+> **Doc version: v2.2 · Last updated: 2026-09-24 · Status: live, verified**
 > Supersedes v1 (2026-09-04), archived at `_archive/README.v1.2026-09-04.md`.
 > Versioning rule for this doc: bump the version and archive a snapshot when the component's *shape*
 > changes (a provider swapped, a consumer added fleet-wide). Routine status edits just move the date.
 
-ARIA's model gateway: a self-hosted [LiteLLM](https://docs.litellm.ai/) proxy that every agent calls
-instead of talking to a model provider directly. Fills what `aria/docs/ARCHITECTURE.md` §2 once listed
+ARIA's model gateway: a self-hosted [LiteLLM](https://docs.litellm.ai/) proxy that the declarative
+agents call instead of talking to a model provider directly. Fills what `aria/docs/ARCHITECTURE.md` §2 once listed
 as `❌ not built`, and is the first real build under `LADP/docs/direction-2-llm-gateway-observability.md`.
 
-**As of 2026-09-19 this is the fleet's only model plane.** All 9 agents route through it. That was not
-the original plan — v1 deliberately wired up one agent — see "The Azure removal" below.
+**As of 2026-09-24 this is the declarative fleet's model plane.** **All 11 declarative agents route through it** — 7 of ARIA's own via `litellm-gateway`, plus kagent's
+4 chart-managed built-ins via `default-model-config`, which the chart now generates as an OpenAI
+provider pointed at this proxy. The 2 BYO agents (`investigation-loop`, `strands-investigator`) do
+**not**: they call Bedrock directly and are not on the mesh allow-list. That was not the original
+plan — v1 deliberately wired up one agent — see "The Azure removal" below.
+
+⚠️ Corrected 2026-09-24: this section previously claimed "all 9 agents". That was wrong, and wrong in a
+way worth recording — the four chart-managed built-ins take their model from `default-model-config`, not
+from anything in `agents/`, so the 2026-09-18 migration missed them entirely and they sat broken on the
+dead Azure config for six days, all four reporting `Ready=True`. Caught by fact-checking an article
+claim against the cluster, not by any alert.
 
 ## What runs here
 
@@ -25,7 +34,8 @@ the original plan — v1 deliberately wired up one agent — see "The Azure remo
 
 Two kagent `ModelConfig`s consume it, both `provider: OpenAI` pointed at
 `http://litellm.litellm.svc.cluster.local:4000/v1`:
-`litellm-gateway` (fixed model, what the fleet uses) and `litellm-smart-router` (the router, not yet
+`litellm-gateway` (fixed model, what ARIA's own agents use; the 4 built-ins arrive via
+`default-model-config`, which the kagent chart now generates as an OpenAI provider pointed here) and `litellm-smart-router` (the router, not yet
 wired to any agent). `litellm-embedding` covers the embedding path.
 
 ## Key decisions
@@ -74,7 +84,7 @@ place to change a model and one place where per-agent cost shows up.
 
 ## Mesh
 
-The `litellm` namespace is ambient-enrolled. Inbound is restricted to the 9 agent identities in
+The `litellm` namespace is ambient-enrolled. Inbound is restricted to the 13 agent identities in
 `platform/istio/policies/litellm-allow-list.yaml`. **The "both sides" rule applies:** giving an agent
 `modelConfig: litellm-gateway` without adding its ServiceAccount to that list gets it connection-reset at
 the mesh, and the agent reports it as a plain API error. `kagent-controller` is deliberately not listed —
@@ -117,6 +127,7 @@ traces alongside kagent's OTel traces in the same project; per-tenant attributio
 
 | Version | Date | Change |
 |---|---|---|
+| v2.2 | 2026-09-24 | `default-model-config` repointed at the gateway, fixing kagent's 4 built-in agents (broken since the Azure deletion); allow-list 9 -> 13 principals |
 | v2.1 | 2026-09-19 | Auto Router measured (30-prompt eval): heuristic escalates nothing → switched to LLM classifier; metrics-server added cluster-side |
 | v2 | 2026-09-19 | All-Bedrock after the Azure resource was deleted; fleet-wide adoption (9 agents); Auto Router added; Cohere embeddings; image → `v1.100.1`; quota fixed to allow rolling updates |
 | v1 | 2026-09-04 | First build: Azure OpenAI only, DB-less, `cost-sentinel` the single consumer — archived |
