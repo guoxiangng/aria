@@ -11,9 +11,16 @@
 # trade: the whole point of the tiering is that the credential, not the prompt, is the
 # control.
 #
-# SECRET (create before this syncs — not in git):
-#   kubectl -n kagent create secret generic github-pat-write \
-#     --from-literal=GITHUB_PERSONAL_ACCESS_TOKEN=<token>
+# SECRET: `github-pat-write`, materialized by ESO from Secrets Manager, exactly like the
+# read-only `github-pat`. Do NOT hand-create it with `kubectl create secret` - a secret with
+# no ExternalSecret behind it survives nothing: not a namespace rebuild, not a cluster
+# rebuild, and nobody reading the repo can tell it is meant to exist. Seed the value once:
+#
+#   aws secretsmanager put-secret-value --secret-id aria/github-pat-write \
+#     --secret-string '{"GITHUB_PERSONAL_ACCESS_TOKEN":"<token>"}'
+#
+# Declared in platform/external-secrets/manifests/externalsecret-github-pat-write.yaml;
+# backing secret and the ARN-scoped ESO read grant in infra/03-argocd/eso.tf.
 # Scope it to the SINGLE repo infra-author is allowed to open PRs against, with Contents:RW
 # and Pull requests:RW and nothing else. A fine-grained PAT, not a classic one — a classic
 # token cannot be limited to one repository, and "all my repos" is not a scope any agent

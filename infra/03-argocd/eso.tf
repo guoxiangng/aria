@@ -69,6 +69,23 @@ resource "aws_secretsmanager_secret" "github_pat" {
   description = "Fine-grained GitHub PAT (read-only, aria repo scope) for the self-hosted github-mcp-server."
 }
 
+# The WRITE-capable counterpart, for the second github-mcp-server that backs infra-author.
+# Separate from the token above on purpose: the read-only server is wired into six agents, the
+# write-capable one into exactly one, and sharing a token would give write reach to every agent
+# that only ever needed to read.
+#
+# Scope it narrowly when you seed it — one repository, Contents: Read/Write and Pull requests:
+# Read/Write, and NOTHING else. Specifically no `workflows` and no `administration`: without
+# those the agent cannot edit CI or relax branch protection, which is what keeps "it opens a PR"
+# from quietly becoming "it merges its own PR."
+#
+#   aws secretsmanager put-secret-value --secret-id aria/github-pat-write \
+#     --secret-string '{"GITHUB_PERSONAL_ACCESS_TOKEN":"<fine-grained PAT, aria repo only, contents+PR write>"}'
+resource "aws_secretsmanager_secret" "github_pat_write" {
+  name        = "${local.sm_prefix}/github-pat-write"
+  description = "Fine-grained GitHub PAT (contents + PR write, aria repo scope) for the write-capable github-mcp-server."
+}
+
 resource "aws_secretsmanager_secret" "kagent_langfuse_otel" {
   name        = "${local.sm_prefix}/kagent-langfuse-otel"
   description = "Langfuse OTLP Basic-Auth header for kagent tracing (consumed via ESO ExternalSecret)."
@@ -146,6 +163,7 @@ data "aws_iam_policy_document" "eso_read" {
       aws_secretsmanager_secret.kagent_azure_embedding.arn,
       aws_secretsmanager_secret.kagent_langfuse_otel.arn,
       aws_secretsmanager_secret.github_pat.arn,
+      aws_secretsmanager_secret.github_pat_write.arn,
       aws_secretsmanager_secret.litellm_langfuse.arn,
       aws_secretsmanager_secret.litellm_master_key.arn,
     ]
