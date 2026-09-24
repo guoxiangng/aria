@@ -113,19 +113,82 @@ database:
         tag: "pg18"
 
 # --- LLM providers ---
-# Azure OpenAI via the chart's providers block (known-good) -> becomes `default-model-config`.
-# Bedrock is applied separately as its own ModelConfig CRs (modelconfig-bedrock.yaml). See README.
+# `default-model-config` is generated from this block and is what kagent's BUILT-IN agents
+# (k8s-agent, helm-agent, istio-agent, promql-agent) use — they are chart-managed, so they cannot be
+# repointed per-agent the way our own agents in agents/ can.
+#
+# 2026-09-24: was provider azureOpenAI. The Azure OpenAI resource was DELETED (in-cluster DNS returns
+# NXDOMAIN), so default-model-config pointed at nothing and every built-in agent was broken while
+# still reporting Accepted=True. Now it points at the LiteLLM gateway like the rest of the fleet:
+# provider OpenAI + a baseUrl, so kagent speaks OpenAI to the proxy and the proxy speaks Bedrock.
+# The chart renders `config:` under the provider key, so `baseUrl` lands at spec.openAI.baseUrl.
+#
+# NOTE: these agents' ServiceAccounts must also be on platform/istio/policies/litellm-allow-list.yaml
+# or the mesh resets them and the failure surfaces as a plain API error.
 providers:
-  default: azureOpenAI
-  azureOpenAI:
-    provider: AzureOpenAI
-    model: "gpt-5.4-mini-ncs4-group4" # deployment name (kagent uses this as the model id for Azure)
-    apiKeySecretRef: kagent-azure-openai # secret created by infra/03-argocd (key NOT committed)
-    apiKeySecretKey: AZUREOPENAI_API_KEY
+  default: openAI
+  openAI:
+    provider: OpenAI
+    model: "bedrock-haiku-4-5" # a model_name alias in platform/litellm/configmap.yaml, not a Bedrock id
+    apiKeySecretRef: litellm-gateway-key # ESO-managed; same master key the other ModelConfigs use
+    apiKeySecretKey: LITELLM_MASTER_KEY
     config:
-      apiVersion: "2024-12-01-preview"
-      azureDeployment: "gpt-5.4-mini-ncs4-group4"
-      azureEndpoint: "https://oai-ladp-ncs-4.openai.azure.com"
+      baseUrl: http://litellm.litellm.svc.cluster.local:4000/v1
+
+# --- Built-in agents: disable the ones this platform has no substrate for. ---
+# The chart ships ~10 ready-made agents, each its own Deployment (a pod + CPU request). On a
+# two-node lab that density is what actually bites: enabling pgvector wedged the Postgres pod
+# into Pending ("Insufficient cpu" on one node, "Too many pods" on the other) until this was
+# trimmed. These specific agents are dead weight HERE — ARIA runs AWS VPC CNI (no Cilium),
+# has no kgateway and no Argo Rollouts, the grafana MCP has never registered (ACCEPTED=False,
+# it points at a grafana.kagent service that doesn't exist), and querydoc is a docs-retrieval
+# MCP nothing in the fleet queries. Re-enable any of them the day its backing system exists.
+cilium-policy-agent:
+  enabled: false
+cilium-manager-agent:
+  enabled: false
+cilium-debug-agent:
+  enabled: false
+kgateway-agent:
+  enabled: false
+argo-rollouts-agent:
+  enabled: false
+grafana-mcp:
+  enabled: false
+querydoc:
+  enabled: false
+# TEMPORARY — re-enable together with grafana-mcp above.
+# observability-agent's toolset references the grafana-mcp RemoteMCPServer, so disabling that server
+# alone left this agent Accepted=False ("RemoteMCPServer kagent-grafana-mcp not found") even though its
+# Deployment stayed Ready. Both are off until there is an actual Grafana to point at — grafana-mcp
+# defaults to grafana.kagent:3000, which does not exist in this cluster, which is why it never
+# registered. NOTE: this agent is wanted for the observability articles; turning it back on means
+# standing up Grafana (or pointing grafana-mcp at a real endpoint) and flipping BOTH flags.
+observability-agent:
+  enabled: false
+
+# --- Database: bundled PostgreSQL is dev-only (fine for the lab) ---
+database:
+  postgres:
+    # Enables the pgvector migration, which kagent's INTERNAL long-term memory depends on
+    # (agent `spec.declarative.memory`). Note this is a different feature from the standalone
+    # `Memory` CR, whose only provider is Pinecone (external SaaS) — the internal path keeps
+    # memory self-hosted in the bundled Postgres instead. Ships disabled upstream.
+    vectorEnabled: true
+    bundled:
+      enabled: true
+      storage: 500Mi
+      # storageClassName: gp2   # EKS default; leave empty to use cluster default
+      # The chart's default bundled image is stock `postgres` (docker.io/library/postgres:18.3-alpine),
+      # which does NOT carry the pgvector extension — verified live: `vector` wasn't even listed in
+      # pg_available_extensions, so `vectorEnabled: true` alone cannot work with the default image.
+      # pgvector/pgvector is the official pgvector build of the same Postgres major version (18), so
+      # the existing PVC's data directory stays compatible — this is an image swap, not a migration.
+      image:
+        registry: docker.io
+        repository: pgvector
+        name: pgvector
+        tag: "pg18"
 
 # --- Built-in agents: enable the InfraOps-relevant ones; disable mesh/CNI we don't run on EKS ---
 agents:

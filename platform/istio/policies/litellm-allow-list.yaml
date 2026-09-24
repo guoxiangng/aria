@@ -40,3 +40,9 @@ spec:
               - cluster.local/ns/kagent/sa/infra-author
               - cluster.local/ns/kagent/sa/substrate-probe
               - cluster.local/ns/kagent/sa/agent-sandbox-probe
+              # kagent's chart-managed built-ins. Added 2026-09-24 with the default-model-config
+              # switch: they were still on the dead Azure config, so they had never needed access.
+              - cluster.local/ns/kagent/sa/k8s-agent
+              - cluster.local/ns/kagent/sa/helm-agent
+              - cluster.local/ns/kagent/sa/istio-agent
+              - cluster.local/ns/kagent/sa/promql-agent
