@@ -36,8 +36,18 @@ metadata:
 spec:
   deployment:
     image: hashicorp/terraform-mcp-server:1.3.0
-    cmd: /server/terraform-mcp-server
+    # /bin/, not /server/. The github-mcp-server image puts its binary in /server/ and this
+    # was copied from there unverified; hashicorp's image declares ENTRYPOINT
+    # ["/bin/terraform-mcp-server"]. With the wrong path the adapter still starts and the
+    # MCPServer still reports Ready - the gateway is up, it just has nothing behind it - and
+    # every `initialize` returns HTTP 500. Verified with `--version` in-pod.
+    cmd: /bin/terraform-mcp-server
     args:
+      # `stdio` is a required subcommand in 1.3.0, alongside `streamable-http`. Passing flags
+      # with no subcommand runs the root command, which serves no MCP session at all. The
+      # TRANSPORT_MODE env below was how older versions chose this; it is no longer what
+      # decides, so the subcommand is the thing that matters.
+      - stdio
       - --toolsets
       - registry
     port: 3000
