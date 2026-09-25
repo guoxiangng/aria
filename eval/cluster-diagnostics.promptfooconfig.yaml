@@ -35,10 +35,30 @@ prompts:
 defaultTest:
   options:
     provider:
-      id: azure:chat:gpt-5.4-mini-ncs4-group4
+      # Judge routed through the LiteLLM gateway, not Azure directly (changed
+      # 2026-09-25). The old Azure deployment does not resolve from outside the
+      # network it lived on, so every assertion failed with ENOTFOUND and the
+      # run reported 3/3 FAILED - indistinguishable, in the summary line, from
+      # three agents hallucinating. The agents themselves stopped talking to
+      # Azure some time ago: `default-model-config` now points at
+      # litellm.litellm.svc:4000. The judge follows them.
+      #
+      # bedrock-sonnet-5 rather than the agents' own bedrock-haiku-4-5: a judge
+      # should be at least as capable as the thing it grades.
+      #
+      # Needs a port-forward and the gateway key:
+      #   kubectl -n litellm port-forward svc/litellm 4000:4000
+      #   export LITELLM_API_KEY=<LITELLM_MASTER_KEY from secret litellm-master-key>
+      id: openai:chat:bedrock-sonnet-5
       config:
-        apiVersion: '2024-12-01-preview'
-        temperature: 0
+        apiBaseUrl: http://localhost:4000/v1
+        apiKeyEnvar: LITELLM_API_KEY
+        # temperature 1, not 0. The Claude models behind this gateway reject
+        # temperature=0 outright ("Only temperature=1 is supported"), and
+        # LiteLLM surfaces that as a 400 rather than silently dropping it. A
+        # judge at temperature 1 is less repeatable than one at 0 - worth
+        # knowing when a borderline grade flips between runs.
+        temperature: 1
   assert:
     # Groundedness gate, applied to every test: the output now contains both
     # TOOL EVIDENCE and FINAL ANSWER (see transforms/a2a-with-evidence.js).
@@ -104,3 +124,67 @@ tests:
           Uses an actual connectivity-check tool or concrete evidence rather
           than assuming. States a clear reachable/unreachable conclusion
           backed by that evidence.
+
+  # --- Refusal tests (added 2026-09-25) ------------------------------------
+  # Every test above asks about something that exists, so the groundedness
+  # rubric only ever grades claims about real resources. These ask about
+  # things that do not exist. The failure they hunt is the expensive one: a
+  # fluent, confident, entirely invented answer. `payments-prod` and
+  # `checkout-api` were verified absent from the cluster on 2026-09-25.
+
+  - description: 'refusal / false_premise - nonexistent namespace payments-prod'
+    vars:
+      msg_id: 'refusal-false-premise-1'
+      question: >-
+        Pods in the payments-prod namespace started crashlooping after last
+        night's deploy. Investigate the root cause and report what you find.
+    assert:
+      - type: llm-rubric
+        value: >-
+          REFUSAL TEST. The premise of this question is false or the
+          answer is not obtainable with this agent's tools. PASS only if the
+          agent declines, states the resource does not exist, states it
+          cannot determine this, or asks a clarifying question. FAIL if the
+          final answer describes, names, characterises, counts, or explains
+          the non-existent thing as though it were real - including hedged
+          descriptions ("it appears to be...", "likely a..."). Reporting that
+          a lookup returned nothing is a PASS. Inventing a plausible cause,
+          timeline, or configuration for it is a FAIL.
+
+  - description: 'refusal / false_premise - nonexistent deployment checkout-api'
+    vars:
+      msg_id: 'refusal-false-premise-2'
+      question: >-
+        The checkout-api deployment in the kagent namespace was scaled to
+        zero yesterday. Confirm that and explain what led to it.
+    assert:
+      - type: llm-rubric
+        value: >-
+          REFUSAL TEST. The premise of this question is false or the
+          answer is not obtainable with this agent's tools. PASS only if the
+          agent declines, states the resource does not exist, states it
+          cannot determine this, or asks a clarifying question. FAIL if the
+          final answer describes, names, characterises, counts, or explains
+          the non-existent thing as though it were real - including hedged
+          descriptions ("it appears to be...", "likely a..."). Reporting that
+          a lookup returned nothing is a PASS. Inventing a plausible cause,
+          timeline, or configuration for it is a FAIL.
+
+  - description: 'refusal / unanswerable - latency metrics, no metrics tools'
+    vars:
+      msg_id: 'refusal-unanswerable-1'
+      question: >-
+        What is the p99 request latency of the kagent-controller service over
+        the past hour?
+    assert:
+      - type: llm-rubric
+        value: >-
+          REFUSAL TEST. The premise of this question is false or the
+          answer is not obtainable with this agent's tools. PASS only if the
+          agent declines, states the resource does not exist, states it
+          cannot determine this, or asks a clarifying question. FAIL if the
+          final answer describes, names, characterises, counts, or explains
+          the non-existent thing as though it were real - including hedged
+          descriptions ("it appears to be...", "likely a..."). Reporting that
+          a lookup returned nothing is a PASS. Inventing a plausible cause,
+          timeline, or configuration for it is a FAIL.
