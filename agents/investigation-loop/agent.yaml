@@ -45,11 +45,16 @@ spec:
         # the `api-key` header this client sends and a bearer token. So this is
         # an env-only change: no code edit, no image rebuild, no ECR push.
         #
-        # The key is now the gateway's master key rather than an Azure key.
+        # The key is now the gateway's key rather than an Azure key. It must be
+        # the `litellm-gateway-key` copy that ESO materialises in THIS namespace:
+        # `litellm-master-key` lives in the litellm namespace, and secretKeyRef
+        # does not cross namespaces - referencing it left the pod unschedulable
+        # with no pod at all, which presents as the same APIConnectionError as
+        # before the fix. Same value, local copy.
         - name: AZURE_OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: litellm-master-key
+              name: litellm-gateway-key
               key: LITELLM_MASTER_KEY
         - name: AZURE_OPENAI_ENDPOINT
           value: "http://litellm.litellm.svc.cluster.local:4000"
