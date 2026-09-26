@@ -50,12 +50,15 @@ namespaces:
     labels:
       istio.io/dataplane-mode: ambient
     quota:
-      requestsCpu: "500m"
-      requestsMemory: "1Gi"
-      limitsCpu: "2"
-      limitsMemory: "2Gi"
-      pvcs: 0
-      pods: 3
+      # 2026-09-26: raised again for the Postgres that backs budget enforcement. Sized for TWO
+      # workloads plus a surge pod each, not for what is running right now — see the comment above:
+      # a quota that exactly fits current pods is a quota that makes the next rollout impossible.
+      requestsCpu: "1"
+      requestsMemory: "2Gi"
+      limitsCpu: "3"
+      limitsMemory: "4Gi"
+      pvcs: 1
+      pods: 5
     limits:
       defaultCpu: "250m"
       defaultMemory: "512Mi"
