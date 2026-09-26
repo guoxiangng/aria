@@ -13,6 +13,23 @@
 #
 # Tier spread (input $/1M): haiku-3 0.25 → haiku-4.5 1.00 → sonnet-5 2.00 → opus-5 5.00. Four
 # distinct models on purpose, so the model that served a call names the tier the router chose.
+#
+# SPEND GUARD (added 2026-09-26). Every deployment carries max_budget + budget_duration, which switches
+# on LiteLLM's RouterBudgetLimiting: over budget, that deployment is filtered out of the routing pool.
+# It needs NO Postgres — spend is tracked in a DualCache (in-memory here; Redis is only for multi-pod
+# sync) — which is what makes it possible in this DB-less build.
+#
+# Why it exists: the smart-router can reach Opus 5 ($5/$25 per 1M) with a classifier deciding, and
+# nothing else bounds that. Sizing is against real spend, not a guess — $1.70 total across the whole
+# platform over the last 7 days, $0.91 in the busiest 24h (inflated by two 30-prompt eval runs).
+#
+# ⚠️ In-memory means the counters RESET WHEN THE POD RESTARTS, so a crash-looping proxy could exceed a
+# daily cap across restarts. These are runaway stops, not accounting. Durable counters (and per-key
+# virtual budgets) need `general_settings.database_url` + a Postgres — additive, deliberately deferred.
+#
+# ⚠️ The two Haiku numbers are deliberately UN-TRIPPABLE backstops, not budgets. bedrock-haiku-4-5 is
+# what all 11 declarative agents actually use, so a cap that trips there is a fleet-wide outage — the
+# exact failure this platform already inflicted on itself once. Set ~20x observed weekly spend.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -26,18 +43,26 @@ data:
         litellm_params:
           model: bedrock/apac.anthropic.claude-3-haiku-20240307-v1:0
           aws_region_name: ap-southeast-1
+          max_budget: 5 # USD # backstop only (~3x total weekly platform spend); also serves the router's classifier calls
+          budget_duration: 1d
       - model_name: bedrock-haiku-4-5
         litellm_params:
           model: bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0
           aws_region_name: ap-southeast-1
+          max_budget: 20 # USD # backstop only — the whole fleet runs on this; tripping it = fleet outage
+          budget_duration: 1d
       - model_name: bedrock-sonnet-5
         litellm_params:
           model: bedrock/global.anthropic.claude-sonnet-5
           aws_region_name: ap-southeast-1
+          max_budget: 5 # USD # real cap: COMPLEX tier, $2/$10 per 1M
+          budget_duration: 1d
       - model_name: bedrock-opus-5
         litellm_params:
           model: bedrock/global.anthropic.claude-opus-5
           aws_region_name: ap-southeast-1
+          max_budget: 2 # USD # real cap: REASONING tier, the expensive one at $5/$25 per 1M
+          budget_duration: 1d
 
       # Embeddings for kagent's long-term memory (domain 8), replacing the dead Azure
       # text-embedding-3-large. Bedrock Titan embeddings are NOT offered in ap-southeast-1 (only
