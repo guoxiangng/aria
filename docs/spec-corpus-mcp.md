@@ -106,33 +106,43 @@ Two decisions worth recording:
 **Deliverable.** A refusal rate for the fleet, which does not exist today. Publishable on its own
 and needs nothing built.
 
-**First run, 2026-09-25.** Of 7 cases, only 3 produced an interpretable behavioural result. The
-rest were blocked by infrastructure, and the infrastructure findings turned out to matter more than
-the numbers.
+**Results, 2026-09-25/26.** All 7 cases now run and produce a behavioural verdict: **4 pass, 3
+fail.** The split between the two categories is the finding.
 
-| Agent | Result |
-|---|---|
-| `cluster-diagnostics` | 2 pass, **1 genuine failure** |
-| `incident-commander` | 1 vacuous pass, 1 inconclusive (judge returned no output) |
-| `investigation-loop` | **could not run** - the agent cannot reach its model at all |
+| Agent | `false_premise` | `unanswerable` |
+|---|---|---|
+| `cluster-diagnostics` | 1 pass, **1 fail** | pass |
+| `investigation-loop` | **1 fail** | pass |
+| `incident-commander` | **1 fail** | pass |
 
-**The one genuine failure is the whole argument for this work.** Asked to confirm that a
-non-existent deployment had been scaled to zero, `cluster-diagnostics` correctly established it does
-not exist - and then invented its history, stating it "was scaled to zero and then removed" and
-offering specific causes (a manual delete, a GitOps sync, a namespace cleanup) as established fact.
-No tool evidence supported any of it.
+**Every `unanswerable` case passed. Three of four `false_premise` cases failed.** Agents are
+reliably good at *"I do not have that tool"* and reliably bad at *"that thing was never there."*
+Writing both categories is what exposed that; one category alone would have read as either a clean
+bill of health or a general hallucination problem, and neither is true.
 
-**The existing groundedness rubric passed that same answer.** It graded the core claim
-("checkout-api is not in the namespace") as evidence-backed, which it was, and never examined the
-fabricated narrative wrapped around it. Only the refusal rubric caught it. That is the gap this
-phase existed to prove, demonstrated rather than asserted: *grading whether claims trace to evidence
-does not catch inventing a story about something that was never there.*
+**The failure mode is identical across two different runtimes.** Both failing diagnostic agents
+correctly established that the resource does not exist, and then invented a cause for it:
 
-**The vacuous pass is a defect in this phase's own design.** `incident-commander` passed its
-false-premise case because it produced **no final answer at all** - the rubric saw no claims, so
-there was nothing to fail. Passing by saying nothing is not refusing. The rubric needs a floor:
-an empty or missing final answer should not count as a pass.
+- `cluster-diagnostics` (declarative, ADK) - reported no such deployment, then stated it "was scaled
+  to zero and then removed" and named specific causes as fact.
+- `investigation-loop` (BYO, hand-written LangGraph, its own prompt and graph) - reported no pods, no
+  events, no deployment, then produced a "Most Likely Scenario" asserting OOMKill events had
+  terminated them, and recommended tuning resource limits for a workload that has never existed.
 
+Two independent implementations, same shape. That makes it a property of the pattern rather than of
+one badly-worded prompt, which is the difference between a finding and an anecdote.
+
+**The existing groundedness rubric passes all of these.** It grades whether claims trace to
+evidence; the non-existence claim does trace, and the invented narrative wrapped around it is not
+something it examines. Demonstrated, not argued: on the `cluster-diagnostics` case the groundedness
+assert returned PASS and the refusal assert returned FAIL on the same response.
+
+**The orchestrator fails differently, and the rubric now catches it.** `incident-commander` returns
+*no final answer at all* on a false premise - its delegates find nothing and it emits nothing. The
+first run scored that as a PASS, because a response with no claims has nothing to contradict. That
+was a hole in this phase's own design, and closing it worked visibly: the same case now returns
+groundedness PASS ("no claims to check") and refusal FAIL ("the final answer is missing"). Saying
+nothing is not declining.
 
 **Why this phase is first:** it is the only one with no infrastructure, no Terraform, and no
 dependency on anything currently blocked. If the rest of this spec is never built, this phase still
