@@ -1,17 +1,18 @@
 # Eval trial for cluster-diagnostics — scenarios 1-3 from docs/scenarios.md.
-# Run locally via: kubectl port-forward -n kagent svc/cluster-diagnostics 18080:8080
+# Run locally via: kubectl port-forward -n kagent svc/cluster-diagnostics 18180:8080
 # then: npx promptfoo eval -c eval/cluster-diagnostics.promptfooconfig.yaml
 #
-# Judge model reuses the same Azure OpenAI deployment the agents themselves use
-# (see platform/kagent/values.yaml) - requires AZURE_API_KEY and AZURE_API_HOST
-# env vars set locally (not committed; same credential already used by the platform).
+# Judge routes through the LiteLLM gateway, not Azure (changed 2026-09-25 - Azure
+# was removed on 09-18 and a judge pointed at a dead endpoint fails every assertion,
+# which reads as agents hallucinating). Needs LITELLM_API_KEY from the
+# litellm-master-key secret, plus:  kubectl -n litellm port-forward svc/litellm 4000:4000
 description: "ARIA eval trial — cluster-diagnostics"
 
 providers:
   - id: https
     label: cluster-diagnostics-a2a
     config:
-      url: 'http://localhost:18080/'
+      url: 'http://localhost:18180/'
       method: POST
       headers:
         Content-Type: application/json

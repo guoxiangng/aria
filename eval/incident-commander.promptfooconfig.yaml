@@ -5,7 +5,7 @@
 # exactly which sub-agents were called by name, so the rubric can check that
 # directly instead of just judging whether the final text sounds coherent.
 #
-# Run locally via: kubectl port-forward -n kagent svc/incident-commander 18081:8080
+# Run locally via: kubectl port-forward -n kagent svc/incident-commander 18181:8080
 # then: ./node_modules/.bin/promptfoo eval -c eval/incident-commander.promptfooconfig.yaml
 description: "ARIA eval trial — incident-commander (orchestration)"
 
@@ -13,7 +13,7 @@ providers:
   - id: https
     label: incident-commander-a2a
     config:
-      url: 'http://localhost:18081/'
+      url: 'http://localhost:18181/'
       method: POST
       headers:
         Content-Type: application/json

@@ -12,7 +12,7 @@
 # env var); not wired into the CI runner - deliberately scoped down, revisit once
 # there's a second BYO agent to generalize the pattern from.
 #
-# Run locally via: kubectl port-forward -n kagent svc/investigation-loop 18082:8080
+# Run locally via: kubectl port-forward -n kagent svc/investigation-loop 18182:8080
 # then: ./node_modules/.bin/promptfoo eval -c eval/investigation-loop.promptfooconfig.yaml
 description: "ARIA eval trial — investigation-loop"
 
@@ -20,7 +20,7 @@ providers:
   - id: https
     label: investigation-loop-a2a
     config:
-      url: 'http://localhost:18082/'
+      url: 'http://localhost:18182/'
       method: POST
       headers:
         Content-Type: application/json

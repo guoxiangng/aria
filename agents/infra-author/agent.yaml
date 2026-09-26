@@ -1,3 +1,22 @@
+# ===========================================================================================
+# PAUSED 2026-09-26 — the three write tools are commented out below. The agent still runs and
+# still answers; it cannot write.
+#
+# WHY: it cannot read a file before rewriting one. `get_file_contents` returns the body as an
+# MCP *embedded resource*, and the adk-go version kagent 0.10.0-rc1 pins (v2.1.0) keeps only
+# TextContent blocks and silently drops everything else. The model receives just
+# {"output":"successfully downloaded text file (SHA: ...)"} — a status line, no body.
+#
+# WHY THAT IS DANGEROUS RATHER THAN MERELY LIMITING: `create_or_update_file` is a WHOLE-FILE
+# write. An agent that cannot read but can write does not fail safe — it overwrites. On
+# 2026-09-26 this destroyed infra/02-eks/main.tf on branch `add-node-repair-config`: 177 lines
+# to 32, replaced with a placeholder. The tier design held (branch only, main untouched, no
+# apply, no cloud credentials), which is the good news, but the hazard is real.
+#
+# UNBLOCKED BY: kagent on adk-go >= v2.4.0 — i.e. v1.0.0-alpha4 or later. No 0.10.x release
+# carries it. See agents/infra-author/README.md for the full evidence chain and the
+# alternative (a small read-file MCP server of our own, which needs no kagent upgrade).
+# ===========================================================================================
 # ARIA's builder. The first agent in the fleet that PRODUCES something rather than
 # reporting on something.
 #
@@ -135,14 +154,18 @@ spec:
           toolNames:
             # get_file_contents also lists a directory when given a path with a
             # trailing slash, which is how this agent browses infra/. There is no
-            # separate tree tool on this server — `get_repository_tree` does not
-            # exist in the running image, though deploy-diagnostics still declares
-            # it (harmless, but it resolves to nothing).
+            # separate tree tool enabled here. `get_repository_tree` DOES exist in the
+            # image - it lives in the `git` toolset, which is not in GITHUB_TOOLSETS on
+            # this server. It also returns plain TEXT rather than an embedded resource,
+            # which makes it one of the few read paths that survives the adk-go bug in
+            # the banner above. Worth enabling when this agent is unpaused.
             - get_file_contents
             - search_code
             - list_commits
             - list_pull_requests
             - pull_request_read
-            - create_branch
-            - create_or_update_file
-            - create_pull_request
+            # PAUSED — see the banner at the top of this file. Restore these three together;
+            # they are useless individually and dangerous while the read path is broken.
+            # - create_branch
+            # - create_or_update_file
+            # - create_pull_request

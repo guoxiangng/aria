@@ -4,7 +4,11 @@
 # the cluster, see platform/arc/). Exits non-zero if any suite fails, so this can
 # gate a CI check on its exit code.
 #
-# Local dev configs point at localhost:1808X for the agents and localhost:4000 for
+# Local dev configs point at localhost:181XX for the agents and localhost:4000 for
+# the judge. The 181XX band is deliberate: aria-ops-connect.ps1 (the Operations tab's
+# forwards) owns 18080-18090, and it maps those to DIFFERENT agents - 18080 is the
+# kagent console there, 18082 is cluster-diagnostics. Run both at once on the old band
+# and this suite grades the wrong agents while reporting pass/fail as though it had not.
 # the judge (both via kubectl port-forward, see each config's header comment) -
 # swapped for real in-cluster Service DNS here.
 #
@@ -27,9 +31,14 @@ fi
 
 for f in *.promptfooconfig.yaml; do
   sed -i \
-    -e 's#http://localhost:18080/#http://cluster-diagnostics.kagent:8080/#' \
-    -e 's#http://localhost:18081/#http://incident-commander.kagent:8080/#' \
-    -e 's#http://localhost:18082/#http://investigation-loop.kagent:8080/#' \
+    -e 's#http://localhost:18180/#http://cluster-diagnostics.kagent:8080/#' \
+    -e 's#http://localhost:18181/#http://incident-commander.kagent:8080/#' \
+    -e 's#http://localhost:18182/#http://investigation-loop.kagent:8080/#' \
+    -e 's#http://localhost:18183/#http://cloud-diagnostics.kagent:8080/#' \
+    -e 's#http://localhost:18184/#http://cost-sentinel.kagent:8080/#' \
+    -e 's#http://localhost:18185/#http://deploy-diagnostics.kagent:8080/#' \
+    -e 's#http://localhost:18186/#http://cluster-remediation.kagent:8080/#' \
+    -e 's#http://localhost:18187/#http://infra-author.kagent:8080/#' \
     -e 's#http://localhost:4000/v1#http://litellm.litellm.svc.cluster.local:4000/v1#' \
     "$f"
 done

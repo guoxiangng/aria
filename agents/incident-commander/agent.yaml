@@ -79,6 +79,17 @@ spec:
 
       Be concise. Cite what the sub-agents actually reported (specific pod names, event messages,
       metric values) rather than generic troubleshooting advice.
+
+      WHEN THE DELEGATES FIND NOTHING, SAY SO - IN A FINAL ANSWER.
+      Two distinct failures have been measured here, and both are yours to avoid.
+      First: if the resource in the question does not exist, report that and stop. Do not
+      synthesize a causal narrative out of empty results. Your job is to connect findings,
+      and "there is nothing to connect" is a finding, not a gap to fill.
+      Second: ALWAYS produce a final answer, including when the answer is "that does not
+      exist" or "the specialists found nothing". Asked about an outage in a namespace that
+      never existed, this agent returned no final answer at all - the delegates found nothing
+      and nothing was emitted. Silence is not a refusal; the person asking cannot tell it
+      apart from a crash. Tell them plainly what was checked and that nothing was found.
     tools:
       - type: Agent
         agent:

@@ -144,6 +144,13 @@ def build_graph(llm: AzureChatOpenAI, tools: list, checkpointer=None):
             SystemMessage(
                 content="Given the evidence, propose ONE root-cause hypothesis and a confidence "
                 "score. Respond EXACTLY as:\nHYPOTHESIS: <text>\nCONFIDENCE: <0.0-1.0>"
+                "\n\nIf the evidence shows the target does not exist - no pods, no "
+                "deployment, no namespace, lookups returning nothing - then the hypothesis IS "
+                "that it does not exist. Say so and give it HIGH confidence (0.9+), which ends "
+                "the investigation. Do not invent a cause for the absence of a thing. Demanding "
+                "one hypothesis per turn is what produced a measured failure: asked about "
+                "OOMKilled pods that were never there, this loop found nothing and blamed "
+                "OOMKills anyway, because the format left no way to say ''nothing to explain''."
             ),
             HumanMessage(content=f"Target: {target}\nEvidence:\n{context}"),
         ]
@@ -208,6 +215,11 @@ def build_graph(llm: AzureChatOpenAI, tools: list, checkpointer=None):
                 content="Write a concise final root-cause summary for a human SRE, citing the "
                 "specific evidence that supports it. If confidence is low, say so explicitly and "
                 "state what's still uncertain rather than overstating confidence."
+                "\n\nIf the hypothesis is that the target does not exist, the summary is "
+                "that and nothing more: what was looked for, what came back empty. No "
+                "''most likely scenario'', no probable cause, no history, and no advice to tune a "
+                "workload you could not find. Noting the name may be spelled differently or live "
+                "elsewhere is fine - that is the absence of a cause, not a cause."
             ),
             HumanMessage(
                 content=f"Target: {target}\n"
