@@ -30,16 +30,34 @@ spec:
         # NOTE: env `name` (what our code reads) intentionally differs from the secret's `key`
         # (AZUREOPENAI_API_KEY, no underscore - set by infra/03-argocd to match the chart's
         # providers block convention). This is a deliberate rename, not a typo.
+        # Repointed at the LiteLLM gateway 2026-09-26. This agent had been dead:
+        # the Azure resource it used no longer resolves on public DNS, so every
+        # run ended `openai.APIConnectionError: Connection error.` Nothing
+        # surfaced it, because kagent's Ready condition reports whether the
+        # Deployment is up, not whether the agent can reach a model - the fleet
+        # listed it Ready=True the whole time. Found by the refusal eval, which
+        # could not get an answer out of it at all.
+        #
+        # The variable NAMES stay Azure-shaped on purpose. `AzureChatOpenAI`
+        # (graph.py) calls `{endpoint}/openai/deployments/{deployment}/chat/
+        # completions?api-version=...`, and LiteLLM serves exactly that
+        # Azure-compatible route - verified live against the gateway with both
+        # the `api-key` header this client sends and a bearer token. So this is
+        # an env-only change: no code edit, no image rebuild, no ECR push.
+        #
+        # The key is now the gateway's master key rather than an Azure key.
         - name: AZURE_OPENAI_API_KEY
           valueFrom:
             secretKeyRef:
-              name: kagent-azure-openai
-              key: AZUREOPENAI_API_KEY
+              name: litellm-master-key
+              key: LITELLM_MASTER_KEY
         - name: AZURE_OPENAI_ENDPOINT
-          value: "https://oai-ladp-ncs-4.openai.azure.com"
+          value: "http://litellm.litellm.svc.cluster.local:4000"
         - name: AZURE_OPENAI_API_VERSION
           value: "2024-12-01-preview"
+        # A LiteLLM model group, not an Azure deployment. Same one the
+        # declarative fleet uses via default-model-config.
         - name: AZURE_OPENAI_CHAT_DEPLOYMENT_NAME
-          value: "gpt-5.4-mini-ncs4-group4"
+          value: "bedrock-haiku-4-5"
         - name: MCP_SERVER_URL
           value: "http://kagent-tools.kagent:8084/mcp"

@@ -32,6 +32,10 @@ spec:
         - source:
             principals:
               - cluster.local/ns/kagent/sa/cost-sentinel
+              # Added 2026-09-26 with the model repoint in
+              # agents/investigation-loop/agent.yaml. Without this the agent gets an
+              # RBAC deny from the mesh instead of a model - the other half of one fix.
+              - cluster.local/ns/kagent/sa/investigation-loop
               - cluster.local/ns/kagent/sa/cluster-diagnostics
               - cluster.local/ns/kagent/sa/cloud-diagnostics
               - cluster.local/ns/kagent/sa/deploy-diagnostics
