@@ -1,7 +1,11 @@
+> ⚠️ **SUPERSEDED — archived snapshot, v2.2, 2026-09-24.** The gateway was DB-less and stateless at
+> this point, which is why its budget section describes caps that were later measured to enforce
+> nothing. Live doc: `platform/litellm/README.md` (v3).
+
 # platform/litellm — model gateway (domain 10)
 
-> **Doc version: v3 · Last updated: 2026-09-26 · Status: live, verified · Stateful**
-> Supersedes v2.2 (`_archive/README.v2.2026-09-24.md`) and v1 (`_archive/README.v1.2026-09-04.md`).
+> **Doc version: v2.2 · Last updated: 2026-09-24 · Status: live, verified**
+> Supersedes v1 (2026-09-04), archived at `_archive/README.v1.2026-09-04.md`.
 > Versioning rule for this doc: bump the version and archive a snapshot when the component's *shape*
 > changes (a provider swapped, a consumer added fleet-wide). Routine status edits just move the date.
 
@@ -25,10 +29,7 @@ claim against the cluster, not by any alert.
 
 | Route | Model | Role |
 |---|---|---|
-| `nova-micro` | `apac.amazon.nova-micro-v1:0` | cheapest route here ($0.037/1M in); fallback floor |
-| `nova-lite` | `apac.amazon.nova-lite-v1:0` | **SIMPLE tier** ($0.063/1M in) — ~4x cheaper than haiku-3 |
-| `nova-pro` | `apac.amazon.nova-pro-v1:0` | cross-family fallback for the fleet's own tier ($0.84/1M in) |
-| `bedrock-haiku-3` | `apac.anthropic.claude-3-haiku-20240307-v1:0` | the router's classifier model ($0.25/1M in) |
+| `bedrock-haiku-3` | `apac.anthropic.claude-3-haiku-20240307-v1:0` | Auto Router SIMPLE tier ($0.25/1M in) |
 | `bedrock-haiku-4-5` | `global.anthropic.claude-haiku-4-5-20251001-v1:0` | MEDIUM tier ($1); also what `litellm-gateway` serves |
 | `bedrock-sonnet-5` | `global.anthropic.claude-sonnet-5` | COMPLEX tier ($2) |
 | `bedrock-opus-5` | `global.anthropic.claude-opus-5` | REASONING tier ($5) |
@@ -41,51 +42,13 @@ Two kagent `ModelConfig`s consume it, both `provider: OpenAI` pointed at
 `default-model-config`, which the kagent chart now generates as an OpenAI provider pointed here) and `litellm-smart-router` (the router, not yet
 wired to any agent). `litellm-embedding` covers the embedding path.
 
-## What this build closed (2026-09-26)
-
-The Azure removal accidentally answered what a gateway is *for*: not routing, but containing the blast
-radius of a provider vanishing, a key leaking, or a classifier going haywire — in one place. Three holes
-this platform actually fell into, and what each now looks like:
-
-**1. Budgets that enforce.** Caps are configured per deployment (`max_budget` + `budget_duration`).
-Measured before and after, because the "before" is the interesting half:
-
-| | Result |
-|---|---|
-| **Without a database** | `$0.000001/day` cap, 4 calls, **none blocked**. Same outcome for `router_settings.provider_budget_config` and for `rpm: 1`. Every shape accepted the config and enforced nothing. |
-| **With Postgres** | call 1 answered, calls 2-4 **HTTP 429** — `No deployments available - crossed budget: Exceeded budget for deployment model_name: nova-micro ... 4.662e-06` |
-
-Upstream says so plainly, in `proxy_server.py::_warn_budget_without_db`: *"the budget will NOT be
-enforced and requests will never be blocked. Set DATABASE_URL"*. A config key being accepted is not the
-same as a control existing — and nothing in the DB-less state hinted otherwise.
-
-**2. Fallbacks.** Every tier has a chain whose first hop is a *different model family*
-(`router_settings.fallbacks`). Proven with a kill test rather than asserted: a route pointed at a
-deliberately non-existent Bedrock profile — standing in for Azure on 18 Sept — was **served by
-`nova-micro` instead of failing**. Had this existed then, that outage would have been a quality
-degradation, not six days of four dead agents and seven broken ones.
-
-Fallbacks also make the new caps safe: a tier that hits its daily budget is filtered out of the pool and
-a fallback catches the request, instead of the caller seeing a 429.
-
-**3. A real cheap floor.** Amazon Nova joins Anthropic — a second *family*, not just more models, which
-is what gives fallbacks somewhere to go that isn't the same vendor. `nova-lite` takes the SIMPLE tier at
-$0.063/1M in, about 4x cheaper than haiku-3. The classifier deliberately stays on haiku-3: 27/30 was
-measured with that classifier, so swapping it would invalidate the result rather than be a free saving.
-
-Still open: all 11 agents share one master key, so at the gateway they are indistinguishable and equally
-privileged. Per-agent virtual keys are the next increment — the Postgres built here is their prerequisite.
-
 ## Key decisions
 
 - **Plain Kubernetes manifests, not a Helm chart.** BerriAI ships a chart only inside their source repo;
   the installable "litellm-helm" charts are third-party mirrors, and BerriAI's own chart assumes a
   Postgres `migrations-job` this DB-less build doesn't want.
-- **Stateful since 2026-09-26** (`postgres.yaml`). It buys exactly one thing: enforcement. Deliberately
-  *not* kagent's bundled Postgres — that one is chart-managed and backs agent memory (domain 8), and
-  sharing it would put the model plane and the memory plane in one blast radius. Single replica, no HA:
-  if it is down the gateway loses the *guard*, not service, because LiteLLM serves happily without a DB
-  (that is precisely the unenforced state measured above).
+- **DB-less.** LiteLLM's virtual-key/budget API and its own savings accounting need Postgres. Not worth a
+  stateful pod here. Per-tenant attribution comes from the request's `user` field, read back in Langfuse.
 - **All Bedrock, no API keys anywhere.** Credentials come from EKS Pod Identity: the `litellm`
   ServiceAccount is bound to the `aria-bedrock` role (`infra/02-eks/litellm.tf`). The only secret left is
   the proxy's own master key.
@@ -119,13 +82,7 @@ place to change a model and one place where per-agent cost shows up.
    35-pod ENI ceiling, so a single 100m pod couldn't schedule. Resolved by scaling the node group 2 → 3
    (now at ASG max). Note `kubectl top` does not work on this cluster — **metrics-server isn't installed**,
    so only *requests* are visible, never real utilisation.
-3. **Prisma OOMKills the proxy at 1Gi, silently.** Wiring `DATABASE_URL` made LiteLLM load Prisma at
-   boot, which does not fit in 1Gi. It produced **zero log output** — no traceback, nothing on stdout —
-   and the only evidence was `exitCode 137 / OOMKilled` in the pod's `lastState` plus a liveness probe
-   failing against a port nothing was listening on. An OOM during interpreter start looks exactly like a
-   hung application. Raising the container limit alone was not enough either: the namespace LimitRange
-   (`maxMemory`) and the ResourceQuota are two separate admission gates, and both had to move.
-4. **Config changes need a pod restart.** LiteLLM reads `config.yaml` at startup. A ConfigMap edit alone
+3. **Config changes need a pod restart.** LiteLLM reads `config.yaml` at startup. A ConfigMap edit alone
    leaves the running proxy serving the old model list, which surfaces as
    `Invalid model name passed in model=...` from agents.
 
@@ -175,7 +132,6 @@ traces alongside kagent's OTel traces in the same project; per-tenant attributio
 | Version | Date | Change |
 |---|---|---|
 | v2.2 | 2026-09-24 | `default-model-config` repointed at the gateway, fixing kagent's 4 built-in agents (broken since the Azure deletion); allow-list 9 -> 13 principals |
-| v3 | 2026-09-26 | Postgres added → budgets now actually enforce (429 proven); cross-family fallbacks proven by kill test; Amazon Nova family added, SIMPLE tier crosses to nova-lite; proxy 2Gi (Prisma OOMs at 1Gi) |
 | v2.1 | 2026-09-19 | Auto Router measured (30-prompt eval): heuristic escalates nothing → switched to LLM classifier; metrics-server added cluster-side |
 | v2 | 2026-09-19 | All-Bedrock after the Azure resource was deleted; fleet-wide adoption (9 agents); Auto Router added; Cohere embeddings; image → `v1.100.1`; quota fixed to allow rolling updates |
 | v1 | 2026-09-04 | First build: Azure OpenAI only, DB-less, `cost-sentinel` the single consumer — archived |
