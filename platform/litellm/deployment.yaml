@@ -46,11 +46,14 @@ spec:
               containerPort: 4000
           envFrom:
             - secretRef:
-                name: litellm-azure
-            - secretRef:
                 name: litellm-langfuse
             - secretRef:
                 name: litellm-master-key
+            # DATABASE_URL — without it LiteLLM accepts budget config and enforces nothing
+            # (upstream: "the budget will NOT be enforced and requests will never be blocked").
+            # Composed by ESO so the password is never assembled in a manifest.
+            - secretRef:
+                name: litellm-postgres
           env:
             - name: LANGFUSE_HOST
               value: "https://us.cloud.langfuse.com" # same Langfuse Cloud region as kagent's OTel export (infra/03-argocd/variables.tf)

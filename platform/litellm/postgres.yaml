@@ -1,0 +1,120 @@
+# Postgres backing the LiteLLM gateway's budget enforcement and spend tracking.
+#
+# WHY IT EXISTS: LiteLLM accepts budget configuration without a database and then enforces none of it.
+# Proven three ways on a throwaway proxy before building this — per-deployment `max_budget`,
+# `router_settings.provider_budget_config` and `rpm: 1` each accepted the config and blocked nothing —
+# and confirmed in upstream source (`proxy_server.py::_warn_budget_without_db`): "the budget will NOT be
+# enforced and requests will never be blocked. Set DATABASE_URL".
+#
+# WHY NOT kagent's Postgres: that one is chart-managed and backs agent long-term memory (domain 8).
+# Sharing it would couple the model plane's availability to the memory plane's — two domains, one blast
+# radius. This platform has already had one fleet-wide outage from a single shared dependency.
+#
+# Single replica, no HA: if this pod is down the gateway loses *enforcement*, not service — LiteLLM
+# serves requests without the DB (that is exactly the unenforced state measured above). Losing the
+# guard is a degradation worth accepting here; losing the fleet's model plane would not be.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: litellm-postgres
+  namespace: litellm
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+  # storageClassName omitted: gp3 is the cluster default (infra/02-eks).
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: litellm-postgres
+  namespace: litellm
+  labels:
+    app.kubernetes.io/name: litellm-postgres
+    app.kubernetes.io/part-of: aria
+spec:
+  selector:
+    app.kubernetes.io/name: litellm-postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: litellm-postgres
+  namespace: litellm
+  labels:
+    app.kubernetes.io/name: litellm-postgres
+    app.kubernetes.io/part-of: aria
+spec:
+  replicas: 1
+  strategy:
+    # Recreate, not RollingUpdate: one RWO volume cannot be attached to a surge pod and the old pod at
+    # the same time, so a rolling update would deadlock on the PVC.
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: litellm-postgres
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: litellm-postgres
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 999 # the postgres user in the official image
+        fsGroup: 999 # so the mounted volume is writable by it
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: postgres:18-alpine
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: litellm
+            - name: POSTGRES_USER
+              value: litellm
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: litellm-postgres
+                  key: POSTGRES_PASSWORD
+            - name: PGDATA
+              # A subdirectory of the mount, not the mount itself: initdb refuses a directory that
+              # already contains lost+found, which an ext4 volume always does.
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              # 1Gi is the per-container ceiling the namespace LimitRange allows (envs/dev.yaml).
+              cpu: "1"
+              memory: 1Gi
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "litellm", "-d", "litellm"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "litellm", "-d", "litellm"]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: litellm-postgres

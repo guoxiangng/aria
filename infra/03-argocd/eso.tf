@@ -133,6 +133,25 @@ resource "aws_secretsmanager_secret" "litellm_master_key" {
   description = "LiteLLM proxy master key (consumed via ESO ExternalSecret). Seeded out-of-band, never in tfvars/state."
 }
 
+# Postgres password for the LiteLLM gateway's own database (platform/litellm/postgres.yaml).
+#
+# WHY there is a database at all: LiteLLM accepts budget config without one and then enforces nothing —
+# its own source says so ("the budget will NOT be enforced and requests will never be blocked. Set
+# DATABASE_URL"). Verified empirically first: per-deployment max_budget, provider_budget_config and
+# rpm limits all accepted the config and blocked nothing on a DB-less proxy.
+#
+# Separate from kagent's bundled Postgres on purpose — that one is chart-managed and backs agent memory
+# (domain 8); coupling the gateway's availability to it would put two domains in one blast radius.
+#
+# Container-only pattern (like github_pat): TF creates the container, the value is seeded out-of-band so
+# it never passes through tfvars or state.
+#
+#   aws secretsmanager put-secret-value --secret-id aria/litellm-postgres #     --secret-string '{"POSTGRES_PASSWORD":"<openssl rand -hex 24>"}'
+resource "aws_secretsmanager_secret" "litellm_postgres" {
+  name        = "${local.sm_prefix}/litellm-postgres"
+  description = "Postgres password for the LiteLLM gateway DB (budget enforcement + spend tracking)."
+}
+
 # --- IAM: the role ESO's ServiceAccount assumes via EKS Pod Identity ---
 
 data "aws_iam_policy_document" "eso_pod_identity_trust" {
@@ -166,6 +185,7 @@ data "aws_iam_policy_document" "eso_read" {
       aws_secretsmanager_secret.github_pat_write.arn,
       aws_secretsmanager_secret.litellm_langfuse.arn,
       aws_secretsmanager_secret.litellm_master_key.arn,
+      aws_secretsmanager_secret.litellm_postgres.arn,
     ]
   }
 }
