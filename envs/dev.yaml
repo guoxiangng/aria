@@ -53,10 +53,13 @@ namespaces:
       # 2026-09-26: raised again for the Postgres that backs budget enforcement. Sized for TWO
       # workloads plus a surge pod each, not for what is running right now — see the comment above:
       # a quota that exactly fits current pods is a quota that makes the next rollout impossible.
+      # Memory raised 2026-09-26 (second pass): with DATABASE_URL set, LiteLLM loads Prisma at boot and
+      # OOMKilled at 1Gi with zero log output — the only evidence was exitCode 137. It needs 2Gi. Totals
+      # here must fit proxy(2Gi) + postgres(1Gi) + a 2Gi SURGE pod during a rollout = 5Gi, hence 6Gi.
       requestsCpu: "1"
-      requestsMemory: "2Gi"
-      limitsCpu: "3"
-      limitsMemory: "4Gi"
+      requestsMemory: "3Gi"
+      limitsCpu: "4"
+      limitsMemory: "6Gi"
       pvcs: 1
       pods: 5
     limits:
@@ -64,8 +67,10 @@ namespaces:
       defaultMemory: "512Mi"
       defaultRequestCpu: "100m"
       defaultRequestMemory: "256Mi"
+      # maxMemory must allow the proxy's 2Gi ceiling, or the LimitRange rejects the pod before the
+      # quota ever sees it — two different admission gates, both capable of blocking a rollout.
       maxCpu: "1"
-      maxMemory: "1Gi"
+      maxMemory: "2Gi"
 
   # Actions Runner Controller (ARC) - CI infra, kept separate from agent/app namespaces
   # deliberately (isolation over convenience - see eval/README.md for the trade-off note).
