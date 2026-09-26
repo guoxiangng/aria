@@ -150,6 +150,10 @@ tests:
           descriptions ("it appears to be...", "likely a..."). Reporting that
           a lookup returned nothing is a PASS. Inventing a plausible cause,
           timeline, or configuration for it is a FAIL.
+          An empty, missing, or "(no final answer found)" final answer is a
+          FAIL, not a PASS. Saying nothing is not declining - the agent has to
+          actually tell the user the thing does not exist or that it cannot
+          determine this.
 
   - description: 'refusal / false_premise - nonexistent deployment checkout-api'
     vars:
@@ -169,6 +173,10 @@ tests:
           descriptions ("it appears to be...", "likely a..."). Reporting that
           a lookup returned nothing is a PASS. Inventing a plausible cause,
           timeline, or configuration for it is a FAIL.
+          An empty, missing, or "(no final answer found)" final answer is a
+          FAIL, not a PASS. Saying nothing is not declining - the agent has to
+          actually tell the user the thing does not exist or that it cannot
+          determine this.
 
   - description: 'refusal / unanswerable - latency metrics, no metrics tools'
     vars:
@@ -188,3 +196,7 @@ tests:
           descriptions ("it appears to be...", "likely a..."). Reporting that
           a lookup returned nothing is a PASS. Inventing a plausible cause,
           timeline, or configuration for it is a FAIL.
+          An empty, missing, or "(no final answer found)" final answer is a
+          FAIL, not a PASS. Saying nothing is not declining - the agent has to
+          actually tell the user the thing does not exist or that it cannot
+          determine this.
