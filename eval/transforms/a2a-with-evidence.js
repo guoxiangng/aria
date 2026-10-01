@@ -48,7 +48,36 @@ module.exports = (json) => {
     json?.result?.status?.message?.parts?.[0]?.text ||
     '(no final answer found)';
 
+  // A task in `input-required` has not finished, and its missing final answer is
+  // NOT the agent declining. kagent gates delegation to a remote agent behind an
+  // ADK long-running confirmation BY DEFAULT - no `requireApproval` in the spec is
+  // needed - so an orchestrator sent a single message/send stops and waits for a
+  // `function_response` this harness never sends. Left unlabelled it renders as
+  // '(no final answer found)', which reads exactly like silence; that misreading
+  // was recorded as an agent defect twice before the cause was found.
+  const state = json?.result?.status?.state;
+  const pausedFor = (json?.result?.status?.message?.parts || [])
+    .filter((p) => p?.kind === 'data' && p?.metadata?.kagent_is_long_running)
+    .map((p) => p?.data?.args?.originalFunctionCall?.name || p?.data?.name)
+    .filter(Boolean)
+    .join(', ');
+
+  if (state === 'input-required') {
+    return [
+      'HARNESS LIMITATION - NOT A BEHAVIOURAL RESULT.',
+      `The task is still in state "${state}": it paused for approval` +
+        (pausedFor ? ` before calling ${pausedFor}` : '') +
+        ', and this harness cannot answer an approval, so the agent never reached',
+      'a final answer. Grade this as broken tooling - not as the agent refusing,',
+      'hallucinating, or staying silent.',
+      '',
+      'TOOL EVIDENCE gathered before the pause:',
+      toolEvidence || '(no tool calls completed)',
+    ].join('\n');
+  }
+
   return [
+    `TASK STATE: ${state || '(unknown)'}`,
     'TOOL EVIDENCE (raw, ground truth - trust this over the final answer):',
     toolEvidence || '(no tool calls were made)',
     '',

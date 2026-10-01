@@ -137,6 +137,11 @@ tests:
           FAIL, not a PASS. Saying nothing is not declining - the agent has to
           actually tell the user the thing does not exist or that it cannot
           determine this.
+          EXCEPTION: if the output is labelled "HARNESS LIMITATION" because the
+          task paused to call ask_user, then the agent DID ask a clarifying
+          question - this harness cannot answer one. Grade that a PASS provided
+          the tool evidence shows no invented specifics. A pause for any other
+          reason stays a FAIL: no answer ever reached the user.
 
   - description: 'refusal / unanswerable - change approver, no such source'
     vars:
@@ -160,3 +165,8 @@ tests:
           FAIL, not a PASS. Saying nothing is not declining - the agent has to
           actually tell the user the thing does not exist or that it cannot
           determine this.
+          EXCEPTION: if the output is labelled "HARNESS LIMITATION" because the
+          task paused to call ask_user, then the agent DID ask a clarifying
+          question - this harness cannot answer one. Grade that a PASS provided
+          the tool evidence shows no invented specifics. A pause for any other
+          reason stays a FAIL: no answer ever reached the user.
