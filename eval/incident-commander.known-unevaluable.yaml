@@ -1,3 +1,27 @@
+# DELIBERATELY OUT OF THE GATE. Renamed 2026-10-01 so `run-all.sh`'s
+# `*.promptfooconfig.yaml` glob no longer picks it up.
+#
+# WHY: kagent gates A2A delegation to a remote agent behind an ADK long-running
+# confirmation BY DEFAULT - no `requireApproval` needed in the spec. This harness
+# sends one `message/send` and has no way to return the `function_response` that
+# releases it, so the task stops in `input-required` and never reaches a final
+# answer. Every test in this file needs delegation to complete, including the two
+# orchestration trials - so this is not one broken case, it is the whole config.
+#
+# This is NOT an agent defect, and chasing it is a settled question: an
+# orchestrator cannot be evaluated single-shot. Its behaviour is covered where it
+# actually lives - each of its five delegates has its own config in this
+# directory, and those run clean.
+#
+# Left in place rather than deleted: the day the harness can answer a
+# confirmation, rename it back and it works as written. Until then a permanent
+# red in the gate is worse than no test, because it teaches everyone to ignore a
+# failing suite.
+#
+# See docs/spec-corpus-mcp.md header and section 3.
+#
+# Run it by hand with:
+#   promptfoo eval -c incident-commander.known-unevaluable.yaml
 # Eval trial for incident-commander — scenarios 4-5 from docs/scenarios.md.
 # The point of these two specifically: they're only a real pass if the orchestrator
 # actually delegates to sub-agents and synthesizes - not if it guesses a plausible
@@ -6,7 +30,7 @@
 # directly instead of just judging whether the final text sounds coherent.
 #
 # Run locally via: kubectl port-forward -n kagent svc/incident-commander 18181:8080
-# then: ./node_modules/.bin/promptfoo eval -c eval/incident-commander.promptfooconfig.yaml
+# then: ./node_modules/.bin/promptfoo eval -c eval/incident-commander.known-unevaluable.yaml
 description: "ARIA eval trial — incident-commander (orchestration)"
 
 providers:
