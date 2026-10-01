@@ -1,7 +1,7 @@
 {
   "name": "investigation-loop",
   "description": "ARIA's stateful investigation agent - a hand-built LangGraph loop (gather evidence, hypothesize, verify, loop or conclude) for diagnosing intermittent or unclear Kubernetes issues. Read-only, no mutating tools.",
-  "url": "investigation-loop.kagent:8080",
+  "url": "http://investigation-loop.kagent:8080",
   "version": "0.1.0",
   "capabilities": {
     "streaming": true
