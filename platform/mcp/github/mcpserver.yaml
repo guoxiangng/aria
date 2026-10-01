@@ -47,7 +47,13 @@ spec:
       # --allow-write flag) - enables only the read-heavy toolsets. Deliberately excludes
       # anything beyond repos/issues/pull_requests (e.g. actions, discussions, security) that
       # isn't needed and would just be more discoverable surface for no reason.
-      GITHUB_TOOLSETS: "repos,issues,pull_requests"
+      # `git` added 2026-10-01 for `get_repository_tree`, which deploy-diagnostics has
+      # declared since it was written and which resolved to nothing until now - the tool
+      # exists in the image, it just lives in a toolset that was not enabled. It is also
+      # one of the few read paths that returns plain TEXT rather than an embedded
+      # resource, so it works despite the adk-go bug that makes get_file_contents useless
+      # (see agents/infra-author/README.md). Read-only; adds no write surface.
+      GITHUB_TOOLSETS: "repos,issues,pull_requests,git"
     secretRefs:
       - name: github-pat
   transportType: stdio

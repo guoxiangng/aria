@@ -46,7 +46,10 @@ spec:
     env:
       # Narrower than the read-only server's toolsets: no `issues`. This server exists to
       # read code and open pull requests, and nothing else needs to be reachable.
-      GITHUB_TOOLSETS: "repos,pull_requests"
+      # `git` added 2026-10-01 for `get_repository_tree` - plain text, so unaffected by the
+      # adk-go embedded-resource bug. Read-only; this server is write-capable via the repos
+      # toolset and the PAT, and the git toolset adds nothing to that.
+      GITHUB_TOOLSETS: "repos,pull_requests,git"
     secretRefs:
       - name: github-pat-write
   transportType: stdio
