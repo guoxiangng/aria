@@ -40,13 +40,17 @@ template:
         imagePullPolicy: Always
         command: ["/home/runner/run.sh"]
         env:
-          # Same Azure OpenAI credential the agents themselves use (for the eval judge model).
-          # Namespace isolation (arc-runners, separate from kagent) means this secret is a
-          # deliberate duplicate, not a reference - see envs/dev.yaml's arc-runners comment.
-          - name: AZURE_API_KEY
+          # The eval judge's credential. Routes through the LiteLLM gateway (domain 10),
+          # NOT Azure directly - that was the old arrangement and Azure was deleted in
+          # September, which left this runner holding a key to nothing while run-all.sh
+          # required LITELLM_API_KEY that nothing supplied. That is why the in-cluster
+          # gate could not pass regardless of how the agents behaved.
+          #
+          # Namespace isolation (arc-runners, separate from litellm) means this secret is a
+          # deliberate duplicate, not a reference - secretKeyRef cannot cross namespaces.
+          # Materialised by platform/external-secrets/manifests/externalsecret-arc-litellm-key.yaml.
+          - name: LITELLM_API_KEY
             valueFrom:
               secretKeyRef:
-                name: kagent-azure-openai
-                key: AZUREOPENAI_API_KEY
-          - name: AZURE_API_HOST
-            value: "oai-ladp-ncs-4.openai.azure.com"
+                name: litellm-master-key
+                key: LITELLM_MASTER_KEY
