@@ -1,0 +1,968 @@
+<!--
+  GENERATED VIEW - NOT A SOURCE OF TRUTH.
+
+  docs/ARCHITECTURE.md section 2 owns the component inventory. This page renders the same facts
+  as an agent-by-agent wiring map, because a matrix answers "which agent can reach which server"
+  faster than a table of rows does. If the two disagree, ARCHITECTURE.md is right and this is stale.
+
+  Do not hand-edit to record a change. Change ARCHITECTURE.md, then regenerate this from the
+  cluster - every number here came from `kubectl -n kagent get agents,mcpservers,remotemcpservers -o json`
+  plus `aws eks list-pod-identity-associations`, not from the repo.
+
+  Verified live: 2026-10-02.
+  Scrubbed: no AWS account id (placeholder only), no tokens, no internal hostnames beyond
+  in-cluster Service DNS, which is already public throughout this repo.
+-->
+<title>ARIA Fleet Wiring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --bg:        #f4f6f5;
+    --surface:   #ffffff;
+    --surface-2: #eceff0;
+    --ink:       #141a1c;
+    --ink-2:     #3d4a4d;
+    --muted:     #66787b;
+    --line:      #dde3e2;
+    --line-2:    #c8d2d1;
+
+    --accent:      #0d5f5c;
+    --accent-soft: #e0efee;
+
+    --ok:    #1c7350;
+    --warn:  #9a5c08;
+    --crit:  #a32c2c;
+
+    --t-read:   #43647d;
+    --t-write:  #a1560f;
+    --t-propose:#7a6112;
+    --t-orch:   #64499a;
+    --t-byo:    #1f7069;
+    --t-builtin:#69747a;
+
+    --shadow: 0 1px 2px rgba(20,26,28,.05), 0 6px 18px -12px rgba(20,26,28,.22);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:        #0e1214;
+      --surface:   #151c1e;
+      --surface-2: #1b2426;
+      --ink:       #e7edeb;
+      --ink-2:     #bcc9c7;
+      --muted:     #8b9b9c;
+      --line:      #253032;
+      --line-2:    #334144;
+
+      --accent:      #55c0b6;
+      --accent-soft: #14312f;
+
+      --ok:    #4bb287;
+      --warn:  #d39a45;
+      --crit:  #e07a76;
+
+      --t-read:   #82a8c4;
+      --t-write:  #d8a163;
+      --t-propose:#c9b25e;
+      --t-orch:   #a690d8;
+      --t-byo:    #63bdb3;
+      --t-builtin:#93a2a7;
+
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg:        #0e1214;
+    --surface:   #151c1e;
+    --surface-2: #1b2426;
+    --ink:       #e7edeb;
+    --ink-2:     #bcc9c7;
+    --muted:     #8b9b9c;
+    --line:      #253032;
+    --line-2:    #334144;
+
+    --accent:      #55c0b6;
+    --accent-soft: #14312f;
+
+    --ok:    #4bb287;
+    --warn:  #d39a45;
+    --crit:  #e07a76;
+
+    --t-read:   #82a8c4;
+    --t-write:  #d8a163;
+    --t-propose:#c9b25e;
+    --t-orch:   #a690d8;
+    --t-byo:    #63bdb3;
+    --t-builtin:#93a2a7;
+
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: clamp(28px, 5vw, 64px) clamp(18px, 4vw, 44px) 96px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  h1, h2, h3 {
+    font-family: Archivo, "IBM Plex Sans", sans-serif;
+    text-wrap: balance;
+    margin: 0;
+    letter-spacing: -0.015em;
+  }
+
+  h1 { font-size: clamp(30px, 4.4vw, 46px); font-weight: 700; line-height: 1.08; }
+  h2 { font-size: clamp(20px, 2.6vw, 26px); font-weight: 600; line-height: 1.2; }
+  h3 { font-size: 17px; font-weight: 600; letter-spacing: -0.005em; }
+
+  p { margin: 0; }
+
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- header ---------- */
+
+  header { display: flex; flex-direction: column; gap: 18px; }
+
+  .lede {
+    max-width: 66ch;
+    color: var(--ink-2);
+    font-size: 17px;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .meta div {
+    flex: 1 1 150px;
+    padding: 12px 16px;
+    border-right: 1px solid var(--line);
+  }
+  .meta div:last-child { border-right: 0; }
+  .meta dt {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 3px;
+  }
+  .meta dd {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- sections ---------- */
+
+  section { display: flex; flex-direction: column; gap: 20px; }
+
+  .sec-head { display: flex; flex-direction: column; gap: 7px; }
+  .sec-head p { max-width: 68ch; color: var(--ink-2); }
+
+  .rule {
+    height: 1px;
+    background: var(--line-2);
+    border: 0;
+    margin: 0;
+  }
+
+  /* ---------- matrix ---------- */
+
+  .scroll {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+
+  thead th {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    vertical-align: bottom;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line-2);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover td { background: var(--accent-soft); }
+
+  .agent-cell {
+    position: sticky;
+    left: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--line);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 1;
+  }
+  tbody tr:hover .agent-cell { background: var(--accent-soft); }
+
+  .cell {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-family: "IBM Plex Mono", monospace;
+    color: var(--muted);
+  }
+  .cell.on { color: var(--ink); font-weight: 600; }
+  .cell.w  { color: var(--t-write); font-weight: 600; }
+  .cell.dash { color: var(--line-2); }
+
+  .wtag {
+    display: inline-block;
+    margin-left: 4px;
+    font-size: 9.5px;
+    letter-spacing: .06em;
+    padding: 1px 4px;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+    vertical-align: 1px;
+  }
+
+  /* ---------- tier + status chips ---------- */
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+  }
+  .chip.read     { color: var(--t-read); }
+  .chip.remed    { color: var(--t-write); }
+  .chip.propose  { color: var(--t-propose); }
+  .chip.orch     { color: var(--t-orch); }
+  .chip.byo      { color: var(--t-byo); }
+  .chip.builtin  { color: var(--t-builtin); }
+  .chip.ok       { color: var(--ok); }
+  .chip.warn     { color: var(--warn); }
+  .chip.crit     { color: var(--crit); }
+
+  /* ---------- agent cards ---------- */
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    box-shadow: var(--shadow);
+  }
+  .card.flag { border-color: var(--crit); }
+
+  .card-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .card-name {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+  .card-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+
+  .card p { font-size: 13.5px; color: var(--ink-2); }
+
+  .wires { display: flex; flex-direction: column; gap: 9px; }
+
+  .wire {
+    border-left: 2px solid var(--line-2);
+    padding-left: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .wire.writes { border-left-color: var(--t-write); }
+
+  .wire-head {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .wire-head span { color: var(--muted); font-weight: 400; }
+
+  .tools { display: flex; flex-wrap: wrap; gap: 3px; }
+  .tool {
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 10.5px;
+    color: var(--ink-2);
+    background: var(--surface-2);
+    border-radius: 2px;
+    padding: 1px 5px;
+  }
+  .tool.mut { color: var(--t-write); background: transparent; border: 1px solid currentColor; }
+
+  /* ---------- tool layer ---------- */
+
+  .srv-cred {
+    font-size: 12.5px;
+    color: var(--ink-2);
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border-top: 1px solid var(--line);
+    padding-top: 9px;
+  }
+  .srv-cred b { font-weight: 600; color: var(--ink); }
+
+  /* ---------- notes ---------- */
+
+  .notes { display: flex; flex-direction: column; gap: 10px; }
+
+  .note {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--muted);
+    border-radius: 3px;
+    padding: 13px 16px;
+  }
+  .note.crit { border-left-color: var(--crit); }
+  .note.warn { border-left-color: var(--warn); }
+  .note.ok   { border-left-color: var(--ok); }
+
+  .note-body { display: flex; flex-direction: column; gap: 4px; }
+  .note-title { font-weight: 600; font-size: 14.5px; }
+  .note-body p { font-size: 13.5px; color: var(--ink-2); }
+  .note code {
+    font-size: 12.5px;
+    background: var(--surface-2);
+    padding: 1px 4px;
+    border-radius: 2px;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+    align-items: center;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+  footer {
+    border-top: 1px solid var(--line-2);
+    padding-top: 18px;
+    font-size: 12.5px;
+    color: var(--muted);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  a { color: var(--accent); }
+  a:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">ARIA &middot; agent platform &middot; namespace kagent</div>
+    <h1>Fleet wiring: agents, tool servers, and what each one can reach</h1>
+    <p class="lede">
+      Every agent in the cluster, every MCP server behind it, and the exact tool names on each
+      wire. Read from the cluster itself rather than from the repo, so it reflects what is
+      actually running &mdash; including the parts that are broken.
+    </p>
+
+    <dl class="meta">
+      <div><dt>Cluster</dt><dd class="mono">aria &middot; ap-southeast-1</dd></div>
+      <div><dt>Agents</dt><dd>12</dd></div>
+      <div><dt>Tool servers</dt><dd>7</dd></div>
+      <div><dt>Write-capable</dt><dd>4</dd></div>
+      <div><dt>Verified</dt><dd>2 Oct 2026</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">01 &middot; the matrix</div>
+      <h2>Which agent reaches which server</h2>
+      <p>
+        Numbers are how many tools that agent is granted on that server &mdash; not how many the
+        server offers. Every wire is an explicit allow-list in the agent's own spec, so an agent
+        holds a subset of a server's surface, never the whole thing.
+      </p>
+    </div>
+
+    <div class="legend">
+      <span><b class="mono" style="color:var(--ink)">7</b> tools granted</span>
+      <span><b class="mono" style="color:var(--t-write)">7 <i class="wtag" style="font-style:normal">W</i></b> includes tools that mutate</span>
+      <span><b class="mono" style="color:var(--line-2)">&middot;</b> no wire</span>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Agent</th>
+            <th>kagent&#8209;tool&#8209;server</th>
+            <th>aws&#8209;eks</th>
+            <th>aws&#8209;pricing</th>
+            <th>aws&#8209;documentation</th>
+            <th>github</th>
+            <th>github&#8209;write</th>
+            <th>terraform</th>
+            <th>delegates to agents</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="agent-cell">cloud-diagnostics</td>
+            <td class="cell dash">&middot;</td><td class="cell on">7</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">cluster-diagnostics</td>
+            <td class="cell on">8</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell on">2</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">cluster-remediation</td>
+            <td class="cell w">7<i class="wtag">W</i></td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">cost-sentinel</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell on">7</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">deploy-diagnostics</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell on">12</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">infra-author</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell on">5</td>
+            <td class="cell on">7</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">investigation-loop</td>
+            <td class="cell on">8</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">incident-commander</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell on">5</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">k8s-agent</td>
+            <td class="cell w">18<i class="wtag">W</i></td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">helm-agent</td>
+            <td class="cell w">9<i class="wtag">W</i></td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">istio-agent</td>
+            <td class="cell w">20<i class="wtag">W</i></td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+          <tr>
+            <td class="agent-cell">promql-agent</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+            <td class="cell dash">&middot;</td><td class="cell dash">&middot;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="font-size:13.5px;color:var(--muted);max-width:68ch">
+      The bottom four are kagent's shipped agents, not ARIA's. They are listed because they exist
+      in the same namespace and three of them carry broad mutating tool sets &mdash; which matters
+      when reasoning about what the cluster can do, even though nothing in ARIA routes to them.
+    </p>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">02 &middot; the fleet</div>
+      <h2>Agents, by what they are trusted to do</h2>
+      <p>
+        The tier label is ARIA's own (<code class="mono">aria.dev/tier</code>), and it describes
+        blast radius rather than capability: what is the worst outcome if this agent is wrong.
+      </p>
+    </div>
+
+    <div class="cards">
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">cluster-diagnostics</span>
+          <span class="card-chips"><span class="chip read">1-readonly</span><span class="chip ok">ready</span></span>
+        </div>
+        <p>Reads live cluster state to investigate pod, deployment and service problems. Carries no mutating tools at all &mdash; deliberately unlike kagent's own k8s-agent.</p>
+        <div class="wires">
+          <div class="wire">
+            <div class="wire-head">kagent-tool-server <span>&mdash; 8 tools</span></div>
+            <div class="tools">
+              <span class="tool">k8s_get_resources</span><span class="tool">k8s_describe_resource</span><span class="tool">k8s_get_events</span><span class="tool">k8s_get_pod_logs</span><span class="tool">k8s_get_resource_yaml</span><span class="tool">k8s_get_available_api_resources</span><span class="tool">k8s_get_cluster_configuration</span><span class="tool">k8s_check_service_connectivity</span>
+            </div>
+          </div>
+          <div class="wire">
+            <div class="wire-head">aws-documentation <span>&mdash; 2 tools</span></div>
+            <div class="tools"><span class="tool">search_documentation</span><span class="tool">read_documentation</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">cloud-diagnostics</span>
+          <span class="card-chips"><span class="chip read">1-readonly</span><span class="chip ok">ready</span></span>
+        </div>
+        <p>The AWS-side counterpart: what the control plane knows about the cluster &mdash; EKS insights, VPC config, CloudWatch metrics and logs. Complements cluster-diagnostics rather than duplicating it.</p>
+        <div class="wires">
+          <div class="wire">
+            <div class="wire-head">aws-eks <span>&mdash; 7 tools</span></div>
+            <div class="tools">
+              <span class="tool">get_eks_insights</span><span class="tool">get_eks_vpc_config</span><span class="tool">get_eks_metrics_guidance</span><span class="tool">search_eks_troubleshoot_guide</span><span class="tool">get_cloudwatch_metrics</span><span class="tool">get_cloudwatch_logs</span><span class="tool">get_policies_for_role</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">cost-sentinel</span>
+          <span class="card-chips"><span class="chip read">1-readonly</span><span class="chip ok">ready</span></span>
+        </div>
+        <p>Pricing and cost estimation against the live AWS Pricing API. The only agent whose model routes through the LiteLLM gateway rather than the shared default config.</p>
+        <div class="wires">
+          <div class="wire">
+            <div class="wire-head">aws-pricing <span>&mdash; 7 tools</span></div>
+            <div class="tools">
+              <span class="tool">get_pricing_service_codes</span><span class="tool">get_pricing_service_attributes</span><span class="tool">get_pricing_attribute_values</span><span class="tool">get_pricing</span><span class="tool">get_price_list_urls</span><span class="tool">generate_cost_report</span><span class="tool">get_bedrock_patterns</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">deploy-diagnostics</span>
+          <span class="card-chips"><span class="chip read">1-readonly</span><span class="chip ok">ready</span></span>
+        </div>
+        <p>Reads the ARIA repo itself &mdash; source config, commits, issues, PRs &mdash; to answer when and why something changed, and what is declared versus what is running.</p>
+        <div class="wires">
+          <div class="wire">
+            <div class="wire-head">github <span>&mdash; 12 tools, all live since 1 Oct</span></div>
+            <div class="tools">
+              <span class="tool">get_file_contents</span><span class="tool">get_repository_tree</span><span class="tool">list_commits</span><span class="tool">get_commit</span><span class="tool">search_code</span><span class="tool">search_commits</span><span class="tool">list_issues</span><span class="tool">issue_read</span><span class="tool">search_issues</span><span class="tool">list_pull_requests</span><span class="tool">pull_request_read</span><span class="tool">search_pull_requests</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">cluster-remediation</span>
+          <span class="card-chips"><span class="chip remed">2-remediation</span><span class="chip ok">ready</span></span>
+        </div>
+        <p>The mutating counterpart to cluster-diagnostics. Restarts and scales workloads, with human approval required on every mutation and no destructive tools &mdash; no delete, apply, create or patch.</p>
+        <div class="wires">
+          <div class="wire writes">
+            <div class="wire-head">kagent-tool-server <span>&mdash; 7 tools, 2 mutating</span></div>
+            <div class="tools">
+              <span class="tool">k8s_get_resources</span><span class="tool">k8s_describe_resource</span><span class="tool">k8s_get_events</span><span class="tool">k8s_get_pod_logs</span><span class="tool">k8s_get_resource_yaml</span><span class="tool mut">k8s_rollout</span><span class="tool mut">k8s_scale</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">infra-author</span>
+          <span class="card-chips"><span class="chip propose">2-propose</span><span class="chip crit">paused</span></span>
+        </div>
+        <p><b>Write tools commented out 26 Sep.</b> It reads Terraform and checks real provider schemas &mdash; that part works. What it cannot do is read a file before rewriting one, and <em>cannot read</em> plus <em>whole-file write</em> overwrites rather than failing: on its first test it cut <code class="mono">main.tf</code> from 177 lines to 32 on a branch. Needs kagent on adk-go &ge; v2.4.0, or our own read-file server.</p>
+        <div class="wires">
+          <div class="wire">
+            <div class="wire-head">terraform <span>&mdash; 7 registry lookups</span></div>
+            <div class="tools">
+              <span class="tool">search_providers</span><span class="tool">get_provider_details</span><span class="tool">get_latest_provider_version</span><span class="tool">get_provider_capabilities</span><span class="tool">search_modules</span><span class="tool">get_module_details</span><span class="tool">get_latest_module_version</span>
+            </div>
+          </div>
+          <div class="wire">
+            <div class="wire-head">github-write <span>&mdash; 5 read tools (3 write tools paused)</span></div>
+            <div class="tools">
+              <span class="tool">get_file_contents</span><span class="tool">search_code</span><span class="tool">list_commits</span><span class="tool">list_pull_requests</span><span class="tool">pull_request_read</span><span class="tool" style="text-decoration:line-through;opacity:.55">create_branch</span><span class="tool" style="text-decoration:line-through;opacity:.55">create_or_update_file</span><span class="tool" style="text-decoration:line-through;opacity:.55">create_pull_request</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">investigation-loop</span>
+          <span class="card-chips"><span class="chip byo">2-byo</span><span class="chip ok">ready</span></span>
+        </div>
+        <p>Not a declarative agent &mdash; a hand-built LangGraph loop in its own container: gather evidence, hypothesise, verify, loop or conclude. Reaches the tool server over HTTP itself rather than through kagent's tool wiring.</p>
+        <div class="wires">
+          <div class="wire">
+            <div class="wire-head">image</div>
+            <div class="tools"><span class="tool"><ACCOUNT_ID>.dkr.ecr.ap-southeast-1.amazonaws.com/aria/investigation-loop:latest</span></div>
+          </div>
+          <div class="wire">
+            <div class="wire-head">kagent-tool-server <span>&mdash; 8 k8s read tools, wired in code</span></div>
+            <div class="tools"><span class="tool">MCP_SERVER_URL</span><span class="tool">AZURE_OPENAI_ENDPOINT</span><span class="tool">AZURE_OPENAI_API_KEY</span><span class="tool">AZURE_OPENAI_CHAT_DEPLOYMENT_NAME</span></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card flag">
+        <div class="card-top">
+          <span class="card-name">incident-commander</span>
+          <span class="card-chips"><span class="chip orch">3-orchestrator</span><span class="chip crit">not accepted</span></span>
+        </div>
+        <p>Routes an investigation to the right specialists and synthesises their findings. Holds no tools of its own &mdash; only other agents. Serving traffic normally despite the failed condition; see the notes below.</p>
+        <div class="wires">
+          <div class="wire">
+            <div class="wire-head">delegates <span>&mdash; 5 agents</span></div>
+            <div class="tools">
+              <span class="tool">cluster-diagnostics</span><span class="tool">cloud-diagnostics</span><span class="tool">cost-sentinel</span><span class="tool">deploy-diagnostics</span><span class="tool">investigation-loop</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">k8s-agent</span>
+          <span class="card-chips"><span class="chip builtin">kagent built-in</span><span class="chip warn">18 tools, 7 mutating</span></span>
+        </div>
+        <p>Ships with kagent. Full read plus create, patch, delete, apply and exec. Nothing in ARIA routes to it; it is the unconstrained baseline that ARIA's tiering exists to replace.</p>
+        <div class="wires">
+          <div class="wire writes">
+            <div class="wire-head">kagent-tool-server</div>
+            <div class="tools">
+              <span class="tool mut">k8s_create_resource</span><span class="tool mut">k8s_delete_resource</span><span class="tool mut">k8s_patch_resource</span><span class="tool mut">k8s_apply_manifest</span><span class="tool mut">k8s_execute_command</span><span class="tool mut">k8s_label_resource</span><span class="tool mut">k8s_annotate_resource</span><span class="tool">+ 11 read tools</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">helm-agent</span>
+          <span class="card-chips"><span class="chip builtin">kagent built-in</span><span class="chip warn">9 tools, 4 mutating</span></span>
+        </div>
+        <p>Ships with kagent. Can upgrade and uninstall releases and apply manifests. Unrouted in ARIA.</p>
+        <div class="wires">
+          <div class="wire writes">
+            <div class="wire-head">kagent-tool-server</div>
+            <div class="tools">
+              <span class="tool mut">helm_upgrade</span><span class="tool mut">helm_uninstall</span><span class="tool mut">helm_repo_add</span><span class="tool mut">k8s_apply_manifest</span><span class="tool">helm_list_releases</span><span class="tool">helm_get_release</span><span class="tool">+ 3 more</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">istio-agent</span>
+          <span class="card-chips"><span class="chip builtin">kagent built-in</span><span class="chip warn">20 tools, 8 mutating</span></span>
+        </div>
+        <p>Ships with kagent. Can install Istio, apply and delete waypoints, and create or delete arbitrary resources. Unrouted in ARIA.</p>
+        <div class="wires">
+          <div class="wire writes">
+            <div class="wire-head">kagent-tool-server</div>
+            <div class="tools">
+              <span class="tool mut">istio_install_istio</span><span class="tool mut">istio_apply_waypoint</span><span class="tool mut">istio_delete_waypoint</span><span class="tool mut">k8s_create_resource</span><span class="tool mut">k8s_delete_resource</span><span class="tool mut">k8s_patch_resource</span><span class="tool">+ 14 more</span>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">promql-agent</span>
+          <span class="card-chips"><span class="chip builtin">kagent built-in</span><span class="chip ok">no tools</span></span>
+        </div>
+        <p>Ships with kagent and declares no tools at all in this cluster &mdash; a prompt-only query helper. Unrouted in ARIA.</p>
+      </article>
+
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">03 &middot; the tool layer</div>
+      <h2>Servers, and the credential each one holds</h2>
+      <p>
+        The credential is the real control, not the prompt. An agent can only reach what its
+        server can authenticate to, so this is where the actual boundary is drawn.
+      </p>
+    </div>
+
+    <div class="cards">
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">kagent-tool-server</span>
+          <span class="card-chips"><span class="chip ok">ready</span><span class="chip crit">cluster-admin</span></span>
+        </div>
+        <p>The built-in tool server: 124 discovered tools covering Kubernetes, Helm, Istio, Argo and Prometheus. Six agents draw from it, each on its own allow-list.</p>
+        <div class="srv-cred">
+          <div><b>Kind</b> RemoteMCPServer &mdash; <span class="mono">http://kagent-tools.kagent:8084/mcp</span>, STREAMABLE_HTTP</div>
+          <div><b>Credential</b> ServiceAccount <span class="mono">kagent-tools</span>, bound to <span class="mono">cluster-admin</span> by the chart default</div>
+          <div><b>Note</b> &ldquo;Remote&rdquo; here means not managed by this resource &mdash; it runs in this cluster, one namespace away.</div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">aws-eks</span>
+          <span class="card-chips"><span class="chip ok">ready</span><span class="chip read">read-only</span></span>
+        </div>
+        <p>AWS Labs' EKS server, giving the control plane's own view of the cluster.</p>
+        <div class="srv-cred">
+          <div><b>Runs</b> <span class="mono">uvx awslabs.eks-mcp-server@latest</span>, stdio, region ap-southeast-1</div>
+          <div><b>Credential</b> EKS Pod Identity on SA <span class="mono">aws-eks</span> &mdash; keyless, no stored secret</div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">aws-pricing</span>
+          <span class="card-chips"><span class="chip ok">ready</span><span class="chip read">read-only</span></span>
+        </div>
+        <p>Live Pricing API lookups. Pinned to us-east-1 because that is where the Pricing API lives, regardless of where the cluster runs.</p>
+        <div class="srv-cred">
+          <div><b>Runs</b> <span class="mono">uvx awslabs.aws-pricing-mcp-server@latest</span>, stdio</div>
+          <div><b>Credential</b> EKS Pod Identity on SA <span class="mono">aws-pricing</span> &mdash; keyless</div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">aws-documentation</span>
+          <span class="card-chips"><span class="chip ok">ready</span><span class="chip read">no credential</span></span>
+        </div>
+        <p>Public AWS documentation search and retrieval. Holds nothing, reaches nothing private.</p>
+        <div class="srv-cred">
+          <div><b>Runs</b> <span class="mono">uvx awslabs.aws-documentation-mcp-server@latest</span>, stdio</div>
+          <div><b>Credential</b> none &mdash; no Pod Identity association</div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">github</span>
+          <span class="card-chips"><span class="chip ok">ready</span><span class="chip read">read-only PAT</span></span>
+        </div>
+        <p>Self-hosted github-mcp-server, read side. One agent uses it today; the token is deliberately incapable of writing so that widening the fleet stays cheap.</p>
+        <div class="srv-cred">
+          <div><b>Image</b> <span class="mono">ghcr.io/github/github-mcp-server</span> &middot; toolsets <span class="mono">repos, issues, pull_requests, git</span></div>
+          <div><b>Credential</b> Secret <span class="mono">github-pat</span>, materialised by ESO from <span class="mono">aria/github-pat</span></div>
+        </div>
+      </article>
+
+      <article class="card flag">
+        <div class="card-top">
+          <span class="card-name">github-write</span>
+          <span class="card-chips"><span class="chip ok">ready</span><span class="chip remed">write PAT</span></span>
+        </div>
+        <p>The same image again, write side, wired to exactly one agent. A second Deployment and a second token is the cost of keeping write reach off the five agents that only read.</p>
+        <div class="srv-cred">
+          <div><b>Image</b> <span class="mono">ghcr.io/github/github-mcp-server</span> &middot; toolsets <span class="mono">repos, pull_requests, git</span></div>
+          <div><b>Credential</b> Secret <span class="mono">github-pat-write</span> &mdash; flows Secrets Manager &rarr; ESO since 26 Sep. Pod Ready</div>
+          <div><b>Scope</b> fine-grained, one repo, Contents + Pull requests read/write. No Administration, verified against the API &mdash; it cannot relax the branch protection its own PRs must pass.</div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-top">
+          <span class="card-name">terraform</span>
+          <span class="card-chips"><span class="chip ok">ready</span><span class="chip read">no credential</span></span>
+        </div>
+        <p>HashiCorp's server, limited to the public registry: provider and module schema lookups, so generated HCL can be checked against a source instead of invented.</p>
+        <div class="srv-cred">
+          <div><b>Image</b> <span class="mono">hashicorp/terraform-mcp-server:1.3.0</span> &middot; <span class="mono">--toolsets registry</span></div>
+          <div><b>Credential</b> none &mdash; and <span class="mono">ENABLE_TF_OPERATIONS=false</span>, so the 51-tool operations set is not loaded at all</div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section>
+    <div class="sec-head">
+      <div class="eyebrow">04 &middot; state</div>
+      <h2>What is broken, wrong, or waiting</h2>
+      <p>Verified against the cluster on 4 September 2026, not inferred from the repo.</p>
+    </div>
+
+    <div class="notes">
+
+      <div class="note crit">
+        <span class="chip crit">root cause</span>
+        <div class="note-body">
+          <div class="note-title">A tool can succeed and still tell the agent nothing</div>
+          <p>
+            <code>get_file_contents</code> returns the file body as an MCP <em>embedded resource</em>.
+            adk-go <code>v2.1.0</code> &mdash; the version kagent <code>0.10.0-rc1</code> pins &mdash;
+            keeps only <code>TextContent</code> and drops the rest silently, so the model receives
+            <code>{"output":"successfully downloaded text file (SHA: ...)"}</code> and no file. Nothing
+            errors, nothing logs. Two consequences: <code>deploy-diagnostics</code> can search code and
+            read commit metadata but has <b>never read a file</b>, and <code>infra-author</code> &mdash;
+            which could also write whole files &mdash; overwrote one rather than failing. Fixed upstream
+            in adk-go <code>v2.4.0</code> / kagent <code>v1.0.0-alpha4</code> (kagent PR #2541); no
+            <code>0.10.x</code> release carries it.
+          </p>
+        </div>
+      </div>
+
+      <div class="note crit">
+        <span class="chip crit">stale</span>
+        <div class="note-body">
+          <div class="note-title">incident-commander reports Accepted=False, but works</div>
+          <p>
+            The message is <code>failed to compile agent: Agent "deploy-diagnostics" not found</code> &mdash;
+            recorded at <span class="mono">observedGeneration 4</span> on 16 Aug, when that agent genuinely
+            did not exist yet. It exists now. The condition was never re-evaluated, so kagent's own console
+            refuses the chat while the pod answers A2A requests normally. A controller restart clears it.
+          </p>
+        </div>
+      </div>
+
+      <div class="note warn">
+        <span class="chip warn">wrong</span>
+        <div class="note-body">
+          <div class="note-title">deploy-diagnostics declares a tool that does not exist</div>
+          <p>
+            <code>get_repository_tree</code> is not in the running github-mcp-server image. It resolves to
+            nothing, so the agent browses directories with <code>get_file_contents</code> and a trailing
+            slash instead. Harmless, but it is dead weight in the allow-list.
+          </p>
+        </div>
+      </div>
+
+      <div class="note warn">
+        <span class="chip warn">risk</span>
+        <div class="note-body">
+          <div class="note-title">kagent-tools holds literal cluster-admin</div>
+          <p>
+            A chart default, not a choice. Every per-agent allow-list above is enforced at the agent, not
+            at the tool server &mdash; so the tiering describes what agents are <em>offered</em>, while the
+            server behind them could do anything. The allow-lists are the control today; the ServiceAccount
+            binding is the thing that would need narrowing to make that structural.
+          </p>
+        </div>
+      </div>
+
+      <div class="note ok">
+        <span class="chip ok">by design</span>
+        <div class="note-body">
+          <div class="note-title">Three kagent built-ins carry broad mutating tools</div>
+          <p>
+            k8s-agent, helm-agent and istio-agent between them can create, delete, patch, exec, install
+            Istio and uninstall Helm releases. Nothing in ARIA routes to them and they are not exposed
+            through the Operations tab &mdash; but they are reachable by anyone with console access, which
+            is worth stating out loud rather than leaving implied.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <div>Read from <span class="mono">kagent.dev/v1alpha2 Agent</span>, <span class="mono">MCPServer</span> and <span class="mono">RemoteMCPServer</span> resources in namespace <span class="mono">kagent</span>, cluster <span class="mono">aria</span>.</div>
+    <div>Tool counts are per-agent grants, not server capability. Mutating classification is by tool name, checked against each agent's declared allow-list.</div>
+  </footer>
+
+</div>
