@@ -1,9 +1,12 @@
 # Spec — the design record as a retrieval tool: corpus MCP server + refusal eval
 
-> **Status:** **phase 1 built, deployed and measured** (2026-09-26 — see §3 for results and the
+> **Status:** **phase 1 built, deployed and measured**; **phase 2 re-scoped 2026-10-03 (see §5.1a)** (2026-09-26 — see §3 for results and the
 > three loose ends). Phases 2-4 not started. Four-phase increment; phases 1 and 2 are
 > independently shippable.
 > **Written:** 2026-09-24.
+> **Revised:** 2026-10-03 — §5.1a: phase 2 is **construction, not configuration**. The chart's
+> querydoc pod has no volumes or initContainers and a read-only rootfs, the published image only
+> reads an index, and no ingestion image is published. Corrected shape and effort in §5.1a.
 > **Revised:** 2026-10-01 — §3 re-run: 3 failures became 1, and the one that remains is the
 > accepted orchestrator case. Both earlier "failures" were defects in the harness, not the agents.
 > §6's blocker is replaced: the secret problem is gone, the adk-go one is not.
@@ -246,6 +249,56 @@ each source. Its MCP server exposes three tools:
 `query_documentation` and `get_chunks` are close enough to the two tools this spec was going to
 build that building them would be duplication. **Phase 2 is therefore configuration plus an
 ingestion job, not a new server.**
+
+### 5.1a Correction 2026-10-03 — it is not configuration after all
+
+`[RESOLVED by reading the chart and the image, not the README.]` §5.1 concluded "phase 2 is
+configuration plus an ingestion job, not a new server." That is wrong, and in the same way the
+original draft was wrong: a plausible reading of the docs, not a check. Three findings, each
+verified:
+
+**1. The chart's `querydoc` pod cannot ingest anything.** Pulled `kagent 0.10.0-rc1` and read
+`charts/querydoc/templates/deployment.yaml`: it declares **no `volumes`, no `volumeMounts` and no
+`initContainers`**, and sets `readOnlyRootFilesystem: true` with `runAsUser: 14000`. So §5.3's step 3
+- "add the ingestion as an initContainer in the querydoc pod" - is not possible in that pod. There
+is nowhere to write an index and no container to write it.
+
+**2. The published image only reads an index; it cannot build one.** `ghcr.io/kagent-dev/doc2vec/mcp`
+has entrypoint `node build/index.js`, and the only environment it reads is:
+
+    OPENAI_API_KEY, SQLITE_DB_DIR, TRANSPORT_TYPE, PORT
+
+`SQLITE_DB_DIR` is a directory it expects to *find* a database in. Nothing in it ingests.
+
+**3. There is no published ingestion image.** `ghcr.io/kagent-dev/doc2vec`,
+`.../doc2vec/doc2vec` and `.../doc2vec/ingest` all 404. The ingester is `doc2vec.ts` at the root of
+`kagent-dev/doc2vec` with its own root `Dockerfile`; only the `mcp/` subdirectory is published.
+
+**So phase 2 is construction, and it is bigger than this spec said.** It needs an image built from
+upstream source, pushed to our ECR, and a Deployment we own - not a values flip. It stops being
+"independently shippable in an afternoon".
+
+**The corrected shape**, and it matches how every other MCP server here is already deployed:
+
+1. Build the ingester from `kagent-dev/doc2vec`'s root `Dockerfile` → `aria/doc2vec-ingest` in ECR.
+   A pinned tag, not `latest` - the `investigation-loop` rebuild on 2026-10-01 is the argument.
+2. A doc2vec `config.yaml` naming the §4 corpus as local directory sources, with the private paths
+   excluded explicitly rather than by intention.
+3. Our own Deployment in `platform/mcp/corpus/`: an `initContainer` that clones this (public) repo
+   and runs the ingester into an `emptyDir`, and the `doc2vec/mcp` container reading the same volume
+   via `SQLITE_DB_DIR`. Rebuild-on-start, per §5.2's option (1) - which is still the right call, it
+   just cannot live in the chart's pod.
+4. A `Service` plus a `RemoteMCPServer` for wiring, because the `MCPServer` CRD's `deployment` block
+   has no volume or initContainer surface either. This is the one case in ARIA where
+   `RemoteMCPServer` is the correct resource for something running *in* the cluster.
+5. Istio allow-list, then the consuming agents' `toolNames`.
+
+**Leave `tools.querydoc.enabled: false`.** Enabling it yields a pod serving an empty index.
+
+**One thing got better, not worse.** §5.2 marked `[VERIFY]` on whether embeddings could route
+through the gateway. `build/index.js` never references `OPENAI_BASE_URL` - but the OpenAI Node SDK
+reads it from the environment itself, and the chart passes `config:` straight through as env. So it
+is plausible and still untested. Worth trying before accepting that the corpus bypasses LiteLLM.
 
 ### 5.2 What that costs
 
