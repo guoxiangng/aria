@@ -62,6 +62,12 @@ rationale, so the agent proposing a change can check it against decisions alread
 | Its eval runner | **Drop** | ARIA has promptfoo with a groundedness transform. Keep the *questions*, not the runner |
 | LangChain chains | **Mostly drop** | An MCP server needs embed and query, not chains. The source project's `langchain-community<0.4` pin exists only to keep its eval runner importable — that constraint dies with the runner |
 
+> **§2 revisited 2026-10-03.** The "drop the FastAPI backend" decision above assumed §5.1's
+> conclusion that replacing it was nearly free. §5.1a has since shown it is a from-source build, so
+> that trade-off no longer holds as written. `spec-rag-service-integration.md` owns the question of
+> what to do with the working service instead, and recommends taking it — reshaped as a retrieval
+> tool rather than a chat chain. The rest of this table stands.
+
 ---
 
 ## 3. Phase 1 — refusal eval (no new infrastructure)
