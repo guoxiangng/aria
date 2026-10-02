@@ -4,7 +4,16 @@ version = "0.1.0"
 description = "ARIA BYO agent: a hand-built LangGraph StateGraph demonstrating cyclic investigation (gather -> hypothesize -> verify -> loop/conclude), reusing kagent's existing MCP tool server."
 requires-python = ">=3.11"
 dependencies = [
-    "kagent-langgraph>=0.7",
+    # PINNED, not a floor. `>=0.7` meant every rebuild re-resolved the whole tree, and on
+    # 2026-10-01 a rebuild that changed one line of agent-card.json came back crashlooping:
+    #   ModuleNotFoundError: No module named 'opentelemetry.sdk._events'
+    # kagent-core imports EventLoggerProvider from there, and the SDK dropped it after 1.38.0.
+    # Nothing in this repo changed - the dependency tree moved underneath it. Versions below are
+    # the ones read out of the image that was actually serving (`pip freeze` in the live pod),
+    # so this is reproducible rather than merely newer.
+    "kagent-langgraph==0.9.11",
+    "opentelemetry-sdk==1.38.0",
+    "opentelemetry-api==1.38.0",
     # PINNED, not a floor: kagent-langgraph 0.9.11 declares a2a-sdk>=0.3.23 with NO upper bound, so
     # pip resolves the newest a2a-sdk (1.1.0) by default - but 1.x removed the a2a.server.apps module
     # (A2AStarletteApplication) that kagent-langgraph's own code hard-imports. Confirmed by inspecting
