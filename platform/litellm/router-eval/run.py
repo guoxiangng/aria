@@ -28,10 +28,17 @@ CTX = os.environ.get("KCTX")  # kubectl context for the aria cluster; current co
 
 # Substring of the served model name → tier (platform/litellm/configmap.yaml `smart-router`).
 TIER_BY_MODEL = [
+    # 2026-09-26: SIMPLE moved to nova-lite. haiku-3 and nova-micro still map to SIMPLE because they
+    # are nova-lite's fallback targets — if one of them answers, the router still chose SIMPLE.
+    ("nova-lite", "SIMPLE"),
+    ("nova-micro", "SIMPLE"),
     ("claude-3-haiku", "SIMPLE"),   # checked before haiku-4-5: both contain "haiku"
     ("haiku-4-5", "MEDIUM"),
     ("sonnet-5", "COMPLEX"),
     ("opus-5", "REASONING"),
+    # nova-pro is only ever a fallback (for haiku-4-5 / sonnet-5), never a tier. Flag it rather than
+    # guess which tier the router originally picked.
+    ("nova-pro", "FALLBACK"),
 ]
 
 
