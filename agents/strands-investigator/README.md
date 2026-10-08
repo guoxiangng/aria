@@ -9,9 +9,16 @@ loop**.
 | Framework | LangGraph | Strands (AWS) |
 | Who decides the branch | **your code** — `should_continue`, unit-testable | **the model**, inside Strands' event loop |
 | Control flow artifact | an explicit `StateGraph` | none — there is no graph to show |
-| Model | Azure OpenAI `gpt-5.4-mini` | Bedrock `claude-sonnet-4-6` |
-| Model credential | static key from a Secret | **EKS Pod Identity — no static key** |
+| Model | LiteLLM gateway, route `bedrock-haiku-4-5` | LiteLLM gateway, route `bedrock-haiku-4-5` |
+| Model credential | gateway key from a Secret | gateway key from a Secret |
 | kagent glue | `kagent-langgraph`'s `KAgentApp` | `app.py` + `executor.py`, written here |
+
+**Model plane (2026-10-08).** Both agents now call the fleet's model gateway on the same route, so the
+model is no longer a second variable. Until 2026-10-08 this agent called Bedrock directly
+(`claude-sonnet-4-6`) with **EKS Pod Identity — no static key**. That path started failing with
+`AccessDeniedException` (`aws-marketplace:Subscribe` missing on the role) while every agent behind the
+gateway kept working. The Bedrock path is still in `agent.py`: unset `MODEL_GATEWAY_URL` to use it. The
+gateway client is plain OpenAI-compatible, so pointing at a different gateway is an env change.
 
 ## Why there is no graph in this repo folder
 
@@ -44,10 +51,11 @@ Bigger than `spec.byo`'s description admits ("serve A2A on port 8080"):
 
 ## Deploying
 
-Three steps, in order — the first is infra and cannot be done from GitOps:
+Gateway mode (the default) needs the agent's SA on `platform/istio/policies/litellm-allow-list.yaml`.
+Step 1 is only for Bedrock-direct mode, and is infra — it cannot be done from GitOps:
 
 ```bash
-# 1. Bedrock Pod Identity (once). In infra/02-eks/terraform.tfvars:
+# 1. (Bedrock-direct only) Pod Identity, once. In infra/02-eks/terraform.tfvars:
 #      enable_bedrock_pod_identity = true
 #      agent_service_account       = "strands-investigator"
 terraform -chdir=infra/02-eks apply

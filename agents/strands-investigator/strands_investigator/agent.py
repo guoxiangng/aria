@@ -20,7 +20,8 @@ import logging
 import os
 
 from strands import Agent
-from strands.models import BedrockModel
+from strands.models import BedrockModel, Model
+from strands.models.openai import OpenAIModel
 from strands.tools.mcp.mcp_client import MCPClient
 
 logger = logging.getLogger(__name__)
@@ -29,9 +30,17 @@ logger = logging.getLogger(__name__)
 # so the two agents are offered an identical capability surface.
 MCP_SERVER_URL = os.getenv("MCP_SERVER_URL", "http://kagent-tools.kagent:8084/mcp")
 
-# Strands defaults to Amazon Bedrock + Claude. We pin the model explicitly rather
-# than relying on that default, so the article can state exactly what ran.
-# Matches the cluster's existing `bedrock-sonnet` ModelConfig.
+# Model plane. Default is the fleet's model gateway (platform/litellm/): any
+# OpenAI-compatible endpoint, so swapping the gateway product is an env change,
+# not a code change. MODEL_GATEWAY_MODEL is a gateway ROUTE name, not a provider
+# model id — the same route the declarative fleet's `litellm-gateway` serves.
+MODEL_GATEWAY_URL = os.getenv("MODEL_GATEWAY_URL")
+MODEL_GATEWAY_MODEL = os.getenv("MODEL_GATEWAY_MODEL", "bedrock-haiku-4-5")
+MODEL_GATEWAY_API_KEY = os.getenv("MODEL_GATEWAY_API_KEY")
+
+# Fallback when MODEL_GATEWAY_URL is unset: Bedrock direct, auth via EKS Pod
+# Identity. Bypasses the gateway's budgets, fallbacks and spend tracking — and
+# needs the role to carry Bedrock model-access permissions itself.
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "global.anthropic.claude-sonnet-4-6")
 AWS_REGION = os.getenv("AWS_REGION", "ap-southeast-1")
 
@@ -83,12 +92,18 @@ def build_mcp_client() -> MCPClient:
     return MCPClient(url=MCP_SERVER_URL, application_name="strands-investigator")
 
 
-def build_model() -> BedrockModel:
-    """Bedrock model. Credentials come from EKS Pod Identity — no static keys.
+def build_model() -> Model:
+    """Gateway model when MODEL_GATEWAY_URL is set, otherwise Bedrock direct.
 
-    Strands would default to Bedrock anyway; pinning it makes the deployed model
-    explicit and greppable.
+    The model is pinned explicitly either way, so the deployed model is greppable.
     """
+    if MODEL_GATEWAY_URL:
+        logger.info("Model: gateway %s route %s", MODEL_GATEWAY_URL, MODEL_GATEWAY_MODEL)
+        return OpenAIModel(
+            client_args={"base_url": MODEL_GATEWAY_URL, "api_key": MODEL_GATEWAY_API_KEY},
+            model_id=MODEL_GATEWAY_MODEL,
+        )
+    logger.info("Model: Bedrock direct %s (%s)", BEDROCK_MODEL_ID, AWS_REGION)
     return BedrockModel(model_id=BEDROCK_MODEL_ID, region_name=AWS_REGION)
 
 

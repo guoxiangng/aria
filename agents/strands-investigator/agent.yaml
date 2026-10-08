@@ -1,18 +1,15 @@
 # BYO Agent CR — the Strands implementation of the same task as investigation-loop.
 #
-# Two deliberate differences from investigation-loop/agent.yaml, and nothing else:
-#   1. the image (Strands instead of LangGraph)
-#   2. NO model credential in env — Strands defaults to Bedrock, and Bedrock auth
-#      comes from EKS Pod Identity bound to this agent's ServiceAccount. Zero
-#      static keys, same pattern the self-hosted MCP servers already use.
+# Deliberate difference from investigation-loop/agent.yaml: the image (Strands
+# instead of LangGraph). Both now take their model from the LiteLLM gateway, on the
+# same route, so the framework is the only variable.
 #
-# PREREQUISITE (infra, not GitOps): the Pod Identity association must exist first.
-# In infra/02-eks/terraform.tfvars set:
-#     enable_bedrock_pod_identity = true
-#     agent_service_account       = "strands-investigator"
-# then `terraform apply`. kagent auto-creates a ServiceAccount named after the
-# agent, so the association binds this agent alone — not the whole namespace.
-# Until then the pod runs but every Bedrock call fails with AccessDenied.
+# Model: the gateway (MODEL_GATEWAY_URL), since 2026-10-08. It was Bedrock direct
+# via EKS Pod Identity — no static key — until Sonnet 4.6 started failing with
+# AccessDenied (`aws-marketplace:Subscribe` missing on the role) while the rest of
+# the fleet, behind the gateway, was fine. Remove MODEL_GATEWAY_URL to go back to
+# Bedrock direct (needs the Pod Identity association in infra/02-eks, which still
+# exists). Requires this SA on platform/istio/policies/litellm-allow-list.yaml.
 #
 # NOTE: once committed, ArgoCD's `agents` Application (glob `*/*.yaml`) syncs this
 # immediately. Until the image is built + pushed the pod sits in ImagePullBackOff —
@@ -40,10 +37,15 @@ spec:
       env:
         - name: MCP_SERVER_URL
           value: "http://kagent-tools.kagent:8084/mcp"
-        # Matches the cluster's existing `bedrock-sonnet` ModelConfig. A BYO agent
-        # never reads a ModelConfig CR — this is the same model named a second time,
-        # in the only place a BYO agent can be told anything: its env.
-        - name: BEDROCK_MODEL_ID
-          value: "global.anthropic.claude-sonnet-4-6"
-        - name: AWS_REGION
-          value: "ap-southeast-1"
+        # A BYO agent never reads a ModelConfig CR — these mirror `litellm-gateway`
+        # (platform/kagent/modelconfig-litellm.yaml) in the only place a BYO agent
+        # can be told anything: its env.
+        - name: MODEL_GATEWAY_URL
+          value: "http://litellm.litellm.svc.cluster.local:4000/v1"
+        - name: MODEL_GATEWAY_MODEL
+          value: "bedrock-haiku-4-5"
+        - name: MODEL_GATEWAY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: litellm-gateway-key
+              key: LITELLM_MASTER_KEY

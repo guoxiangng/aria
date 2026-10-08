@@ -36,6 +36,9 @@ spec:
               # agents/investigation-loop/agent.yaml. Without this the agent gets an
               # RBAC deny from the mesh instead of a model - the other half of one fix.
               - cluster.local/ns/kagent/sa/investigation-loop
+              # Added 2026-10-08 when it moved off Bedrock direct (agents/strands-investigator/
+              # agent.yaml). The last agent not on the gateway.
+              - cluster.local/ns/kagent/sa/strands-investigator
               - cluster.local/ns/kagent/sa/cluster-diagnostics
               - cluster.local/ns/kagent/sa/cloud-diagnostics
               - cluster.local/ns/kagent/sa/deploy-diagnostics
