@@ -5,10 +5,20 @@
 # matches a rule are permitted; everything else is refused at the node ztunnel — before
 # the request ever reaches the agent.
 #
-# cluster-diagnostics is a read-only leaf agent; the ONLY workload that legitimately calls
-# it is the incident-commander orchestrator (verified empirically from ztunnel access logs —
-# no other agent, not even the kagent controller, connects to it; A2A delegation is direct
-# pod-to-pod, not proxied). So the allow-list is exactly one identity.
+# cluster-diagnostics is a read-only leaf agent. Two workloads legitimately call it:
+# - incident-commander — the orchestrator; A2A delegation is direct pod-to-pod, not proxied.
+# - kagent-controller — the kagent UI's chat path. The UI POSTs to the controller's
+#   /api/a2a/<ns>/<agent>/, and the controller opens the connection to the agent under its
+#   OWN identity.
+#
+# ⚠️ Corrected 2026-10-08: the original one-identity list rested on "the controller never
+# calls agents", concluded from a single ztunnel pod's logs — the same mistake the 2026-08-21
+# MCP-server fix corrected one layer down (ztunnel is a DaemonSet; search all of it). Leaving
+# the controller off made the agent unreachable from the UI: every chat was reset at ztunnel
+# (`connection complete ... error="http status: 401 Unauthorized"`, src.identity
+# kagent-controller), and the session stayed empty while the Agent still reported Ready.
+#
+# Other agents remain denied — a peer that is neither identity is still reset.
 #
 # This is the identity plane doing real work: reachability is constrained by *who you
 # cryptographically are*, not by network position. A pod that can route to the port but
@@ -31,3 +41,4 @@ spec:
         - source:
             principals:
               - cluster.local/ns/kagent/sa/incident-commander
+              - cluster.local/ns/kagent/sa/kagent-controller

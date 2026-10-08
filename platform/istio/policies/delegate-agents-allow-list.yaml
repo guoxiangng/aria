@@ -2,8 +2,8 @@
 #
 # Mirrors cluster-diagnostics-allow-list.yaml, extended to the two specialists added when
 # incident-commander became a cross-plane orchestrator (Kubernetes + AWS + cost). Both are leaf
-# agents: the only workload that legitimately calls them is the orchestrator, so the allow-list is
-# exactly one principal each.
+# agents, called by the orchestrator and by kagent-controller (the UI's chat path — see the
+# 2026-10-08 correction in cluster-diagnostics-authz.yaml). No other agent may call them.
 #
 # Without these, any pod in the mesh could drive cost-sentinel (and through it the AWS Pricing API)
 # or cloud-diagnostics (and through it a read-only AWS IAM role) directly — bypassing the
@@ -23,6 +23,7 @@ spec:
         - source:
             principals:
               - cluster.local/ns/kagent/sa/incident-commander
+              - cluster.local/ns/kagent/sa/kagent-controller
 ---
 apiVersion: security.istio.io/v1
 kind: AuthorizationPolicy
@@ -39,3 +40,4 @@ spec:
         - source:
             principals:
               - cluster.local/ns/kagent/sa/incident-commander
+              - cluster.local/ns/kagent/sa/kagent-controller
