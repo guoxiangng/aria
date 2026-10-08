@@ -22,11 +22,15 @@ kagent runs an agent as a **plain Kubernetes Deployment** by default. Everything
 
 ```
 Agent            (kagent.dev)  → Deployment + Pod          ← the default, what ARIA's fleet runs
-SandboxAgent     (kagent.dev)  → an isolated runtime, selected by spec.platform:
-                                   ├─ substrate      → Agent Substrate   (ate.dev)
-                                   └─ agent-sandbox  → Agent Sandbox     (agents.x-k8s.io)
-AgentHarness     (kagent.dev)  → ALWAYS Agent Substrate. No platform choice.
+SandboxAgent     (kagent.dev)  → an isolated runtime, selected by WHICH config block is populated:
+                                   ├─ spec.substrate → Agent Substrate   (ate.dev)
+                                   └─ spec.sandbox   → Agent Sandbox     (agents.x-k8s.io)
+AgentHarness     (kagent.dev)  → ALWAYS Agent Substrate. No choice.
 ```
+> `spec.platform` (an explicit enum) was the selection mechanism through kagent 0.9.10; by 0.10.0-rc1
+> (ARIA's current pinned version) it's gone — confirmed live 2026-10-08, `error: field "platform" does
+> not exist`. Selection is now purely config-block presence. The CRD's own top-level description also
+> changed in the same window, from naming both options to naming only Agent Substrate — see §12.
 
 Three CRDs are kagent's own. The **runtimes are not** — they are separate projects, shipped
 separately, each with its own controller, namespace and API group. kagent contributes the
@@ -209,10 +213,10 @@ unchanged, nothing stateful to lose on a spike probe) so it regenerates from the
 **Lesson for the OSS thread:** kagent doesn't garbage-collect a superseded `ActorTemplate` when it
 regenerates one — see step 3 below, this bit twice.
 
-**2. Real capacity constraint discovered: `platform: substrate` and `platform: agent-sandbox` actors
-share ONE `WorkerPool`.** This was not previously known and corrects an assumption in §§1-6 above —
-we'd treated the two platforms as fully separate capacity pools. In fact `ate-controller` manages
-`ActorTemplate`s for *both* platform selectors identically; `agent-sandbox-probe`'s actor (already
+**2. Real capacity constraint discovered: Substrate-backed and Agent-Sandbox-backed actors share ONE
+`WorkerPool`.** This was not previously known and corrects an assumption in §§1-6 above — we'd treated
+the two platforms as fully separate capacity pools. In fact `ate-controller` manages `ActorTemplate`s
+for *both* backends identically; `agent-sandbox-probe`'s actor (already
 running 3 days) occupied the lab's only worker (`WorkerPool.replicas: 1`), so `substrate-probe`'s
 resume failed with `no free workers available` even after fix #1 landed. Fix: bumped
 `substrateWorkerPool.replicas` 1→2 in `platform/kagent/values.yaml`, GitOps-committed. Pod-slot
@@ -292,6 +296,39 @@ neither runtime's own headline feature (density-via-suspend for Substrate; isola
 Agent Sandbox) was observed working on this deployment, at these versions. That became the article's
 actual spine rather than a "here are the benchmark numbers" piece — see the draft for the full
 treatment.
+
+## 12. Schema drift discovered 2026-10-08: `spec.platform` is gone; the CRD now favors Substrate even more
+
+Re-checked live while fact-checking the `05-article-two-sandbox-runtimes.md` draft before publish —
+two real changes since §10/§11 were written, neither caused by a further kagent upgrade (the controller
+is still exactly `0.10.0-rc1`, unchanged since 2026-08-16 — this was already the shape of that version,
+just not noticed until now):
+
+1. **`spec.platform` (the explicit enum) no longer exists.** `kubectl explain sandboxagent.spec.platform`
+   → `error: field "platform" does not exist`. `sandbox` and `substrate` are now direct sibling fields
+   on `spec`; which one you populate is the selection mechanism (confirmed functionally: both probes
+   are still `Ready`/`Accepted` with no `platform` key — on-disk YAML still carries the dead key, which
+   the API server silently prunes; harmless, just misleading to read).
+2. **The CRD's own top-level description narrowed.** Was *"...runs in an isolated sandbox (agent-sandbox
+   or Agent Substrate)"*; now *"...runs in an isolated sandbox **on Agent Substrate**"* — Agent Sandbox
+   isn't named at all anymore, despite `spec.sandbox` remaining fully functional. The asymmetry §§1-6
+   describe (kagent's docs center Substrate; Agent Sandbox never appears there) now extends to the CRD's
+   own self-description, not just its prose docs.
+
+**Why this surfaced now, not earlier:** a different thread hit `spec.platform`'s removal live while
+editing article #1 on 2026-08-21 (see `_STATUS.md`), which flagged `05-article-two-sandbox-runtimes.md`'s
+opening evidence block as stale but didn't fix it. Fixed now, directly in the draft, ahead of a new
+version before publish. Nothing about the article's *findings* changed — Substrate's never-observed
+suspend and Agent Sandbox's unenforced isolation are dated, historical observations, not live claims —
+only the opening hook's CRD evidence needed updating to stay reproducible.
+
+**`agent-sandbox-probe` and `substrate-probe` — status as of this check:** both still `Ready`, both still
+running (`agent-sandbox-probe`: 56 days, 0 restarts). Neither is part of ARIA's real fleet (`ARCHITECTURE.md`
+§2 tracks them under "Platform components," not "Agents") — they were always disposable test fixtures,
+not production agents, and the article's evidence doesn't depend on them continuing to exist. Decision:
+`agent-sandbox-probe` is being deleted post-fix (git-declared removal via ArgoCD prune); the article keeps
+naming it throughout as the dated subject of the evidence already captured — removing its name would
+remove the evidence, not modernize it.
 
 ## Related
 - `../platform/substrate/README.md`, `../platform/agent-sandbox/README.md` — component detail.
