@@ -11,8 +11,9 @@ as `❌ not built`, and is the first real build under `LADP/docs/direction-2-llm
 
 **As of 2026-09-24 this is the declarative fleet's model plane.** **All 11 declarative agents route through it** — 7 of ARIA's own via `litellm-gateway`, plus kagent's
 4 chart-managed built-ins via `default-model-config`, which the chart now generates as an OpenAI
-provider pointed at this proxy. The 2 BYO agents (`investigation-loop`, `strands-investigator`) do
-**not**: they call Bedrock directly and are not on the mesh allow-list. That was not the original
+provider pointed at this proxy. Of the 2 BYO agents, `investigation-loop` **does** (since 2026-09-26, via the Azure-compatible
+route, allow-listed) and `strands-investigator` does **not** — it calls Bedrock directly via Pod Identity
+and is not on the mesh allow-list (verified live 2026-10-03). That was not the original
 plan — v1 deliberately wired up one agent — see "The Azure removal" below.
 
 ⚠️ Corrected 2026-09-24: this section previously claimed "all 9 agents". That was wrong, and wrong in a
@@ -59,8 +60,9 @@ Upstream says so plainly, in `proxy_server.py::_warn_budget_without_db`: *"the b
 enforced and requests will never be blocked. Set DATABASE_URL"*. A config key being accepted is not the
 same as a control existing — and nothing in the DB-less state hinted otherwise.
 
-**2. Fallbacks.** Every tier has a chain whose first hop is a *different model family*
-(`router_settings.fallbacks`). Proven with a kill test rather than asserted: a route pointed at a
+**2. Fallbacks.** Every tier has a fallback chain (`router_settings.fallbacks`), and four of the six
+cross to a *different model family* on the first hop — including the fleet's own tier
+(`haiku-4-5 → nova-pro`). Two stay in-family on purpose: `opus-5 → sonnet-5` and `nova-micro → nova-lite`. Proven with a kill test rather than asserted: a route pointed at a
 deliberately non-existent Bedrock profile — standing in for Azure on 18 Sept — was **served by
 `nova-micro` instead of failing**. Had this existed then, that outage would have been a quality
 degradation, not six days of four dead agents and seven broken ones.

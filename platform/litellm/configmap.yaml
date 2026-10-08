@@ -137,8 +137,10 @@ data:
     router_settings:
       # FALLBACKS — the direct answer to the 2026-09-18 outage. Azure's removal killed every agent at
       # once because each ModelConfig named exactly one endpoint and nothing else. Now every tier has
-      # somewhere to go, and the first hop out of each is a DIFFERENT model family, so one vendor
-      # failing degrades quality instead of ending service.
+      # somewhere to go. Four of the six chains cross to a DIFFERENT model family on the first hop —
+      # including the fleet's own tier (haiku-4-5 -> nova-pro) — so one vendor failing degrades quality
+      # instead of ending service. Two stay in-family on purpose: opus-5 -> sonnet-5 (nothing else is
+      # near Opus quality) and nova-micro -> nova-lite (cheapest-to-cheapest).
       #
       # This also makes the newly-enforced budgets safe: when a tier hits its daily cap it is filtered
       # out of the pool, and a fallback catches the request rather than the caller seeing an error.
