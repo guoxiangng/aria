@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 566" role="img"
+           aria-label="A sequence diagram of one agent request. The caller sends A2A directly to the agent's own Service on port 8080; going through the kagent controller is an optional front door for user interface, command line and off-cluster callers, not a required hop. The agent sends the prompt and tool schemas to the model, which replies with a function call rather than an answer. The agent invokes a tool server or delegate agent — a separate workload with its own credential — and receives a result, then sends the prompt plus result back to the model. This exchange repeats while the model keeps asking for tools. When the model returns text instead of a function call, the loop ends and the task completes back to the caller. The model API sits outside the cluster boundary.">
+<style>
+  svg{--kagent:#0E6E78;--kagent-fill:#E3F0F1;--yours:#A2571B;--yours-fill:#F7EBDF;
+      --ink:#16202B;--muted:#66727F;--rule:#D6DCE3;--surface:#FFFFFF;--ground:#F4F6F8;
+      font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  @media (prefers-color-scheme: dark){
+    svg{--kagent:#45d0c0;--kagent-fill:#11292b;--yours:#e2a63e;--yours-fill:#2a2015;
+        --ink:#e7eaf1;--muted:#8b95ac;--rule:#262f45;--surface:#131826;--ground:#0c0f16}
+  }
+</style>
+        <defs>
+          <marker id="f2arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+          <marker id="f2loop" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--kagent)"/>
+          </marker>
+        </defs>
+
+        <line x1="762" y1="14" x2="762" y2="530" stroke="currentColor" stroke-width="1"
+              stroke-dasharray="4 6" opacity=".5"/>
+        <text x="770" y="524" font-family="ui-monospace, monospace" font-size="11"
+              fill="var(--muted)">outside the cluster</text>
+
+        <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="12.5" text-anchor="middle">
+          <rect x="14" y="20" width="132" height="42" rx="3" fill="var(--surface)" stroke="currentColor" stroke-width="1.3"/>
+          <text x="80" y="46" fill="currentColor">caller</text>
+
+          <rect x="176" y="20" width="150" height="42" rx="3" fill="var(--surface)" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <text x="251" y="41" fill="var(--muted)">kagent-controller</text>
+          <text x="251" y="55" fill="var(--muted)" font-size="10.5">optional front door</text>
+
+          <rect x="368" y="20" width="164" height="42" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.6"/>
+          <text x="450" y="41" fill="currentColor">agent pod</text>
+          <text x="450" y="55" fill="var(--muted)" font-size="10.5">the ADK runs the loop</text>
+
+          <rect x="566" y="20" width="164" height="42" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.6"/>
+          <text x="648" y="41" fill="currentColor">tool server</text>
+          <text x="648" y="55" fill="var(--muted)" font-size="10.5">own pod, own credential</text>
+
+          <rect x="800" y="20" width="126" height="42" rx="3" fill="var(--surface)" stroke="currentColor" stroke-width="1.3"/>
+          <text x="863" y="46" fill="currentColor">model API</text>
+        </g>
+
+        <g stroke="currentColor" stroke-width="1" opacity=".28">
+          <line x1="80" y1="66" x2="80" y2="506"/>
+          <line x1="251" y1="66" x2="251" y2="506"/>
+          <line x1="450" y1="66" x2="450" y2="506"/>
+          <line x1="648" y1="66" x2="648" y2="506"/>
+          <line x1="863" y1="66" x2="863" y2="506"/>
+        </g>
+
+        <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="currentColor">
+          <line x1="80" y1="100" x2="444" y2="100" stroke="currentColor" stroke-width="1.7" marker-end="url(#f2arrow)"/>
+          <text x="86" y="94">A2A direct — cluster-diagnostics.kagent:8080</text>
+
+          <line x1="80" y1="134" x2="245" y2="134" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#f2arrow)"/>
+          <line x1="251" y1="158" x2="444" y2="158" stroke="var(--muted)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#f2arrow)"/>
+          <text x="86" y="128" fill="var(--muted)">or via the controller — UI, CLI, off-cluster callers</text>
+
+          <line x1="450" y1="204" x2="857" y2="204" stroke="currentColor" stroke-width="1.4" marker-end="url(#f2arrow)"/>
+          <text x="456" y="198">prompt + tool schemas</text>
+
+          <line x1="863" y1="240" x2="456" y2="240" stroke="var(--kagent)" stroke-width="1.7" marker-end="url(#f2arrow)" stroke-dasharray="5 4"/>
+          <text x="857" y="234" text-anchor="end" fill="var(--kagent)">function_call — not an answer</text>
+
+          <line x1="450" y1="286" x2="642" y2="286" stroke="currentColor" stroke-width="1.4" marker-end="url(#f2arrow)"/>
+          <text x="456" y="280">invoke the tool — a network hop</text>
+
+          <line x1="648" y1="322" x2="456" y2="322" stroke="currentColor" stroke-width="1.4" marker-end="url(#f2arrow)" stroke-dasharray="5 4"/>
+          <text x="642" y="316" text-anchor="end">result</text>
+
+          <line x1="450" y1="368" x2="857" y2="368" stroke="currentColor" stroke-width="1.4" marker-end="url(#f2arrow)"/>
+          <text x="456" y="362">prompt + result</text>
+
+          <line x1="863" y1="404" x2="456" y2="404" stroke="var(--kagent)" stroke-width="1.7" marker-end="url(#f2arrow)" stroke-dasharray="5 4"/>
+          <text x="857" y="398" text-anchor="end" fill="var(--kagent)">text, not a function_call — loop ends</text>
+
+          <line x1="450" y1="464" x2="86" y2="464" stroke="currentColor" stroke-width="1.4" marker-end="url(#f2arrow)" stroke-dasharray="5 4"/>
+          <text x="444" y="458" text-anchor="end">task: completed</text>
+        </g>
+
+        <path d="M 450 420 C 352 420, 352 188, 444 188" fill="none" stroke="var(--kagent)"
+              stroke-width="1.7" marker-end="url(#f2loop)"/>
+        <text x="344" y="296" text-anchor="end" font-family="ui-sans-serif, system-ui, sans-serif"
+              font-size="12.5" fill="var(--kagent)">repeats while the model</text>
+        <text x="344" y="313" text-anchor="end" font-family="ui-sans-serif, system-ui, sans-serif"
+              font-size="12.5" fill="var(--kagent)">keeps asking for tools</text>
+      </svg>

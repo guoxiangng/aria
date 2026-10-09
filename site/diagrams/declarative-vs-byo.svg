@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 508" role="img"
+           aria-label="A comparison of the two agent types. For a Declarative agent you ship only a YAML manifest — no code, no image, no registry — and it is configured by five fields under spec.declarative: modelConfig, tools, memory, context and requireApproval, all feeding the kagent ADK, which is kagent's own runtime image that you configure rather than build. For a BYO agent you ship a container image with your own framework inside, and spec.byo has exactly one field, a deployment spec; it receives none of the other five surfaces. Both serve A2A on port 8080 and are indistinguishable to a caller.">
+<style>
+  svg{--kagent:#0E6E78;--kagent-fill:#E3F0F1;--yours:#A2571B;--yours-fill:#F7EBDF;
+      --ink:#16202B;--muted:#66727F;--rule:#D6DCE3;--surface:#FFFFFF;--ground:#F4F6F8;
+      font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  @media (prefers-color-scheme: dark){
+    svg{--kagent:#45d0c0;--kagent-fill:#11292b;--yours:#e2a63e;--yours-fill:#2a2015;
+        --ink:#e7eaf1;--muted:#8b95ac;--rule:#262f45;--surface:#131826;--ground:#0c0f16}
+  }
+</style>
+        <defs>
+          <marker id="f3arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <text x="42" y="26" font-family="ui-monospace, monospace" font-size="13"
+              letter-spacing="1.2" fill="var(--kagent)">type: Declarative</text>
+        <text x="500" y="26" font-family="ui-monospace, monospace" font-size="13"
+              letter-spacing="1.2" fill="var(--yours)">type: BYO</text>
+
+        <line x1="470" y1="12" x2="470" y2="384" stroke="currentColor" stroke-width="1"
+              stroke-dasharray="3 5" opacity=".4"/>
+
+        <g font-family="ui-sans-serif, system-ui, sans-serif" text-anchor="middle">
+          <rect x="42" y="42" width="372" height="48" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4"/>
+          <text x="228" y="64" font-size="13.5" fill="currentColor">you ship: a YAML manifest</text>
+          <text x="228" y="81" font-size="11.5" fill="var(--muted)">no code, no build, no image, no registry</text>
+
+          <rect x="500" y="42" width="372" height="48" rx="3" fill="none" stroke="currentColor" stroke-width="1.2" stroke-dasharray="5 4"/>
+          <text x="686" y="64" font-size="13.5" fill="currentColor">you ship: a container image</text>
+          <text x="686" y="81" font-size="11.5" fill="var(--muted)">your framework inside — LangGraph, CrewAI, hand-rolled</text>
+        </g>
+
+        <g font-family="ui-monospace, monospace" font-size="12.5" text-anchor="middle">
+          <rect x="42" y="114" width="180" height="30" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.3"/>
+          <text x="132" y="134" fill="currentColor">modelConfig</text>
+          <rect x="234" y="114" width="180" height="30" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.3"/>
+          <text x="324" y="134" fill="currentColor">tools</text>
+          <rect x="42" y="152" width="180" height="30" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.3"/>
+          <text x="132" y="172" fill="currentColor">memory</text>
+          <rect x="234" y="152" width="180" height="30" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.3"/>
+          <text x="324" y="172" fill="currentColor">context</text>
+          <rect x="42" y="190" width="372" height="30" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.3"/>
+          <text x="228" y="210" fill="currentColor">requireApproval</text>
+
+          <rect x="500" y="114" width="180" height="30" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.3"/>
+          <text x="590" y="134" fill="currentColor">deployment</text>
+        </g>
+
+        <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="12.5"
+           fill="var(--muted)" font-style="italic">
+          <text x="700" y="160">no model config, no tools,</text>
+          <text x="700" y="178">no memory, no compaction,</text>
+          <text x="700" y="196">no approval gate</text>
+        </g>
+
+        <text x="228" y="240" text-anchor="middle" font-family="ui-monospace, monospace"
+              font-size="11.5" fill="var(--muted)">spec.declarative.*  — five surfaces</text>
+        <text x="590" y="240" text-anchor="middle" font-family="ui-monospace, monospace"
+              font-size="11.5" fill="var(--muted)">spec.byo.*  — one surface</text>
+
+        <line x1="228" y1="252" x2="228" y2="280" stroke="currentColor" stroke-width="1.4" marker-end="url(#f3arrow)"/>
+        <line x1="686" y1="252" x2="686" y2="280" stroke="currentColor" stroke-width="1.4" marker-end="url(#f3arrow)"/>
+
+        <g font-family="ui-sans-serif, system-ui, sans-serif" text-anchor="middle">
+          <rect x="42" y="288" width="372" height="68" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.8"/>
+          <text x="228" y="316" font-size="14.5" fill="currentColor">the kagent ADK</text>
+          <text x="228" y="337" font-size="11.5" fill="var(--muted)">kagent's image — you configure it, you don't build it</text>
+
+          <rect x="500" y="288" width="372" height="68" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.8"/>
+          <text x="686" y="316" font-size="14.5" fill="currentColor">your container</text>
+          <text x="686" y="337" font-size="11.5" fill="var(--muted)">your framework, your loop, your build pipeline</text>
+        </g>
+
+        <line x1="228" y1="364" x2="228" y2="392" stroke="currentColor" stroke-width="1.4" marker-end="url(#f3arrow)"/>
+        <line x1="686" y1="364" x2="686" y2="392" stroke="currentColor" stroke-width="1.4" marker-end="url(#f3arrow)"/>
+
+        <rect x="42" y="400" width="830" height="56" rx="3" fill="none" stroke="currentColor" stroke-width="1.5"/>
+        <text x="457" y="425" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif"
+              font-size="14.5" fill="currentColor">both serve A2A on port 8080</text>
+        <text x="457" y="444" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif"
+              font-size="12" fill="var(--muted)">indistinguishable to a caller — an orchestrator can delegate to either</text>
+
+        <text x="457" y="490" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif"
+              font-size="13.5" fill="currentColor">the choice is not “who writes the loop” — it is how much of the platform you give up to own it</text>
+      </svg>

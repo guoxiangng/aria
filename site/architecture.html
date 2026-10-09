@@ -1,0 +1,154 @@
+<title>ARIA — architecture</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  .fig { margin: 0 0 14px; }
+  .fig img {
+    width: 100%; height: auto; display: block;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 9px; padding: 14px;
+  }
+  .cap { font-size: 13.5px; color: var(--text-faint); margin: 0 0 40px; max-width: 78ch; }
+  .cap b { color: var(--text-dim); }
+  .ns-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .ns {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 15px 17px;
+  }
+  .ns .nsn { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--cyan); }
+  .ns .nsd { font-size: 13px; color: var(--text-dim); margin-top: 5px; line-height: 1.45; }
+  .ns.off .nsn { color: var(--text-faint); }
+</style>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="./" style="color:inherit"><span class="led"></span>ARIA</a>
+    <div class="navlinks">
+      <a href="./">Overview</a>
+      <a href="fleet.html">Fleet</a>
+      <a href="evidence.html">Evidence</a>
+      <a href="architecture.html" style="color:var(--cyan)">Architecture</a>
+      <a href="./#roadmap">Roadmap</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" style="padding:56px 0 44px">
+  <div class="wrap">
+    <div class="eyebrow">Architecture</div>
+    <h1 style="max-width:25ch">Where the operator's job ends and the platform's begins.</h1>
+    <p class="subhead">
+      Three drawings that carry most of the argument: what kagent owns against what you still own, what
+      one request actually does on the wire, and what you give up by bringing your own agent.
+    </p>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="wrap">
+      <div class="sec-label" data-n="01">The boundary</div>
+      <h2>Seven layers, each split down the middle.</h2>
+      <p class="lede">
+        kagent does not own a clean bottom half of the stack. Every layer is divided, and the right-hand
+        side is ordinary platform work — quota, egress, secrets, RBAC, backup, identity.
+      </p>
+      <div class="fig">
+        <img src="diagrams/ownership-boundary.svg" alt="Seven layers of running an agent, paired across a central boundary. For each layer kagent owns one half and your platform owns the other: lifecycle versus namespace and quota; the reasoning loop versus egress; model configuration versus the credential behind it; tool and sub-agent registration versus what the tool server's credential may do; session state versus backup and restore; approval gates versus who may call which agent; a pointer to a sandbox runtime versus the runtime itself.">
+      </div>
+      <p class="cap">
+        <b>Figure 1.</b> Teal is kagent's half; amber is yours. The two rows worth singling out are the
+        ones people assume are handled: <b>the tool server's RBAC is the agent's real authority</b> —
+        approval gates and curated tool lists constrain what an agent <em>decides</em>, while the
+        credential doing the work belongs to a separate workload — and <b>egress to the model provider</b>
+        is traffic your platform has to permit, because an agent with no route to its model doesn't start.
+      </p>
+
+      <div class="sec-label" data-n="02">One request</div>
+      <h2>A tool call is a network call. Delegation is the same shape.</h2>
+      <p class="lede">
+        The model↔agent cycle isn't kagent-specific; every framework has it. What matters operationally is
+        that each tool call leaves the pod — to an MCP server or another agent, each holding its own
+        credential — and that the number of round trips is decided by the model at request time, not by
+        anything in your manifest.
+      </p>
+      <div class="fig">
+        <img src="diagrams/request-trace.svg" alt="A sequence diagram of one agent request. The caller sends A2A directly to the agent's own Service on port 8080; going through the kagent controller is an optional front door for user interface, command line and off-cluster callers. The agent calls the model, the model returns a function call, the agent dispatches it as a network call to a tool server or a sub-agent, the result returns, the model is called again, and the loop ends when the model returns text instead of another function call.">
+      </div>
+      <p class="cap">
+        <b>Figure 2.</b> Every agent has its own Service, so agent-to-agent calls go pod to pod and the
+        controller is an <em>optional front door</em>, not a hop — keeping request traffic off the
+        controller keeps the data path decoupled from reconciliation. The loop ends not on a signal but on
+        the <b>absence of another function call</b>. That's also where cost and latency come from, and why
+        neither is readable off a YAML file.
+      </p>
+
+      <div class="sec-label" data-n="03">The fork</div>
+      <h2>Declarative or BYO — and what BYO actually costs.</h2>
+      <p class="lede">
+        <code>spec.type</code> is an enum with exactly two values. The real choice isn't "who writes the
+        loop" — it's how much of the platform you give up to own it.
+      </p>
+      <div class="fig">
+        <img src="diagrams/declarative-vs-byo.svg" alt="A comparison of the two agent types. For a Declarative agent you ship only a YAML manifest, no code, no image, no registry, and it is configured by five fields under spec.declarative: modelConfig, tools, memory, context and requireApproval. For a BYO agent you ship a container image and spec.byo offers exactly one field, deployment, so none of those five platform features apply.">
+      </div>
+      <p class="cap">
+        <b>Figure 3.</b> <code>spec.byo</code> has exactly one field — a Deployment spec. Meanwhile
+        <code>modelConfig</code>, <code>tools</code>, <code>memory</code>, <code>context</code> and the
+        approval gate all live under <code>spec.declarative</code>. That follows once you see it: the
+        operator can't compact a context it didn't build, or gate a tool call it never dispatched. ARIA
+        runs 11 declarative agents and <b>2 BYO</b> — LangGraph and Strands — so the container contract
+        has been proven twice, and the heuristic holds: go declarative unless you can name what's unusual
+        about your loop.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-label" data-n="04">What's actually deployed</div>
+      <h2>Fourteen namespaces, forty-eight deployments.</h2>
+      <p class="lede">
+        The agents are the visible part. Most of what makes them operable is everything around them —
+        and all of it arrives through the same two deploy layers: Terraform for AWS, ArgoCD for everything
+        on the cluster. There is no third "install it by hand just this once" layer.
+      </p>
+      <div class="ns-grid">
+        <div class="ns"><div class="nsn">kagent</div><div class="nsd">25 deployments — controller, kmcp controller, web UI, Postgres w/ pgvector, built-in tool server, 13 agents, 6 MCP servers</div></div>
+        <div class="ns"><div class="nsn">litellm</div><div class="nsd">The model gateway + its own Postgres. Every declarative agent's inference path</div></div>
+        <div class="ns"><div class="nsn">istio-system</div><div class="nsd">Ambient mesh — istiod as workload CA, ztunnel DaemonSet, istio-cni chained onto VPC CNI</div></div>
+        <div class="ns"><div class="nsn">argocd</div><div class="nsd">6 deployments — app-of-apps, sync waves 0 → 5</div></div>
+        <div class="ns"><div class="nsn">external-secrets</div><div class="nsd">ESO → AWS Secrets Manager. No secret material in git, ever</div></div>
+        <div class="ns"><div class="nsn">ate-system</div><div class="nsd">Agent Substrate — 5 deployments. <code>substrate-probe</code> Ready</div></div>
+        <div class="ns"><div class="nsn">agent-sandbox-system</div><div class="nsd">Agent Sandbox (Kubernetes SIG) controller — a genuinely separate control plane</div></div>
+        <div class="ns"><div class="nsn">arc-systems · arc-runners</div><div class="nsd">Self-hosted ephemeral CI runners, in-cluster</div></div>
+        <div class="ns"><div class="nsn">aria-agents-dev · aria-demo</div><div class="nsd">Dev and demo surfaces</div></div>
+      </div>
+      <p class="cap" style="margin-top:22px">
+        <b>The test that decides where anything goes:</b> if the cluster were deleted and
+        <code>terraform apply</code> re-ran with ArgoCD syncing from git, would this come back exactly,
+        with no manual step? If not, it's in the wrong place. Two <em>principled</em> narrowings live in
+        Terraform rather than ArgoCD — the irreducible bootstrap kernel, since ArgoCD can't deploy
+        ArgoCD, and secret <em>material</em> generation, since a public repo can't hold values.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">ARIA</div>
+        <p class="foot-note">
+          Diagrams are theme-aware SVGs shared between this site and the article series —
+          <code>site/diagrams/</code>, registered in <code>docs/showcase/</code>.
+        </p>
+      </div>
+      <div class="foot-links">
+        <a href="./">← Overview</a>
+        <a href="fleet.html">Fleet</a>
+        <a href="evidence.html">Evidence</a>
+        <a href="https://medium.com/towards-artificial-intelligence/kagent-on-kubernetes-what-does-it-give-your-ai-platform-02050dc3aeff" target="_blank" rel="noopener">The long-form version →</a>
+      </div>
+    </div>
+    <div class="foot-meta"><span>inventory captured 2026-10-09</span><span>·</span><span>kagent 0.10.0-rc1</span></div>
+  </div>
+</footer>

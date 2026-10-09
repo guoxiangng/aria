@@ -41,8 +41,16 @@ COMMANDS.md
 # Local eval tooling (npm install --no-save promptfoo)
 node_modules/
 
-# Product-page drafts — kept private/local, EXCEPT the published page (index.html),
-# which is served publicly via GitHub Pages (see .github/workflows/pages.yml) and
-# linked from the portfolio site. Other drafts (product-notes.html, README) stay local.
+# Product-page drafts — kept private/local, EXCEPT the published pages below, which are
+# served publicly via GitHub Pages (see .github/workflows/pages.yml) and linked from the
+# portfolio site. Anything else here (product-notes.html, site/README.md) stays local.
+# NOTE: `site/*` also ignores the diagrams DIRECTORY, so it must be un-ignored before the
+# files inside it can be — hence the two diagram lines, not one.
 site/*
 !site/index.html
+!site/fleet.html
+!site/evidence.html
+!site/architecture.html
+!site/styles.css
+!site/diagrams/
+!site/diagrams/*.svg

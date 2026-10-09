@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 636" role="img"
+           aria-label="Seven layers of running an agent, paired across a central boundary. For each layer kagent owns one half and your platform owns the other: lifecycle versus namespace and quota; the reasoning loop versus egress to the model provider; ModelConfig versus the credential behind it; tool and subagent registration via MCP and A2A versus the tool server's RBAC; session state versus its backup; approval gates versus who may call which agent; a sandbox pointer that names an isolation backend by string, versus the two separate projects it can point at — Agent Substrate, kagent's own sibling project, and Agent Sandbox, the Kubernetes SIG Apps standard — both installed and operated separately from kagent, and both moving fast enough that current behaviour should be verified rather than assumed.">
+<style>
+  svg{--kagent:#0E6E78;--kagent-fill:#E3F0F1;--yours:#A2571B;--yours-fill:#F7EBDF;
+      --ink:#16202B;--muted:#66727F;--rule:#D6DCE3;--surface:#FFFFFF;--ground:#F4F6F8;
+      font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  @media (prefers-color-scheme: dark){
+    svg{--kagent:#45d0c0;--kagent-fill:#11292b;--yours:#e2a63e;--yours-fill:#2a2015;
+        --ink:#e7eaf1;--muted:#8b95ac;--rule:#262f45;--surface:#131826;--ground:#0c0f16}
+  }
+</style>
+        <defs>
+          <marker id="f1arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                  markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/>
+          </marker>
+        </defs>
+
+        <text x="235" y="26" text-anchor="middle" font-family="ui-monospace, monospace"
+              font-size="12.5" letter-spacing="1.6" fill="var(--kagent)">WHAT KAGENT PROVIDES</text>
+        <text x="685" y="26" text-anchor="middle" font-family="ui-monospace, monospace"
+              font-size="12.5" letter-spacing="1.6" fill="var(--yours)">WHAT YOU STILL HAVE TO IMPLEMENT</text>
+
+        <line x1="460" y1="40" x2="460" y2="596" stroke="currentColor" stroke-width="1"
+              stroke-dasharray="3 5" opacity=".45"/>
+
+        <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="13.5">
+          <!-- row 1 -->
+          <rect x="30" y="52" width="400" height="54" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.5"/>
+          <text x="48" y="77" fill="currentColor">Deployment · Service · ServiceAccount</text>
+          <text x="48" y="94" fill="var(--muted)" font-size="11.5">the agent workload itself</text>
+          <rect x="490" y="52" width="400" height="54" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.5"/>
+          <text x="508" y="77" fill="currentColor">Namespace · quota · scheduling headroom</text>
+          <text x="508" y="94" fill="var(--muted)" font-size="11.5">ResourceQuota, LimitRange</text>
+
+          <!-- row 2 -->
+          <rect x="30" y="120" width="400" height="54" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.5"/>
+          <text x="48" y="145" fill="currentColor">The reasoning loop — Declarative or BYO</text>
+          <text x="48" y="162" fill="var(--muted)" font-size="11.5">the ADK, shipped with the chart</text>
+          <rect x="490" y="120" width="400" height="54" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.5"/>
+          <text x="508" y="145" fill="currentColor">Egress to the model provider</text>
+          <text x="508" y="162" fill="var(--muted)" font-size="11.5">NetworkPolicy, egress rules</text>
+
+          <!-- row 3 -->
+          <rect x="30" y="188" width="400" height="54" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.5"/>
+          <text x="48" y="213" fill="currentColor">ModelConfig as a cluster resource</text>
+          <text x="48" y="230" fill="var(--muted)" font-size="11.5">provider, model, credential reference</text>
+          <rect x="490" y="188" width="400" height="54" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.5"/>
+          <text x="508" y="213" fill="currentColor">The credential behind it</text>
+          <text x="508" y="230" fill="var(--muted)" font-size="11.5">External Secrets, workload identity</text>
+
+          <!-- row 4 -->
+          <rect x="30" y="256" width="400" height="54" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.5"/>
+          <text x="48" y="281" fill="currentColor">Tool &amp; subagent registration</text>
+          <text x="48" y="298" fill="var(--muted)" font-size="11.5">MCP · A2A — which tools or agents are offered</text>
+          <rect x="490" y="256" width="400" height="54" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="2.25"/>
+          <text x="508" y="281" fill="currentColor">The tool server's RBAC</text>
+          <text x="508" y="298" fill="var(--yours)" font-size="11.5">← the agent's real authority</text>
+
+          <!-- row 5 -->
+          <rect x="30" y="324" width="400" height="54" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.5"/>
+          <text x="48" y="349" fill="currentColor">Session state · memory · context</text>
+          <text x="48" y="366" fill="var(--muted)" font-size="11.5">Declarative agents only</text>
+          <rect x="490" y="324" width="400" height="54" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.5"/>
+          <text x="508" y="349" fill="currentColor">Backup and restore of that state</text>
+          <text x="508" y="366" fill="var(--muted)" font-size="11.5">it is a Postgres in your cluster</text>
+
+          <!-- row 6 -->
+          <rect x="30" y="392" width="400" height="54" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.5"/>
+          <text x="48" y="417" fill="currentColor">Approval gates on a tool call</text>
+          <text x="48" y="434" fill="var(--muted)" font-size="11.5">requireApproval — a field, not a resource</text>
+          <rect x="490" y="392" width="400" height="54" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.5"/>
+          <text x="508" y="417" fill="currentColor">Who may call which agent</text>
+          <text x="508" y="434" fill="var(--muted)" font-size="11.5">workload identity, or NetworkPolicy</text>
+
+          <!-- row 7 -->
+          <rect x="30" y="460" width="400" height="54" rx="3" fill="var(--kagent-fill)" stroke="var(--kagent)" stroke-width="1.5"/>
+          <text x="48" y="485" fill="currentColor">SandboxAgent — a pointer</text>
+          <text x="48" y="502" fill="var(--muted)" font-size="11.5">points to an external isolation project</text>
+          <rect x="490" y="460" width="400" height="54" rx="3" fill="var(--yours-fill)" stroke="var(--yours)" stroke-width="1.5"/>
+          <text x="508" y="485" fill="currentColor">Substrate (kagent) or Sandbox (SIG)</text>
+          <text x="508" y="502" fill="var(--muted)" font-size="11.5">two separate projects — verify current behaviour</text>
+        </g>
+
+        <line x1="460" y1="534" x2="460" y2="566" stroke="currentColor" stroke-width="1.5"
+              marker-end="url(#f1arrow)" opacity=".8"/>
+        <text x="460" y="590" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif"
+              font-size="13" fill="var(--muted)">
+          every layer is split — the boundary runs through the workload, not under it
+        </text>
+      </svg>

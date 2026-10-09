@@ -1,0 +1,237 @@
+<title>ARIA — the fleet</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+  /* page-local: catalogue tables */
+  .tbl-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  table.cat { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 620px; }
+  table.cat th {
+    text-align: left; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-faint); font-weight: 500;
+    padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2);
+  }
+  table.cat td { padding: 13px 16px; border-bottom: 1px solid var(--border); vertical-align: top; color: var(--text-dim); }
+  table.cat tr:last-child td { border-bottom: none; }
+  table.cat td.n { font-family: var(--mono); font-size: 13px; color: var(--text); white-space: nowrap; }
+  .tier {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 3px; white-space: nowrap;
+    background: var(--surface-3); color: var(--text-dim); border: 1px solid var(--border);
+  }
+  .tier.ro { color: var(--good); border-color: var(--cyan-deep); }
+  .tier.mut { color: var(--danger); border-color: var(--danger); }
+  .tier.prop { color: var(--amber); border-color: var(--amber); }
+  .tier.orch { color: var(--cyan); border-color: var(--cyan); }
+  .pill { font-family: var(--mono); font-size: 11.5px; color: var(--text-dim); }
+  .pill b { color: var(--cyan); font-weight: 600; }
+  .stat-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 0 0 30px; }
+  .stat {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; flex: 1 0 128px;
+  }
+  .stat .v { font-family: var(--mono); font-size: 25px; font-weight: 600; color: var(--cyan); line-height: 1.1; }
+  .stat .k { font-size: 12px; color: var(--text-faint); margin-top: 5px; }
+  .note { font-size: 13.5px; color: var(--text-faint); margin-top: 16px; max-width: 74ch; }
+</style>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="./" style="color:inherit"><span class="led"></span>ARIA</a>
+    <div class="navlinks">
+      <a href="./">Overview</a>
+      <a href="fleet.html" style="color:var(--cyan)">Fleet</a>
+      <a href="evidence.html">Evidence</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="./#roadmap">Roadmap</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero" style="padding:56px 0 44px">
+  <div class="wrap">
+    <div class="eyebrow">The fleet</div>
+    <h1 style="max-width:26ch">Thirteen agents, four tiers, and what each one is allowed to touch.</h1>
+    <p class="subhead">
+      Tiers are ARIA's own classification, not a kagent concept — an agent's tier is a statement about
+      its blast radius, and it determines which tools it may be wired to at all.
+    </p>
+  </div>
+</header>
+
+<main>
+  <section>
+    <div class="wrap">
+      <div class="sec-label" data-n="01">Live inventory</div>
+      <div class="stat-row">
+        <div class="stat"><div class="v">13</div><div class="k">agents running</div></div>
+        <div class="stat"><div class="v">2</div><div class="k">BYO frameworks</div></div>
+        <div class="stat"><div class="v">7</div><div class="k">MCP servers</div></div>
+        <div class="stat"><div class="v">1</div><div class="k">agent that can mutate</div></div>
+        <div class="stat"><div class="v">26</div><div class="k">pods, all 1/1</div></div>
+      </div>
+      <p class="lede" style="margin-bottom:26px">
+        Captured from the cluster on 2026-10-09, kagent <code>0.10.0-rc1</code>. Only one agent in the
+        fleet can change the cluster, and every mutation it makes pauses for a human.
+      </p>
+
+      <div class="tbl-wrap">
+        <table class="cat">
+          <thead>
+            <tr><th>Agent</th><th>Tier</th><th>Engine</th><th>What it reaches</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="n">incident-commander</td>
+              <td><span class="tier orch">3 · orchestrator</span></td>
+              <td class="pill">Declarative</td>
+              <td>Five sub-agents, declared as tools: cluster-diagnostics, cloud-diagnostics, cost-sentinel, deploy-diagnostics, investigation-loop. Holds no tools of its own.</td>
+            </tr>
+            <tr>
+              <td class="n">cluster-diagnostics</td>
+              <td><span class="tier ro">1 · read-only</span></td>
+              <td class="pill">Declarative</td>
+              <td>kagent tool server <b>(8 tools)</b> · aws-documentation <b>(2)</b> — every mutating tool deliberately stripped out</td>
+            </tr>
+            <tr>
+              <td class="n">cloud-diagnostics</td>
+              <td><span class="tier ro">1 · read-only</span></td>
+              <td class="pill">Declarative</td>
+              <td>aws-eks <b>(7)</b> — EKS insights, VPC/subnet capacity, CloudWatch</td>
+            </tr>
+            <tr>
+              <td class="n">cost-sentinel</td>
+              <td><span class="tier ro">1 · read-only</span></td>
+              <td class="pill">Declarative</td>
+              <td>aws-pricing <b>(7)</b> — live pricing, not a static sheet</td>
+            </tr>
+            <tr>
+              <td class="n">deploy-diagnostics</td>
+              <td><span class="tier ro">1 · read-only</span></td>
+              <td class="pill">Declarative</td>
+              <td>github <b>(12)</b> via a <em>read-only</em> PAT — answers "when and why did this change"</td>
+            </tr>
+            <tr>
+              <td class="n">investigation-loop</td>
+              <td><span class="tier">2 · BYO</span></td>
+              <td class="pill">BYO · LangGraph</td>
+              <td>Its own loop. Branching decided by a Python function that can be unit-tested, not by the model.</td>
+            </tr>
+            <tr>
+              <td class="n">strands-investigator</td>
+              <td><span class="tier">2 · BYO</span></td>
+              <td class="pill">BYO · Strands</td>
+              <td>Second framework on the same container contract — the contract proven twice over.</td>
+            </tr>
+            <tr>
+              <td class="n">infra-author</td>
+              <td><span class="tier prop">2 · propose</span></td>
+              <td class="pill">Declarative</td>
+              <td>terraform <b>(7)</b> registry lookups · github-write <b>(5)</b>, one repo. Opens a branch and a PR; never merges, never touches the running environment.</td>
+            </tr>
+            <tr>
+              <td class="n">cluster-remediation</td>
+              <td><span class="tier mut">2 · remediation</span></td>
+              <td class="pill">Declarative</td>
+              <td>kagent tool server <b>(7)</b>, reversible tools only — <code>requireApproval</code> on <code>k8s_rollout</code> and <code>k8s_scale</code></td>
+            </tr>
+            <tr>
+              <td class="n">k8s-agent · helm-agent<br>istio-agent · promql-agent</td>
+              <td><span class="tier">kagent built-ins</span></td>
+              <td class="pill">Declarative</td>
+              <td>Shipped by the kagent chart, unmodified — delegated to where raw domain expertise is enough</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">
+        The tier isn't decoration. <code>1-readonly</code> agents have no mutating tool in their
+        <code>toolNames</code> at all — the capability is absent, not merely discouraged by a prompt.
+        <code>2-propose</code> exists because neither existing tier described <code>infra-author</code>:
+        it writes, but only to a git branch, so the blast radius of a wrong answer is a PR someone closes.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-label" data-n="02">Tool layer</div>
+      <h2>Seven MCP servers, each with its own credential scope.</h2>
+      <p class="lede">
+        A tool call is a network call to a separate workload holding its own credential. So an agent's
+        real authority is its tool server's authority — which is why these are scoped individually
+        rather than as one shared tool plane.
+      </p>
+      <div class="tbl-wrap">
+        <table class="cat">
+          <thead><tr><th>Server</th><th>Hosted by</th><th>Scope</th><th>Consumers</th></tr></thead>
+          <tbody>
+            <tr><td class="n">aws-eks</td><td class="pill">kmcp</td><td>Read-only AWS control-plane view</td><td class="pill">cloud-diagnostics</td></tr>
+            <tr><td class="n">aws-pricing</td><td class="pill">kmcp</td><td>Live AWS Pricing API</td><td class="pill">cost-sentinel</td></tr>
+            <tr><td class="n">aws-documentation</td><td class="pill">kmcp</td><td>AWS docs — <em>needs no cloud identity at all</em></td><td class="pill">cluster-diagnostics</td></tr>
+            <tr><td class="n">github</td><td class="pill">kmcp</td><td><b>Read-only</b> PAT</td><td class="pill">deploy-diagnostics</td></tr>
+            <tr><td class="n">github-write</td><td class="pill">kmcp</td><td>Write scope, <b>one</b> repo, fine-grained PAT, no workflow or admin scope</td><td class="pill">infra-author</td></tr>
+            <tr><td class="n">terraform</td><td class="pill">kmcp</td><td><code>--toolsets registry</code> only — schema lookups, <b>no apply path</b></td><td class="pill">infra-author</td></tr>
+            <tr><td class="n">kagent-tool-server</td><td class="pill">kagent</td><td>The built-in Kubernetes tool server</td><td class="pill">4 agents</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">
+        <strong>Why two GitHub servers.</strong> Six agents depend on the <code>github</code> PAT being
+        read-only. Widening it would leave a <code>toolNames</code> list as the only thing between a
+        read-only agent and pushing commits — one layer where there are currently three. Write reach got
+        its own server, its own token, its own rotation. The credential is the control, not the prompt.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-label" data-n="03">Model access</div>
+      <h2>Every declarative agent reaches its model through one in-cluster gateway.</h2>
+      <p class="lede">
+        Fleet-wide since September, and not by choice: the Azure OpenAI resource behind the original
+        shared <code>ModelConfig</code> was deleted, which took every declarative agent down at once.
+        The gateway migration that followed is why there is now a single place to change a model,
+        route by cost, or attribute spend.
+      </p>
+      <div class="tbl-wrap">
+        <table class="cat">
+          <thead><tr><th>ModelConfig</th><th>Resolves to</th><th>Used by</th></tr></thead>
+          <tbody>
+            <tr><td class="n">litellm-gateway</td><td class="pill">LiteLLM → <b>bedrock-haiku-4-5</b></td><td>ARIA's own 7 declarative agents</td></tr>
+            <tr><td class="n">default-model-config</td><td class="pill">LiteLLM → <b>bedrock-haiku-4-5</b></td><td>kagent's 4 chart-managed built-ins</td></tr>
+            <tr><td class="n">litellm-smart-router</td><td class="pill">LiteLLM → <b>smart-router</b></td><td>routing experiments</td></tr>
+            <tr><td class="n">litellm-embedding</td><td class="pill">LiteLLM → <b>cohere-embed-v4</b></td><td>embeddings for long-term memory</td></tr>
+            <tr><td class="n">bedrock-haiku · bedrock-sonnet</td><td class="pill">Bedrock, direct</td><td>kept as a bypass path</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">
+        The gateway runs with its own Postgres, so virtual keys and budgets are now possible where v1 was
+        DB-less. An agent also needs its ServiceAccount on the gateway's mesh allow-list, or it is reset
+        at the mesh before it ever reaches a model — the tool-list and the allow-list have to move
+        together. The two BYO agents bypass the gateway entirely; they own their own model calls.
+      </p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">ARIA</div>
+        <p class="foot-note">
+          Inventory captured live from the cluster, not written from memory. Source of truth:
+          <code>docs/showcase/inventory.md</code> in the repo.
+        </p>
+      </div>
+      <div class="foot-links">
+        <a href="./">← Overview</a>
+        <a href="evidence.html">Evidence</a>
+        <a href="architecture.html">Architecture</a>
+        <a href="https://github.com/guoxiangng/aria">github.com/guoxiangng/aria</a>
+      </div>
+    </div>
+    <div class="foot-meta"><span>captured 2026-10-09</span><span>·</span><span>kagent 0.10.0-rc1</span></div>
+  </div>
+</footer>
