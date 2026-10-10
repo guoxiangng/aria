@@ -1,22 +1,31 @@
 <title>ARIA — the open control plane for AI agents on Kubernetes</title>
 <link rel="stylesheet" href="styles.css">
 
-<nav>
+<nav class="topnav">
   <div class="wrap">
-    <div class="brand"><span class="led"></span>ARIA<span class="draft-tag">building</span></div>
+    <a class="brand" href="./" style="color:inherit"><span class="led"></span>ARIA</a>
     <div class="navlinks">
-      <a href="#scope">Scope</a>
-      <a href="#stack">Open stack</a>
-      <a href="#trust">Trust loop</a>
-      <a href="#delivery">Delivery</a>
-      <a href="#roadmap">Roadmap</a>
+      <a href="./" aria-current="page">Overview</a>
       <a href="fleet.html">Fleet</a>
       <a href="evidence.html">Evidence</a>
       <a href="architecture.html">Architecture</a>
-      <a href="#writing">Writing</a>
     </div>
+    <a class="nav-repo" href="https://github.com/guoxiangng/aria" target="_blank" rel="noopener">source ↗</a>
   </div>
 </nav>
+<div class="subnav">
+  <div class="wrap">
+    <span class="subnav-label">On this page</span>
+      <a href="#scope">Positioning</a>
+      <a href="#stack">Open stack</a>
+      <a href="#why">Why this way</a>
+      <a href="#fleet">The fleet</a>
+      <a href="#trust">Trust loop</a>
+      <a href="#delivery">Delivery</a>
+      <a href="#roadmap">Honest status</a>
+      <a href="#writing">Written up</a>
+  </div>
+</div>
 
 <header class="hero">
   <div class="wrap">
@@ -206,70 +215,41 @@
   <section id="fleet">
     <div class="wrap">
       <div class="sec-label" data-n="04">What runs on it</div>
-      <h2>A governed fleet — purpose-built agents plus the open ecosystem's own.</h2>
+      <h2>Thirteen agents, grouped by what they're allowed to do.</h2>
       <p class="lede">
-        ARIA doesn't rebuild every Kubernetes specialist — kagent already ships expert agents for
-        Helm, Istio, Cilium, PromQL and more. ARIA adds the governed, orchestrated agents on top
-        and delegates to the stock ones where raw domain expertise is enough.
+        ARIA doesn't rebuild every Kubernetes specialist — kagent already ships expert agents for Helm,
+        Istio and PromQL. ARIA adds the governed, orchestrated agents on top, and tiers them by blast
+        radius: an agent's tier decides which tools it may be wired to at all.
       </p>
-      <div class="fleet">
-        <div class="agent">
-          <div class="a-tier">Tier 3 · orchestrator</div>
-          <div class="a-name">incident-commander</div>
-          <div class="a-desc">Routes a question across five delegates spanning three planes — Kubernetes, AWS, cost — and synthesizes one answer. Sub-agents are declared as tools, so composition is a manifest change.</div>
-          <div class="a-badge">running</div>
+      <div class="scope">
+        <div class="scope-row">
+          <div class="scope-tag">Read-only</div>
+          <div class="scope-body"><b>4 agents</b> — Kubernetes, AWS control plane, cost, git drift. Every mutating tool stripped out, not merely discouraged.</div>
         </div>
-        <div class="agent">
-          <div class="a-tier">Tier 1 · read-only</div>
-          <div class="a-name">cluster-diagnostics</div>
-          <div class="a-desc">Kubernetes diagnosis with every mutating tool deliberately stripped out — investigates, never touches.</div>
-          <div class="a-badge">running</div>
+        <div class="scope-row">
+          <div class="scope-tag">Orchestrator</div>
+          <div class="scope-body"><b>1 agent</b> — holds no tools of its own; its five delegates <em>are</em> its tools.</div>
         </div>
-        <div class="agent">
-          <div class="a-tier">Tier 1 · read-only</div>
-          <div class="a-name">cloud-diagnostics</div>
-          <div class="a-desc">The AWS control-plane view — EKS insights, VPC/subnet capacity, CloudWatch — via self-hosted AWS MCP servers.</div>
-          <div class="a-badge">running</div>
+        <div class="scope-row">
+          <div class="scope-tag">BYO</div>
+          <div class="scope-body"><b>2 agents</b> — LangGraph and Strands, the same container contract proven by two different frameworks.</div>
         </div>
-        <div class="agent">
-          <div class="a-tier">Tier 1 · read-only</div>
-          <div class="a-name">cost-sentinel</div>
-          <div class="a-desc">FinOps on live AWS Pricing data rather than a static sheet — the platform dogfooding its own cost visibility.</div>
-          <div class="a-badge">running</div>
+        <div class="scope-row mid">
+          <div class="scope-tag">Propose</div>
+          <div class="scope-body"><b>1 agent</b> — writes Terraform to a branch and opens a PR. Never touches the running environment.</div>
         </div>
-        <div class="agent">
-          <div class="a-tier">Tier 1 · read-only</div>
-          <div class="a-name">deploy-diagnostics</div>
-          <div class="a-desc">Answers "when and why did this change" from git history — the drift question neither live-state agent could reach.</div>
-          <div class="a-badge">running</div>
+        <div class="scope-row mid">
+          <div class="scope-tag">Mutating</div>
+          <div class="scope-body"><b>1 agent</b> — the only one that can change the cluster, reversible tools only, every mutation held for a human.</div>
         </div>
-        <div class="agent">
-          <div class="a-tier">Tier 2 · BYO</div>
-          <div class="a-name">investigation-loop</div>
-          <div class="a-desc">A hand-built LangGraph agent that gathers, hypothesizes, verifies, and loops — the branch decided by testable code, not by the model.</div>
-          <div class="a-badge">running</div>
-        </div>
-        <div class="agent">
-          <div class="a-tier">Tier 2 · BYO</div>
-          <div class="a-name">strands-investigator</div>
-          <div class="a-desc">The same container contract, a second framework — AWS Strands. Proving the BYO boundary holds for more than the one toolkit it was first built against.</div>
-          <div class="a-badge">running</div>
-        </div>
-        <div class="agent">
-          <div class="a-tier">Tier 2 · propose</div>
-          <div class="a-name">infra-author</div>
-          <div class="a-desc">The only agent that produces rather than reports — reads the Terraform under <code>infra/</code>, looks up real provider and module schemas so it can't invent arguments, and opens a pull request. It never touches the running environment; the blast radius of a wrong answer is a PR someone closes.</div>
-          <div class="a-badge">running</div>
-        </div>
-        <div class="agent">
-          <div class="a-tier">Tier 4 · mutating</div>
-          <div class="a-name">cluster-remediation</div>
-          <div class="a-desc">The only agent that can change the cluster — reversible tools only, each mutation held for an explicit human approval before it executes.</div>
-          <div class="a-badge">running</div>
+        <div class="scope-row dim">
+          <div class="scope-tag">Built-ins</div>
+          <div class="scope-body">4 kagent stock experts, unmodified, delegated to where raw domain expertise is enough.</div>
         </div>
       </div>
       <p class="fleet-note">
-        + kagent's stock experts (k8s, helm, istio, promql…) available to delegate to, unmodified — 13 agents running in total.
+        Per-agent detail — tiers, engines, and the exact tools and credential scopes each one reaches —
+        is on the <a href="fleet.html">fleet page</a>.
       </p>
     </div>
   </section>
@@ -457,6 +437,48 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
         <a href="#writing">Writing</a>
       </div>
     </div>
+    <div class="sitemap">
+      <div>
+        <h4><a href="./" class="here">Overview</a></h4>
+        <ul>
+        <li><a href="#scope">Positioning</a></li>
+        <li><a href="#stack">Open stack</a></li>
+        <li><a href="#why">Why this way</a></li>
+        <li><a href="#fleet">The fleet</a></li>
+        <li><a href="#trust">Trust loop</a></li>
+        <li><a href="#delivery">Delivery</a></li>
+        <li><a href="#roadmap">Honest status</a></li>
+        <li><a href="#writing">Written up</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="fleet.html">Fleet</a></h4>
+        <ul>
+        <li><a href="fleet.html#inventory">Live inventory</a></li>
+        <li><a href="fleet.html#tools">Tool layer</a></li>
+        <li><a href="fleet.html#models">Model access</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="evidence.html">Evidence</a></h4>
+        <ul>
+        <li><a href="evidence.html#identity">Identity</a></li>
+        <li><a href="evidence.html#truth">Truthfulness</a></li>
+        <li><a href="evidence.html#control">Human control</a></li>
+        <li><a href="evidence.html#failed">The one that failed</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="architecture.html">Architecture</a></h4>
+        <ul>
+        <li><a href="architecture.html#boundary">The boundary</a></li>
+        <li><a href="architecture.html#request">One request</a></li>
+        <li><a href="architecture.html#fork">The fork</a></li>
+        <li><a href="architecture.html#deployed">What's deployed</a></li>
+        </ul>
+      </div>
+    </div>
+
     <div class="foot-meta">
       <span>actively built — this page updates as increments land</span><span>·</span><span>built on kagent + EKS</span><span>·</span><span>notes as of 2026-09</span>
     </div>

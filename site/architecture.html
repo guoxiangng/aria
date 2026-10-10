@@ -17,18 +17,27 @@
   .ns.off .nsn { color: var(--text-faint); }
 </style>
 
-<nav>
+<nav class="topnav">
   <div class="wrap">
     <a class="brand" href="./" style="color:inherit"><span class="led"></span>ARIA</a>
     <div class="navlinks">
       <a href="./">Overview</a>
       <a href="fleet.html">Fleet</a>
       <a href="evidence.html">Evidence</a>
-      <a href="architecture.html" style="color:var(--cyan)">Architecture</a>
-      <a href="./#roadmap">Roadmap</a>
+      <a href="architecture.html" aria-current="page">Architecture</a>
     </div>
+    <a class="nav-repo" href="https://github.com/guoxiangng/aria" target="_blank" rel="noopener">source ↗</a>
   </div>
 </nav>
+<div class="subnav">
+  <div class="wrap">
+    <span class="subnav-label">On this page</span>
+      <a href="#boundary">The boundary</a>
+      <a href="#request">One request</a>
+      <a href="#fork">The fork</a>
+      <a href="#deployed">What's deployed</a>
+  </div>
+</div>
 
 <header class="hero" style="padding:56px 0 44px">
   <div class="wrap">
@@ -44,7 +53,7 @@
 <main>
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="01">The boundary</div>
+      <div class="sec-label" id="boundary" data-n="01">The boundary</div>
       <h2>Seven layers, each split down the middle.</h2>
       <p class="lede">
         kagent does not own a clean bottom half of the stack. Every layer is divided, and the right-hand
@@ -61,7 +70,7 @@
         is traffic your platform has to permit, because an agent with no route to its model doesn't start.
       </p>
 
-      <div class="sec-label" data-n="02">One request</div>
+      <div class="sec-label" id="request" data-n="02">One request</div>
       <h2>A tool call is a network call. Delegation is the same shape.</h2>
       <p class="lede">
         The model↔agent cycle isn't kagent-specific; every framework has it. What matters operationally is
@@ -80,7 +89,7 @@
         neither is readable off a YAML file.
       </p>
 
-      <div class="sec-label" data-n="03">The fork</div>
+      <div class="sec-label" id="fork" data-n="03">The fork</div>
       <h2>Declarative or BYO — and what BYO actually costs.</h2>
       <p class="lede">
         <code>spec.type</code> is an enum with exactly two values. The real choice isn't "who writes the
@@ -103,7 +112,7 @@
 
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="04">What's actually deployed</div>
+      <div class="sec-label" id="deployed" data-n="04">What's actually deployed</div>
       <h2>Fourteen namespaces, forty-eight deployments.</h2>
       <p class="lede">
         The agents are the visible part. Most of what makes them operable is everything around them —
@@ -149,6 +158,48 @@
         <a href="https://medium.com/towards-artificial-intelligence/kagent-on-kubernetes-what-does-it-give-your-ai-platform-02050dc3aeff" target="_blank" rel="noopener">The long-form version →</a>
       </div>
     </div>
+    <div class="sitemap">
+      <div>
+        <h4><a href="./">Overview</a></h4>
+        <ul>
+        <li><a href="./#scope">Positioning</a></li>
+        <li><a href="./#stack">Open stack</a></li>
+        <li><a href="./#why">Why this way</a></li>
+        <li><a href="./#fleet">The fleet</a></li>
+        <li><a href="./#trust">Trust loop</a></li>
+        <li><a href="./#delivery">Delivery</a></li>
+        <li><a href="./#roadmap">Honest status</a></li>
+        <li><a href="./#writing">Written up</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="fleet.html">Fleet</a></h4>
+        <ul>
+        <li><a href="fleet.html#inventory">Live inventory</a></li>
+        <li><a href="fleet.html#tools">Tool layer</a></li>
+        <li><a href="fleet.html#models">Model access</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="evidence.html">Evidence</a></h4>
+        <ul>
+        <li><a href="evidence.html#identity">Identity</a></li>
+        <li><a href="evidence.html#truth">Truthfulness</a></li>
+        <li><a href="evidence.html#control">Human control</a></li>
+        <li><a href="evidence.html#failed">The one that failed</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="architecture.html" class="here">Architecture</a></h4>
+        <ul>
+        <li><a href="#boundary">The boundary</a></li>
+        <li><a href="#request">One request</a></li>
+        <li><a href="#fork">The fork</a></li>
+        <li><a href="#deployed">What's deployed</a></li>
+        </ul>
+      </div>
+    </div>
+
     <div class="foot-meta"><span>inventory captured 2026-10-09</span><span>·</span><span>kagent 0.10.0-rc1</span></div>
   </div>
 </footer>

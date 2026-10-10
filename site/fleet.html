@@ -33,18 +33,26 @@
   .note { font-size: 13.5px; color: var(--text-faint); margin-top: 16px; max-width: 74ch; }
 </style>
 
-<nav>
+<nav class="topnav">
   <div class="wrap">
     <a class="brand" href="./" style="color:inherit"><span class="led"></span>ARIA</a>
     <div class="navlinks">
       <a href="./">Overview</a>
-      <a href="fleet.html" style="color:var(--cyan)">Fleet</a>
+      <a href="fleet.html" aria-current="page">Fleet</a>
       <a href="evidence.html">Evidence</a>
       <a href="architecture.html">Architecture</a>
-      <a href="./#roadmap">Roadmap</a>
     </div>
+    <a class="nav-repo" href="https://github.com/guoxiangng/aria" target="_blank" rel="noopener">source ↗</a>
   </div>
 </nav>
+<div class="subnav">
+  <div class="wrap">
+    <span class="subnav-label">On this page</span>
+      <a href="#inventory">Live inventory</a>
+      <a href="#tools">Tool layer</a>
+      <a href="#models">Model access</a>
+  </div>
+</div>
 
 <header class="hero" style="padding:56px 0 44px">
   <div class="wrap">
@@ -60,7 +68,7 @@
 <main>
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="01">Live inventory</div>
+      <div class="sec-label" id="inventory" data-n="01">Live inventory</div>
       <div class="stat-row">
         <div class="stat"><div class="v">13</div><div class="k">agents running</div></div>
         <div class="stat"><div class="v">2</div><div class="k">BYO frameworks</div></div>
@@ -153,7 +161,7 @@
 
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="02">Tool layer</div>
+      <div class="sec-label" id="tools" data-n="02">Tool layer</div>
       <h2>Seven MCP servers, each with its own credential scope.</h2>
       <p class="lede">
         A tool call is a network call to a separate workload holding its own credential. So an agent's
@@ -185,7 +193,7 @@
 
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="03">Model access</div>
+      <div class="sec-label" id="models" data-n="03">Model access</div>
       <h2>Every declarative agent reaches its model through one in-cluster gateway.</h2>
       <p class="lede">
         Fleet-wide since September, and not by choice: the Azure OpenAI resource behind the original
@@ -232,6 +240,48 @@
         <a href="https://github.com/guoxiangng/aria">github.com/guoxiangng/aria</a>
       </div>
     </div>
+    <div class="sitemap">
+      <div>
+        <h4><a href="./">Overview</a></h4>
+        <ul>
+        <li><a href="./#scope">Positioning</a></li>
+        <li><a href="./#stack">Open stack</a></li>
+        <li><a href="./#why">Why this way</a></li>
+        <li><a href="./#fleet">The fleet</a></li>
+        <li><a href="./#trust">Trust loop</a></li>
+        <li><a href="./#delivery">Delivery</a></li>
+        <li><a href="./#roadmap">Honest status</a></li>
+        <li><a href="./#writing">Written up</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="fleet.html" class="here">Fleet</a></h4>
+        <ul>
+        <li><a href="#inventory">Live inventory</a></li>
+        <li><a href="#tools">Tool layer</a></li>
+        <li><a href="#models">Model access</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="evidence.html">Evidence</a></h4>
+        <ul>
+        <li><a href="evidence.html#identity">Identity</a></li>
+        <li><a href="evidence.html#truth">Truthfulness</a></li>
+        <li><a href="evidence.html#control">Human control</a></li>
+        <li><a href="evidence.html#failed">The one that failed</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="architecture.html">Architecture</a></h4>
+        <ul>
+        <li><a href="architecture.html#boundary">The boundary</a></li>
+        <li><a href="architecture.html#request">One request</a></li>
+        <li><a href="architecture.html#fork">The fork</a></li>
+        <li><a href="architecture.html#deployed">What's deployed</a></li>
+        </ul>
+      </div>
+    </div>
+
     <div class="foot-meta"><span>captured 2026-10-09</span><span>·</span><span>kagent 0.10.0-rc1</span></div>
   </div>
 </footer>

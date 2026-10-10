@@ -22,18 +22,27 @@
   .limits ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
 </style>
 
-<nav>
+<nav class="topnav">
   <div class="wrap">
     <a class="brand" href="./" style="color:inherit"><span class="led"></span>ARIA</a>
     <div class="navlinks">
       <a href="./">Overview</a>
       <a href="fleet.html">Fleet</a>
-      <a href="evidence.html" style="color:var(--cyan)">Evidence</a>
+      <a href="evidence.html" aria-current="page">Evidence</a>
       <a href="architecture.html">Architecture</a>
-      <a href="./#roadmap">Roadmap</a>
     </div>
+    <a class="nav-repo" href="https://github.com/guoxiangng/aria" target="_blank" rel="noopener">source ↗</a>
   </div>
 </nav>
+<div class="subnav">
+  <div class="wrap">
+    <span class="subnav-label">On this page</span>
+      <a href="#identity">Identity</a>
+      <a href="#truth">Truthfulness</a>
+      <a href="#control">Human control</a>
+      <a href="#failed">The one that failed</a>
+  </div>
+</div>
 
 <header class="hero" style="padding:56px 0 44px">
   <div class="wrap">
@@ -50,7 +59,7 @@
 <main>
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="01">Identity</div>
+      <div class="sec-label" id="identity" data-n="01">Identity</div>
 
       <div class="ev good">
         <div class="ev-tag"><span>Verified · enforced</span><span class="when">2026-07-30 · Istio 1.30.3 ambient · re-confirmed 2026-09-18</span></div>
@@ -109,7 +118,7 @@
 
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="02">Truthfulness</div>
+      <div class="sec-label" id="truth" data-n="02">Truthfulness</div>
       <div class="ev good">
         <div class="ev-tag"><span>Verified · caught a real failure</span><span class="when">2026-07-28 · first run of the groundedness rubric</span></div>
         <h3>The eval loop caught a confident false answer</h3>
@@ -145,7 +154,7 @@
 
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="03">Human control</div>
+      <div class="sec-label" id="control" data-n="03">Human control</div>
       <div class="ev good">
         <div class="ev-tag"><span>Verified · enforcement is physical</span><span class="when">2026-08-03 · agent cluster-remediation</span></div>
         <h3>A mutation was held until a human said yes</h3>
@@ -179,7 +188,7 @@
 
   <section>
     <div class="wrap">
-      <div class="sec-label" data-n="04">The one that failed</div>
+      <div class="sec-label" id="failed" data-n="04">The one that failed</div>
       <div class="ev bad">
         <div class="ev-tag"><span>Tested · claims did not hold</span><span class="when">2026-08-16 → 08-18 · kagent 0.10.0-rc1</span></div>
         <h3>Two isolation runtimes installed. Neither headline feature held up.</h3>
@@ -238,6 +247,48 @@
         <a href="https://github.com/guoxiangng/aria">github.com/guoxiangng/aria</a>
       </div>
     </div>
+    <div class="sitemap">
+      <div>
+        <h4><a href="./">Overview</a></h4>
+        <ul>
+        <li><a href="./#scope">Positioning</a></li>
+        <li><a href="./#stack">Open stack</a></li>
+        <li><a href="./#why">Why this way</a></li>
+        <li><a href="./#fleet">The fleet</a></li>
+        <li><a href="./#trust">Trust loop</a></li>
+        <li><a href="./#delivery">Delivery</a></li>
+        <li><a href="./#roadmap">Honest status</a></li>
+        <li><a href="./#writing">Written up</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="fleet.html">Fleet</a></h4>
+        <ul>
+        <li><a href="fleet.html#inventory">Live inventory</a></li>
+        <li><a href="fleet.html#tools">Tool layer</a></li>
+        <li><a href="fleet.html#models">Model access</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="evidence.html" class="here">Evidence</a></h4>
+        <ul>
+        <li><a href="#identity">Identity</a></li>
+        <li><a href="#truth">Truthfulness</a></li>
+        <li><a href="#control">Human control</a></li>
+        <li><a href="#failed">The one that failed</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4><a href="architecture.html">Architecture</a></h4>
+        <ul>
+        <li><a href="architecture.html#boundary">The boundary</a></li>
+        <li><a href="architecture.html#request">One request</a></li>
+        <li><a href="architecture.html#fork">The fork</a></li>
+        <li><a href="architecture.html#deployed">What's deployed</a></li>
+        </ul>
+      </div>
+    </div>
+
     <div class="foot-meta"><span>negative results included on purpose</span><span>·</span><span>dated, not permanent</span></div>
   </div>
 </footer>

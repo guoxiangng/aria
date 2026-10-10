@@ -503,3 +503,63 @@
   .foot-note { font-size: 13px; color: var(--text-faint); max-width: 46ch; margin-top: 8px; }
   .foot-links { display: flex; flex-direction: column; gap: 7px; font-family: var(--mono); font-size: 13px; }
   .foot-meta { margin-top: 30px; font-family: var(--mono); font-size: 11.5px; color: var(--text-faint); display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ============================================================
+   NAVIGATION — two strict levels.
+   Level 1 (nav.topnav)  = pages. Every item is a separate page.
+   Level 2 (.subnav)     = sections within the current page only.
+   Never mix the two in one bar.
+   ============================================================ */
+nav.topnav .wrap { gap: 18px; }
+.navlinks { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.navlinks::-webkit-scrollbar { display: none; }
+.navlinks a { white-space: nowrap; padding: 4px 0; border-bottom: 2px solid transparent; }
+.navlinks a[aria-current="page"] { color: var(--cyan); border-bottom-color: var(--cyan); }
+.nav-repo {
+  font-family: var(--mono); font-size: 12px; color: var(--text-faint);
+  white-space: nowrap; flex: 0 0 auto;
+}
+.nav-repo:hover { color: var(--cyan); text-decoration: none; }
+@media (max-width: 640px) {
+  .navlinks { display: flex; gap: 16px; }     /* keep page links on mobile */
+  .nav-repo { display: none; }
+}
+
+.subnav {
+  position: sticky; top: 56px; z-index: 19;
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border);
+}
+.subnav .wrap {
+  display: flex; align-items: center; gap: 20px;
+  height: 44px; overflow-x: auto; scrollbar-width: none;
+}
+.subnav .wrap::-webkit-scrollbar { display: none; }
+.subnav-label {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-faint); flex: 0 0 auto;
+}
+.subnav a {
+  font-size: 13px; color: var(--text-dim); white-space: nowrap; flex: 0 0 auto;
+}
+.subnav a:hover { color: var(--cyan); text-decoration: none; }
+@media (max-width: 640px) { .subnav-label { display: none; } }
+
+/* scroll-margin so sticky bars don't cover anchored headings */
+section[id], .sec-label[id] { scroll-margin-top: 108px; }
+
+/* ============================================================
+   FOOTER SITE MAP — the whole hierarchy, on every page.
+   ============================================================ */
+.sitemap {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 22px; padding: 28px 0 6px; border-top: 1px solid var(--border); margin-top: 30px;
+}
+.sitemap h4 { margin: 0 0 10px; font-size: 13px; font-family: var(--mono); font-weight: 600; }
+.sitemap h4 a { color: var(--text); }
+.sitemap h4 a:hover { color: var(--cyan); text-decoration: none; }
+.sitemap ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.sitemap li a { font-size: 12.5px; color: var(--text-faint); }
+.sitemap li a:hover { color: var(--cyan); text-decoration: none; }
+.sitemap .here { color: var(--cyan); }
