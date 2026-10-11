@@ -53,9 +53,9 @@
 </header>
 
 <main>
-  <section>
+  <section id="boundary">
     <div class="wrap">
-      <div class="sec-label" id="boundary" data-n="01">The boundary</div>
+      <div class="sec-label" data-n="01">The boundary</div>
       <h2>Seven layers, each split down the middle.</h2>
       <p class="lede">
         kagent does not own a clean bottom half of the stack. Every layer is divided, and the right-hand
@@ -71,8 +71,12 @@
         credential doing the work belongs to a separate workload — and <b>egress to the model provider</b>
         is traffic your platform has to permit, because an agent with no route to its model doesn't start.
       </p>
+    </div>
+  </section>
 
-      <div class="sec-label" id="request" data-n="02">One request</div>
+  <section id="request">
+    <div class="wrap">
+      <div class="sec-label" data-n="02">One request</div>
       <h2>A tool call is a network call. Delegation is the same shape.</h2>
       <p class="lede">
         The model↔agent cycle isn't kagent-specific; every framework has it. What matters operationally is
@@ -90,8 +94,12 @@
         the <b>absence of another function call</b>. That's also where cost and latency come from, and why
         neither is readable off a YAML file.
       </p>
+    </div>
+  </section>
 
-      <div class="sec-label" id="fork" data-n="03">The fork</div>
+  <section id="fork">
+    <div class="wrap">
+      <div class="sec-label" data-n="03">The fork</div>
       <h2>Declarative or BYO — and what BYO actually costs.</h2>
       <p class="lede">
         <code>spec.type</code> is an enum with exactly two values. The real choice isn't "who writes the
@@ -112,9 +120,9 @@
     </div>
   </section>
 
-  <section>
+  <section id="deployed">
     <div class="wrap">
-      <div class="sec-label" id="deployed" data-n="04">What's actually deployed</div>
+      <div class="sec-label" data-n="04">What's actually deployed</div>
       <h2>Fourteen namespaces, forty-eight deployments.</h2>
       <p class="lede">
         The agents are the visible part. Most of what makes them operable is everything around them —
@@ -132,7 +140,20 @@
         <div class="ns"><div class="nsn">arc-systems · arc-runners</div><div class="nsd">Self-hosted ephemeral CI runners, in-cluster</div></div>
         <div class="ns"><div class="nsn">aria-agents-dev · aria-demo</div><div class="nsd">Dev and demo surfaces</div></div>
       </div>
-      <div class="sec-label" id="state" data-n="05" style="margin-top:46px">State &amp; memory</div>
+      <div class="sec-label" data-n="04b">Deploy layers</div>
+      <p class="cap" style="margin-top:22px">
+        <b>The test that decides where anything goes:</b> if the cluster were deleted and
+        <code>terraform apply</code> re-ran with ArgoCD syncing from git, would this come back exactly,
+        with no manual step? If not, it's in the wrong place. Two <em>principled</em> narrowings live in
+        Terraform rather than ArgoCD — the irreducible bootstrap kernel, since ArgoCD can't deploy
+        ArgoCD, and secret <em>material</em> generation, since a public repo can't hold values.
+      </p>
+    </div>
+  </section>
+
+  <section id="state">
+    <div class="wrap">
+      <div class="sec-label" data-n="05">State &amp; memory</div>
       <h2>Two kinds of memory, and one of them depends on identity.</h2>
       <p class="lede">
         The conversation isn't held in the application. kagent's own Postgres is the backing store, and
@@ -161,8 +182,12 @@
         separately. Enabling it also needed an image swap: the chart's bundled Postgres cannot install
         pgvector at all, so the flag alone crash-loops the controller.
       </p>
+    </div>
+  </section>
 
-      <div class="sec-label" id="upgrades" data-n="06" style="margin-top:46px">Upgrades</div>
+  <section id="upgrades">
+    <div class="wrap">
+      <div class="sec-label" data-n="06">Upgrades</div>
       <h2>Who owns what when the control plane moves.</h2>
       <p class="lede">
         This platform has taken a real kagent upgrade — 0.9.10 → 0.10.0-rc1 — on a live fleet, which
@@ -190,15 +215,6 @@
         advanced <code>observedGeneration</code> to claim it had reconciled while the rendered Secret the
         pod actually reads still held the previous delegate list. <em>Status reporting success while the
         derived artifact is stale</em> is the same silent-failure class this platform exists to catch.
-      </p>
-
-      <div class="sec-label" data-n="07" style="margin-top:46px">Deploy layers</div>
-      <p class="cap" style="margin-top:22px">
-        <b>The test that decides where anything goes:</b> if the cluster were deleted and
-        <code>terraform apply</code> re-ran with ArgoCD syncing from git, would this come back exactly,
-        with no manual step? If not, it's in the wrong place. Two <em>principled</em> narrowings live in
-        Terraform rather than ArgoCD — the irreducible bootstrap kernel, since ArgoCD can't deploy
-        ArgoCD, and secret <em>material</em> generation, since a public repo can't hold values.
       </p>
     </div>
   </section>
