@@ -40,6 +40,7 @@
       <a href="#identity">Identity</a>
       <a href="#truth">Truthfulness</a>
       <a href="#control">Human control</a>
+      <a href="#cost">Cost & blast radius</a>
       <a href="#failed">The one that failed</a>
   </div>
 </div>
@@ -188,7 +189,65 @@
 
   <section>
     <div class="wrap">
-      <div class="sec-label" id="failed" data-n="04">The one that failed</div>
+      <div class="sec-label" id="cost" data-n="04">Cost &amp; blast radius</div>
+
+      <div class="ev good">
+        <div class="ev-tag"><span>Measured · before and after</span><span class="when">2026-09-26 · LiteLLM gateway, all Bedrock</span></div>
+        <h3>A budget cap that accepted every config and enforced nothing</h3>
+        <p>
+          Caps are configured per deployment (<code>max_budget</code> + <code>budget_duration</code>).
+          The "before" half is the interesting one — this was measured, not assumed:
+        </p>
+        <div class="term">
+<span class="c-dim"># without a database</span>
+cap = <span class="c-cyan">$0.000001/day</span> · 4 calls · <span class="c-bad">none blocked</span>
+  same outcome for router_settings.provider_budget_config, and for rpm: 1
+  <span class="c-dim">→ every shape accepted the config and enforced nothing</span>
+
+<span class="c-dim"># with Postgres</span>
+call 1 <span class="c-good">answered</span> · calls 2-4 <span class="c-good">HTTP 429</span>
+  "No deployments available - crossed budget: Exceeded budget for
+   deployment model_name: nova-micro ... 4.662e-06"
+        </div>
+        <p style="margin-top:14px">
+          Upstream says so plainly in its own source —
+          <code>proxy_server.py::_warn_budget_without_db</code>: <em>"the budget will NOT be enforced and
+          requests will never be blocked. Set DATABASE_URL"</em>. Nothing in the running system hinted
+          otherwise. <strong>A config key being accepted is not the same as a control existing</strong> —
+          the same shape as the sandbox allow-list below, found independently a month apart.
+        </p>
+      </div>
+
+      <div class="ev good">
+        <div class="ev-tag"><span>Proven by kill test</span><span class="when">2026-09-26</span></div>
+        <h3>A provider vanishing is now a degradation, not an outage</h3>
+        <p>
+          Four of six tiers fall back to a <em>different model family</em> on the first hop. Rather than
+          assert that, a route was pointed at a deliberately non-existent Bedrock profile — standing in
+          for the Azure resource that was deleted on 18 September — and the request was
+          <strong>served by <code>nova-micro</code> instead of failing</strong>.
+        </p>
+        <p>
+          That outage is the reason this exists. When Azure disappeared, four agents died and seven more
+          broke, and it took six days to notice the built-ins were still pointing at the dead resource
+          while reporting <code>Ready: True</code>. With fallbacks in place it would have been a quality
+          drop. A second model family is what gives fallbacks somewhere to go that isn't the same vendor.
+        </p>
+        <div class="limits">
+          <b>Two measured results that cut against the pitch</b>
+          <ul>
+            <li><strong>Routing correctly costs more, not less.</strong> A 30-prompt eval put the LLM classifier at 27/30 — but correct routing came out at <strong>1.8× the cost</strong> of not routing. The cheap-model saving does not pay for the classifier call at this fleet's mix.</li>
+            <li><strong>The first router escalated nothing.</strong> A heuristic classifier was measured before the LLM one and never escalated a single prompt — it would have silently sent everything to the cheap tier and looked like a saving.</li>
+            <li><strong>Still open:</strong> all 11 agents share one master key, so at the gateway they are indistinguishable and equally privileged. Per-agent virtual keys are next — the Postgres added here is their prerequisite.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-label" id="failed" data-n="05">The one that failed</div>
       <div class="ev bad">
         <div class="ev-tag"><span>Tested · claims did not hold</span><span class="when">2026-08-16 → 08-18 · kagent 0.10.0-rc1</span></div>
         <h3>Two isolation runtimes installed. Neither headline feature held up.</h3>
@@ -255,8 +314,7 @@
         <li><a href="./#stack">Open stack</a></li>
         <li><a href="./#why">Why this way</a></li>
         <li><a href="./#fleet">The fleet</a></li>
-        <li><a href="./#trust">Trust loop</a></li>
-        <li><a href="./#delivery">Delivery</a></li>
+        <li><a href="./#trust">How trust works</a></li>
         <li><a href="./#roadmap">Honest status</a></li>
         <li><a href="./#writing">Written up</a></li>
         </ul>
@@ -275,6 +333,7 @@
         <li><a href="#identity">Identity</a></li>
         <li><a href="#truth">Truthfulness</a></li>
         <li><a href="#control">Human control</a></li>
+        <li><a href="#cost">Cost & blast radius</a></li>
         <li><a href="#failed">The one that failed</a></li>
         </ul>
       </div>
@@ -285,6 +344,8 @@
         <li><a href="architecture.html#request">One request</a></li>
         <li><a href="architecture.html#fork">The fork</a></li>
         <li><a href="architecture.html#deployed">What's deployed</a></li>
+        <li><a href="architecture.html#state">State & memory</a></li>
+        <li><a href="architecture.html#upgrades">Upgrades</a></li>
         </ul>
       </div>
     </div>

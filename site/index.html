@@ -20,8 +20,7 @@
       <a href="#stack">Open stack</a>
       <a href="#why">Why this way</a>
       <a href="#fleet">The fleet</a>
-      <a href="#trust">Trust loop</a>
-      <a href="#delivery">Delivery</a>
+      <a href="#trust">How trust works</a>
       <a href="#roadmap">Honest status</a>
       <a href="#writing">Written up</a>
   </div>
@@ -257,88 +256,66 @@
   <!-- TRUST / PROOF -->
   <section id="trust">
     <div class="wrap">
-      <div class="sec-label" data-n="05">The trust loop</div>
-      <h2>An LLM answers with a 200 OK whether it's right or wrong. So we check.</h2>
+      <div class="sec-label" data-n="05">How trust works</div>
+      <h2>Three controls, each enforced by a different layer.</h2>
       <p class="lede">
-        Every agent answer is graded not on whether it <em>sounds</em> right, but on whether its
-        claims trace back to the tool calls it actually made — a groundedness gate, wired into CI.
-        It isn't theoretical. On its first real run it caught a genuine bug:
+        An agent is only as trustworthy as the constraints around it: what it can reach, whether its
+        answers are true, and what it is allowed to change. None of those is a prompt instruction here —
+        each is enforced somewhere the model cannot argue with.
       </p>
-      <div class="proof">
-        <div class="p-tag">Caught in eval · fixed · verified</div>
-        <h3>A "read-only" agent confusing its own name for a namespace</h3>
-        <p>
-          The diagnostics agent reported a connectivity check as failed — and its answer matched
-          what the tool returned, so a text-only check would have passed it. But the grounded
-          check saw <em>how</em> it called the tool:
-        </p>
-        <div class="term">
-<span class="c-dim"># what the agent actually invoked</span>
-k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnostics"</span>, ...})
-<span class="c-dim"># ↑ that namespace doesn't exist — it passed its own agent name.</span>
-<span class="c-dim">#   the "failure" was a false negative, reported with full confidence.</span>
-
-<span class="c-good">→ root cause: its prompt never told it which namespace it runs in.</span>
-<span class="c-cyan">→ one-line fix, re-run, confirmed green.</span>
+      <div class="values">
+        <div class="value">
+          <div class="vnum">01 · can it reach you</div>
+          <h3>Identity, at the mesh</h3>
+          <p>
+            Every agent runs as its own ServiceAccount, so Istio ambient mints it a distinct SPIFFE
+            identity and all agent-to-agent traffic is mTLS. An <code>AuthorizationPolicy</code> per
+            agent turns "reachable" into "authorized" — and because an <code>ALLOW</code> policy makes
+            its target default-deny, anything not named is refused at L4 before the request reaches the
+            application.
+            <br><br><b>Stack:</b> Istio ambient · ztunnel · SPIFFE · AuthorizationPolicy.
+          </p>
+        </div>
+        <div class="value">
+          <div class="vnum">02 · is it telling the truth</div>
+          <h3>Evidence-graded evals, in CI</h3>
+          <p>
+            kagent returns the full trajectory of a request — every tool call, its arguments, and what
+            each returned. A transform lifts that out of the response and hands it to the judge
+            <em>alongside</em> the final answer, so the rubric is "does the evidence support this claim",
+            not "does this read as confident". A claim the tool output contradicts fails.
+            <br><br><b>Stack:</b> promptfoo · trajectory transform · Langfuse for scores · runs in CI.
+          </p>
+        </div>
+        <div class="value">
+          <div class="vnum">03 · what may it change</div>
+          <h3>Tiering, then an approval gate</h3>
+          <p>
+            Most agents hold no mutating tool at all — the capability is absent, not discouraged. The one
+            agent that can change the cluster is restricted to reversible tools, and each of those is
+            listed in <code>requireApproval</code>, so the call is physically held as an
+            <code>input-required</code> task until a human resumes it over the protocol.
+            <br><br><b>Stack:</b> per-tier <code>toolNames</code> · <code>requireApproval</code> · A2A resume.
+          </p>
+        </div>
+        <div class="value">
+          <div class="vnum">04 · where it stops</div>
+          <h3>What none of this covers</h3>
+          <p>
+            Identity authorizes <em>who</em> calls, not which method they invoke — that is L4. The eval
+            judge is itself a model. And approval gates the agent's <em>intent</em> while the tool server
+            executing the work still holds a broad credential. Those are the real edges, and they are
+            named rather than papered over.
+            <br><br><b>Next:</b> least-privilege RBAC for the tool server; admission policy at deploy time.
+          </p>
         </div>
       </div>
+      <p class="fleet-note">
+        Each of these was tested rather than assumed — the commands, the real output, and what each does
+        <em>not</em> prove are on the <a href="evidence.html">evidence page</a>.
+      </p>
     </div>
   </section>
-
-  <!-- SIGNATURE CAPABILITY -->
-  <section id="delivery">
-    <div class="wrap">
-      <div class="sec-label" data-n="06">Signature capability</div>
-      <div class="signature">
-        <span class="sig-badge">Design target · not yet wired end to end</span>
-        <h3>Eval-gated progressive delivery</h3>
-        <p>
-          Where this is heading: the trust loop and the deployment pipeline become the same loop. A new
-          agent version canary-deploys to a slice of real traffic; its groundedness scores are measured
-          live; it promotes only if it holds the bar, and rolls back if it doesn't — no human watching a
-          dashboard at 3am to make the call.
-        </p>
-        <p>
-          <b>Honest status:</b> one half of this exists. The eval gate grades groundedness in CI today.
-          The delivery half doesn't — Argo Rollouts isn't installed on the cluster, so there's no canary to
-          measure and no promotion to gate. Both the progressive-delivery mechanism and the join to the eval
-          score are still ahead, not shipped.
-        </p>
-        <div class="pipeline">
-          <div class="pstep">
-            <div class="ps-i">01 · git</div>
-            <div class="ps-t">New version</div>
-            <div class="ps-d">Agent change merged, ArgoCD syncs it</div>
-          </div>
-          <div class="parrow">→</div>
-          <div class="pstep">
-            <div class="ps-i">02 · rollout</div>
-            <div class="ps-t">Canary slice</div>
-            <div class="ps-d">Argo Rollouts routes a fraction of traffic</div>
-          </div>
-          <div class="parrow">→</div>
-          <div class="pstep decision">
-            <div class="ps-i">03 · measure</div>
-            <div class="ps-t">Eval on live traffic</div>
-            <div class="ps-d">Groundedness scored against real tool evidence</div>
-          </div>
-          <div class="parrow">→</div>
-          <div class="fork">
-            <div class="pstep promote">
-              <div class="ps-i">04a · holds bar</div>
-              <div class="ps-t">↑ Promote</div>
-            </div>
-            <div class="pstep rollback">
-              <div class="ps-i">04b · drops</div>
-              <div class="ps-t">↩ Roll back</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ROADMAP -->
   <section id="roadmap">
     <div class="wrap">
       <div class="sec-label" data-n="07">Honest status</div>
@@ -445,8 +422,7 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
         <li><a href="#stack">Open stack</a></li>
         <li><a href="#why">Why this way</a></li>
         <li><a href="#fleet">The fleet</a></li>
-        <li><a href="#trust">Trust loop</a></li>
-        <li><a href="#delivery">Delivery</a></li>
+        <li><a href="#trust">How trust works</a></li>
         <li><a href="#roadmap">Honest status</a></li>
         <li><a href="#writing">Written up</a></li>
         </ul>
@@ -465,6 +441,7 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
         <li><a href="evidence.html#identity">Identity</a></li>
         <li><a href="evidence.html#truth">Truthfulness</a></li>
         <li><a href="evidence.html#control">Human control</a></li>
+        <li><a href="evidence.html#cost">Cost & blast radius</a></li>
         <li><a href="evidence.html#failed">The one that failed</a></li>
         </ul>
       </div>
@@ -475,6 +452,8 @@ k8s_check_service_connectivity({<span class="c-bad">"namespace":"cluster-diagnos
         <li><a href="architecture.html#request">One request</a></li>
         <li><a href="architecture.html#fork">The fork</a></li>
         <li><a href="architecture.html#deployed">What's deployed</a></li>
+        <li><a href="architecture.html#state">State & memory</a></li>
+        <li><a href="architecture.html#upgrades">Upgrades</a></li>
         </ul>
       </div>
     </div>
