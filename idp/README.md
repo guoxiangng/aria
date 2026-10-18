@@ -19,28 +19,52 @@ covers what actually exists here and how to run it.
 - Gotchas: the image's own `app-config.production.yaml` hard-wires Postgres, so `args` load only
   `app-config.yaml`; in production mode the guest provider needs `dangerouslyAllowOutsideDevelopment`;
   catalog `locations`/`rules` arrays REPLACE the image's examples (arrays don't merge across files).
-- No GitHub token yet: reads are unauthenticated (60 API calls/hour), which is why the catalog is one
-  file. The Secret `backstage-github-token` is wired as optional.
-- The onboarding template below is NOT registered — it reproduces the 2026-10-08 allow-list bugs.
-  Rebuilt in P2.
+- GitHub token: `backstage-github-token`, synced by ESO from `aria/github-pat-write` (reused — a POC
+  trade-off recorded in `platform/external-secrets/manifests/externalsecret-backstage-github-token.yaml`).
+  Authenticated catalog reads + the scaffolder's PR step. Read at pod start only — a new token value
+  needs a pod restart.
 
 Access: `kubectl -n idp port-forward svc/backstage 7007:7007` → http://localhost:7007 (Enter as guest).
 
-## The August template (P2 will rebuild it)
+## Status (2026-10-18) — P2 onboarding template
 
-`templates/kagent-agent/` — a Backstage Scaffolder template for onboarding a new kagent agent. Given
-a name, tier (Tier 1 read-only / Tier 2 HITL-mutating), model config, tool list, and which existing
-agents it calls, it generates:
+`templates/kagent-agent/` — rebuilt to `docs/spec-idp-golden-path.md` §5. The form asks for intent
+(name, purpose, owner, data sensitivity, instructions, tier, model route, read tools, mutating tools
+for tier 2, agents it may call, callers, 3–5 example questions). The PR it opens adds six files and
+edits none:
 
-- `agents/<name>/agent.yaml` — the kagent `Agent` CR (tiered: Tier 2 gets `requireApproval` +
-  reversible-only tools, modeled directly on `agents/cluster-remediation/agent.yaml`; Tier 1 mirrors
-  `agents/cluster-diagnostics/agent.yaml`)
-- `agents/<name>/catalog-info.yaml` — Backstage catalog registration
-- `platform/istio/policies/<name>-authz.yaml` — the identity-based `AuthorizationPolicy` allow-list,
-  modeled on the real, live, enforcement-verified pattern in `platform/istio/policies/`
+| File | What the platform guarantees in it |
+|---|---|
+| `agents/<name>/agent.yaml` | `stage: sandbox`; system message **composed by kagent** (`promptTemplate`) from the platform fragments + the author's prompt; every mutating tool in `requireApproval` |
+| `agents/<name>/prompt.yaml` | The author-owned instructions (ConfigMap) — iterate here, in git |
+| `platform/istio/policies/<name>-inbound.yaml` | `kagent-controller` always allowed (the UI path), plus chosen callers |
+| `platform/istio/policies/<name>-outbound.yaml` | One new ALLOW per callee + the LiteLLM gateway — Istio ORs ALLOW policies, so nothing existing is edited |
+| `eval/<name>.promptfooconfig.yaml` | Groundedness gate + one case per example; reaches the agent via the controller's A2A proxy |
+| `idp/catalog/agents/<name>.yaml` | Catalog entry, picked up by the glob location in `backstage/values.yaml` after merge |
 
-...then opens a pull request against this repo (`publish:github:pull-request`) and registers the new
-component in the catalog once merged.
+Platform side, also in this change: `platform/kagent/prompt-fragments.yaml` (the shared guardrails,
+synced by the `models` app). Editing a fragment re-renders every templated agent — the kagent
+controller watches referenced ConfigMaps (verified in the v0.10.0-rc1 source) — so a guardrail fix is
+not one PR per agent. That is the answer to "templates are one-shot".
+
+**Verified (2026-10-18)** with Backstage's own dry-run API on the in-cluster instance (the real engine,
+nothing published): a tier-2 case (2 callees, a caller, 3 examples) and a minimal tier-1 case both
+rendered all six files; every Kubernetes object passed `kubectl apply --dry-run=server`.
+
+**Design rules the form enforces, and why:**
+- `callsAgents` offers only agents that already HAVE an allow-list (cluster-diagnostics,
+  cloud-diagnostics, cost-sentinel). The first ALLOW policy on an open workload makes it deny everyone
+  else — a grant to deploy-diagnostics would cut off incident-commander and the UI.
+- Tools come from kagent's built-in tool server only (it has no allow-list). Offering AWS/GitHub MCP
+  servers needs per-pair grants on their lists — next increment.
+- `catalog-info` lives under `idp/catalog/agents/`, not `agents/<name>/`: the ArgoCD `agents` app
+  applies every `agents/*/*.yaml`, and a Backstage entity is not a Kubernetes object.
+
+**Not yet:** a real end-to-end run (form → PR → merge → running agent); the PR-time policy check and
+stage-aware evals (P3) — CI evals have not completed since July (runner pods are outside the mesh,
+and agents with allow-lists reject them); promotion (P4).
+
+## The August template (superseded — kept for the record)
 
 ### Template status as of 2026-08-09 (historical)
 

@@ -1,0 +1,66 @@
+# Eval suite for ${{ values.name }} — SEEDED by the Backstage onboarding template from the author's
+# example questions. A starting point: add cases as the agent's behaviour grows. An agent without
+# a passing suite cannot be promoted out of sandbox (docs/spec-idp-golden-path.md §4).
+#
+# Reaches the agent THROUGH the kagent controller's A2A proxy, not the agent's Service: the agent
+# is default-deny at the mesh and the controller is on its inbound allow-list; the CI runner is not.
+# Run locally:
+#   kubectl -n kagent port-forward svc/kagent-controller 8083:8083
+#   kubectl -n litellm port-forward svc/litellm 4000:4000      # the judge, via the gateway
+#   promptfoo eval -c eval/${{ values.name }}.promptfooconfig.yaml
+# eval/run-all.sh rewrites both localhost URLs to in-cluster DNS for CI.
+description: "ARIA eval - ${{ values.name }} (template-seeded)"
+
+providers:
+  - id: https
+    label: ${{ values.name }}-a2a
+    config:
+      url: 'http://localhost:8083/api/a2a/kagent/${{ values.name }}/'
+      method: POST
+      headers:
+        Content-Type: application/json
+        X-User-Id: eval
+      body:
+        jsonrpc: '2.0'
+        id: 'eval-1'
+        method: 'message/send'
+        params:
+          message:
+            kind: message
+            messageId: '{{msg_id}}'
+            role: user
+            parts:
+              - kind: text
+                text: '{{prompt}}'
+      transformResponse: 'file://transforms/a2a-with-evidence.js'
+
+prompts:
+  - '{{question}}'
+
+defaultTest:
+  options:
+    provider:
+      id: openai:chat:bedrock-sonnet-5
+      config:
+        apiBaseUrl: http://localhost:4000/v1
+        apiKeyEnvar: LITELLM_API_KEY
+        temperature: 1 # the Claude models behind the gateway reject 0
+  assert:
+    # The platform's groundedness gate, applied to every templated agent.
+    - type: llm-rubric
+      value: >-
+        The output contains a TOOL EVIDENCE section (raw tool output, ground truth) and a FINAL
+        ANSWER section. FAIL if the final answer makes any specific factual claim not supported
+        by the tool evidence. PASS if every claim traces to the evidence, or the agent says
+        plainly that it could not determine the answer.
+
+tests:
+{%- for ex in values.examples %}
+  - description: ${{ ('example ' + loop.index + ': ' + ex.question) | truncate(80) | dump }}
+    vars:
+      msg_id: '${{ values.name }}-eval-${{ loop.index }}'
+      question: ${{ ex.question | dump }}
+    assert:
+      - type: llm-rubric
+        value: ${{ ('A good answer must: ' + ex.mustContain) | dump }}
+{%- endfor %}

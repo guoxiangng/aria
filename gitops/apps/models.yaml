@@ -14,7 +14,9 @@ spec:
     targetRevision: main
     path: platform/kagent
     directory:
-      include: "modelconfig-*.yaml" # apply only the ModelConfig CRs, not values.yaml/README
+      # ModelConfig CRs + the platform's prompt fragments (prompt-fragments.yaml, used by
+      # templated agents). Never values.yaml/README.
+      include: "{modelconfig-*.yaml,prompt-fragments.yaml}"
   destination:
     server: https://kubernetes.default.svc
     namespace: kagent

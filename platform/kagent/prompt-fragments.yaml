@@ -1,0 +1,46 @@
+# Platform-owned prompt fragments — the guardrail half of every templated agent's system message.
+#
+# An agent created by the Backstage onboarding template (idp/templates/kagent-agent/) composes
+# its system message as: these fragments + the author's own instructions (agents/<name>/prompt.yaml).
+# kagent does the composing: spec.declarative.promptTemplate lists this ConfigMap as a data source
+# (alias `platform`) and the systemMessage calls {{ include "platform/<key>" }}.
+#
+# WHY A SHARED CONFIGMAP AND NOT TEXT COPIED INTO EACH AGENT: a scaffolder template is one-shot —
+# fix the template and every agent it already generated keeps the old text. Here, the kagent
+# controller watches ConfigMaps an Agent references and re-renders them (verified in the
+# v0.10.0-rc1 source: agent_controller.go registers a configMap dependency watch;
+# translator/agent/template.go renders at reconcile). So editing a key below changes every
+# templated agent's prompt on the next sync, with no PR per agent.
+#
+# Rules for editing: fragments are inserted as PLAIN TEXT (no nested templating — {{ }} here is
+# not evaluated). A missing key fails the referencing agent's reconcile loudly, so never rename a
+# key without updating the template and every agent that includes it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aria-prompt-fragments
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+data:
+  base: |
+    You run as a pod in the `kagent` namespace of the EKS cluster `aria`. When a tool asks for
+    "your" namespace, that value is `kagent` — never guess it from a service or agent name in
+    the question.
+
+    Cite what you actually observed (resource name, event message, log line). Never assert
+    something you have not seen in a tool result. If the evidence is insufficient, say so
+    plainly rather than guessing.
+  tier1-readonly: |
+    You are diagnostic-only. If asked to fix or change something, explain what the fix would be
+    and stop — you have no tools that change anything, and must not claim otherwise.
+  tier2-approval: |
+    You may change things ONLY through your listed mutating tools, and every call to one pauses
+    for explicit human approval. A rejection is the system working, not an error.
+
+    Before any change: diagnose with read tools, choose the MINIMAL reversible action, and state
+    what you will do, to which exact resource, and why. After it runs, verify the outcome and
+    report it honestly. Never claim you changed something you did not.
+
+    Honest limitation: your mutating tools execute through the kagent-tools ServiceAccount, which
+    is currently cluster-admin. Approval gates your INTENT, not the executor's authority.

@@ -59,12 +59,23 @@ backstage:
       rules:
         - allow: [Component, System, Resource, Group, Location]
       locations:
+        # The existing fleet, tools and model routes (P1).
         - type: url
           target: https://github.com/guoxiangng/aria/blob/main/idp/catalog/all.yaml
           rules:
             - allow: [Component, System, Resource, Group]
-      # The onboarding template is deliberately NOT registered yet: it reproduces the 2026-10-08
-      # allow-list bugs (docs/spec-backstage-idp-integration.md banner). It returns in P2, rebuilt.
+        # Agents created by the onboarding template — one file each, picked up by glob once their
+        # PR merges. A glob, not catalog:register, because the database is in-memory: a registered
+        # location would vanish on the next pod restart; a configured one cannot.
+        - type: url
+          target: https://github.com/guoxiangng/aria/blob/main/idp/catalog/agents/*.yaml
+          rules:
+            - allow: [Component]
+        # The onboarding template itself (P2, rebuilt 2026-10-18 per docs/spec-idp-golden-path.md).
+        - type: url
+          target: https://github.com/guoxiangng/aria/blob/main/idp/templates/kagent-agent/template.yaml
+          rules:
+            - allow: [Template]
 
   extraEnvVars:
     - name: GITHUB_TOKEN

@@ -29,6 +29,8 @@ else
   exit 2
 fi
 
+# localhost:8083 is the kagent controller's A2A proxy — how template-seeded evals reach their agent
+# (idp/templates/kagent-agent/). One rule for every templated agent, so no per-agent port here.
 for f in *.promptfooconfig.yaml; do
   sed -i \
     -e 's#http://localhost:18180/#http://cluster-diagnostics.kagent:8080/#' \
@@ -40,6 +42,7 @@ for f in *.promptfooconfig.yaml; do
     -e 's#http://localhost:18186/#http://cluster-remediation.kagent:8080/#' \
     -e 's#http://localhost:18187/#http://infra-author.kagent:8080/#' \
     -e 's#http://localhost:4000/v1#http://litellm.litellm.svc.cluster.local:4000/v1#' \
+    -e 's#http://localhost:8083/#http://kagent-controller.kagent:8083/#' \
     "$f"
 done
 

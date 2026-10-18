@@ -1,0 +1,16 @@
+# ${{ values.name }}'s own instructions — AUTHOR-OWNED. This is the agent's behaviour: edit it here,
+# in a PR, like code. The Backstage form only seeded it.
+#
+# kagent wraps this with the platform guardrails (platform/kagent/prompt-fragments.yaml) — you
+# do not need to repeat the namespace, evidence or approval rules. Plain text only: {{ }} in
+# here is NOT evaluated.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${{ values.name }}-prompt
+  namespace: kagent
+  labels:
+    app.kubernetes.io/part-of: aria
+data:
+  instructions: |
+    ${{ values.instructions | trim | indent(4) }}
