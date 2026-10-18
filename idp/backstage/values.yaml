@@ -1,0 +1,102 @@
+# Backstage IDP — values for the upstream chart (backstage/charts, pinned in gitops/apps/backstage.yaml).
+# Design: docs/spec-idp-golden-path.md (P1 = catalog). Live state: idp/README.md.
+#
+# Image: the UPSTREAM example app, not a custom build. It already carries what the POC needs —
+# catalog, scaffolder + the GitHub module (publish:github:pull-request), guest sign-in — so nothing
+# has to be compiled (the August local build fought Windows/node-gyp/yarn drift; see idp/README.md).
+# Verified in the image 2026-10-18: backend-defaults 0.18.0, scaffolder-backend 4.2.0.
+# Trade-off accepted: it is a demo image, upgraded by digest bump only, no plugins of our own.
+
+backstage:
+  image:
+    registry: ghcr.io
+    repository: backstage/backstage
+    # Pinned by digest (the chart's default is a mutable :latest). Built 2026-09-25.
+    digest: "sha256:68f2025a3f2774e04d58a65a948ccd04a93ddab7b7977be850e9df6d3beae6e3"
+
+  # The image's own CMD loads app-config.yaml + app-config.production.yaml. The production file
+  # hard-wires `client: pg` with ${POSTGRES_*} env vars, and there is no Postgres in the POC. So
+  # load ONLY the base file (in-memory SQLite, guest provider) — the chart then appends
+  # `--config app-config-from-configmap.yaml` (appConfig below), and later files win.
+  args:
+    - "--config"
+    - "app-config.yaml"
+
+  appConfig:
+    app:
+      title: ARIA developer portal
+      # Reached by port-forward only (no ingress), so the browser URL is localhost. Must match what
+      # the browser uses, or CORS/CSP block the UI. See COMMANDS.md.
+      baseUrl: http://localhost:7007
+    organization:
+      name: ARIA
+    backend:
+      baseUrl: http://localhost:7007
+      listen:
+        port: 7007
+      # In-memory SQLite (inherited from the image's app-config.yaml, restated so it is visible
+      # here). The catalog rebuilds from git on restart; only scaffolder run history is lost.
+      database:
+        client: better-sqlite3
+        connection: ":memory:"
+    auth:
+      providers:
+        guest:
+          # The image runs NODE_ENV=production, where the guest provider refuses to start without
+          # this (verified in plugin-auth-backend-module-guest-provider's source). POC only — SSO
+          # is out of scope per the spec.
+          dangerouslyAllowOutsideDevelopment: true
+    integrations:
+      github:
+        - host: github.com
+          # Optional until the read-only token lands (Secret below is optional). Without it, reads
+          # are unauthenticated and capped at 60 GitHub API calls/hour — enough for one catalog
+          # file, not for much more.
+          token: ${GITHUB_TOKEN}
+    catalog:
+      # Arrays replace, not merge, across config files — these REPLACE the image's example
+      # locations and rules entirely.
+      rules:
+        - allow: [Component, System, Resource, Group, Location]
+      locations:
+        - type: url
+          target: https://github.com/guoxiangng/aria/blob/main/idp/catalog/all.yaml
+          rules:
+            - allow: [Component, System, Resource, Group]
+      # The onboarding template is deliberately NOT registered yet: it reproduces the 2026-10-08
+      # allow-list bugs (docs/spec-backstage-idp-integration.md banner). It returns in P2, rebuilt.
+
+  extraEnvVars:
+    - name: GITHUB_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: backstage-github-token
+          key: GITHUB_TOKEN
+          optional: true
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1536Mi
+
+  # Node backend start-up is slow (bundle load + catalog init) — a startup probe instead of a long
+  # initialDelay, so a hung start is still caught.
+  startupProbe:
+    httpGet:
+      path: /.backstage/health/v1/liveness
+      port: 7007
+    periodSeconds: 10
+    failureThreshold: 30
+  readinessProbe:
+    httpGet:
+      path: /.backstage/health/v1/readiness
+      port: 7007
+    periodSeconds: 10
+  livenessProbe:
+    httpGet:
+      path: /.backstage/health/v1/liveness
+      port: 7007
+    periodSeconds: 20

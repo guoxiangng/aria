@@ -1,9 +1,32 @@
 # idp/ — the Backstage self-service front door
 
-Full design + status: `docs/spec-backstage-idp-integration.md`. This README covers what actually
-exists here and how to run it.
+Design: `docs/spec-idp-golden-path.md` (the golden-path brief, 2026-10-11) — supersedes the scope of
+`docs/spec-backstage-idp-integration.md`, which stays the record for template mechanics. This README
+covers what actually exists here and how to run it.
 
-## What's here
+## Status (2026-10-18) — P1 catalog
+
+- `backstage/values.yaml` — Backstage on EKS via ArgoCD (`gitops/apps/backstage.yaml`, upstream chart
+  2.10.2, upstream image pinned by digest), namespace `idp`, one pod, in-memory SQLite, guest sign-in.
+  Nothing built: the upstream example image already carries the catalog, scaffolder + GitHub module
+  and guest provider (verified in-image: backend-defaults 0.18.0, scaffolder-backend 4.2.0).
+- `catalog/all.yaml` — 27 entities: system `aria`, group `platform-team`, the gateway + 4 model
+  configs, 7 MCP servers, 13 agents. Seeded from the live CRs. Each agent carries an eval-coverage
+  tag (`evals` / `no-evals` / `eval-known-unevaluable`) — the first scorecard signal: 7 have suites,
+  5 have none, incident-commander is known-unevaluable.
+- Verified locally before deploy, same image + the chart-rendered config: ready in ~12 s, 27 entities
+  ingested with zero validation errors, relations resolved, ~485 MiB at idle.
+- Gotchas: the image's own `app-config.production.yaml` hard-wires Postgres, so `args` load only
+  `app-config.yaml`; in production mode the guest provider needs `dangerouslyAllowOutsideDevelopment`;
+  catalog `locations`/`rules` arrays REPLACE the image's examples (arrays don't merge across files).
+- No GitHub token yet: reads are unauthenticated (60 API calls/hour), which is why the catalog is one
+  file. The Secret `backstage-github-token` is wired as optional.
+- The onboarding template below is NOT registered — it reproduces the 2026-10-08 allow-list bugs.
+  Rebuilt in P2.
+
+Access: `kubectl -n idp port-forward svc/backstage 7007:7007` → http://localhost:7007 (Enter as guest).
+
+## The August template (P2 will rebuild it)
 
 `templates/kagent-agent/` — a Backstage Scaffolder template for onboarding a new kagent agent. Given
 a name, tier (Tier 1 read-only / Tier 2 HITL-mutating), model config, tool list, and which existing
@@ -19,7 +42,7 @@ agents it calls, it generates:
 ...then opens a pull request against this repo (`publish:github:pull-request`) and registers the new
 component in the catalog once merged.
 
-## Status (2026-08-08/09)
+### Template status as of 2026-08-09 (historical)
 
 - ✅ **Template logic fully built and validated** — every file rendered and parsed as valid YAML for
   both tiers, using the *actual* Backstage templating engine (Nunjucks configured with the real custom
@@ -33,7 +56,7 @@ component in the catalog once merged.
   the call directly — neither was available in that working session (remote/mobile control). The
   template logic itself does not depend on this — it was validated independently against the real
   rendering engine, not through a live run.
-- 🔴 **Not deployed anywhere** — this is source only. No Backstage instance runs anywhere for ARIA yet;
+- ~~🔴 **Not deployed anywhere**~~ (superseded 2026-10-18 — Backstage now runs in-cluster, see top) — this was source only. No Backstage instance runs anywhere for ARIA yet;
   standing one up (locally or otherwise) is a separate, later decision. See the spec's §5.4 (local-first
   recommendation) and §9 (deploy-layers.md compliance — an eventual real Backstage instance is a
   platform-layer, ArgoCD-managed concern, not a manual install).

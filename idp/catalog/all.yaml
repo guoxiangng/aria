@@ -1,0 +1,552 @@
+# ARIA software catalog — the Backstage entities for the existing fleet (P1 of
+# docs/spec-idp-golden-path.md). One file on purpose: one GitHub fetch per refresh while the
+# integration may still be unauthenticated (60 calls/hour).
+#
+# Seeded 2026-10-18 from the LIVE Agent / MCPServer CRs (descriptions, tier labels, modelConfig,
+# tool and agent references), not typed from memory. Maintained by hand from here; new agents will
+# arrive through the P2 template instead.
+#
+# Scorecard seed: each agent's `aria.dev/eval` annotation and its evals / no-evals tag say whether
+# eval/ has a suite for it. BYO agents' dependsOn comes from their Deployment env (they read no
+# ModelConfig or McpServer CR). The onboarding template is NOT registered here — see values.yaml.
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: aria
+  title: ARIA
+  description: Governed multi-agent InfraOps platform on EKS, built on kagent.
+  links:
+  - url: https://github.com/guoxiangng/aria
+    title: Repository
+    icon: github
+spec:
+  owner: group:platform-team
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: platform-team
+  title: Platform team
+  description: Owns the ARIA platform and, for the POC, every agent on it.
+spec:
+  type: team
+  children: []
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: litellm
+  description: 'Self-hosted LiteLLM proxy in front of Bedrock: enforced budgets, fallbacks, the smart router. The
+    fleet''s single model plane.'
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/litellm/
+spec:
+  type: model-gateway
+  owner: group:platform-team
+  system: aria
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: litellm-gateway
+  description: Fixed route bedrock-haiku-4-5 through the gateway. What ARIA's own declarative agents use.
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/kagent/
+spec:
+  type: model-config
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: litellm-smart-router
+  description: Complexity Auto Router through the gateway; picks a tier per request. Not wired to an agent yet.
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/kagent/
+spec:
+  type: model-config
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: litellm-embedding
+  description: Cohere Embed v4 through the gateway, for long-term memory.
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/kagent/
+spec:
+  type: model-config
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: default-model-config
+  description: Chart-generated config the kagent built-in agents use; points at the gateway.
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/kagent/
+spec:
+  type: model-config
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: kagent-tool-server
+  description: kagent's built-in Kubernetes/Helm/Istio tool server. Runs as cluster-admin — approval gates intent,
+    not authority.
+spec:
+  type: mcp-server
+  owner: group:platform-team
+  system: aria
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: aws-documentation
+  description: AWS's documentation MCP server. Credential-free.
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/mcp/aws-documentation/
+spec:
+  type: mcp-server
+  owner: group:platform-team
+  system: aria
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: aws-eks
+  description: AWS's EKS MCP server, read-only (no --allow-write).
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/mcp/aws-eks/
+spec:
+  type: mcp-server
+  owner: group:platform-team
+  system: aria
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: aws-pricing
+  description: AWS's Pricing API MCP server.
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/mcp/aws-pricing/
+spec:
+  type: mcp-server
+  owner: group:platform-team
+  system: aria
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: github
+  description: GitHub's official MCP server, read-only token scoped to the aria repo.
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/mcp/github/
+spec:
+  type: mcp-server
+  owner: group:platform-team
+  system: aria
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: github-write
+  description: Second GitHub MCP instance with a write-scoped token, for infra-author's branch + PR path.
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/mcp/github-write/
+spec:
+  type: mcp-server
+  owner: group:platform-team
+  system: aria
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: terraform
+  description: HashiCorp's Terraform MCP server, registry toolset only (read-only lookups).
+  annotations:
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/platform/mcp/terraform/
+spec:
+  type: mcp-server
+  owner: group:platform-team
+  system: aria
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cloud-diagnostics
+  description: ARIA's AWS control-plane diagnostician. Answers what AWS knows about the EKS cluster â€” insights,
+    node groups, VPC/networking config, CloudWatch metrics and logs.
+  tags:
+  - aria
+  - declarative
+  - evals
+  annotations:
+    aria.dev/tier: 1-readonly
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: litellm-gateway
+    aria.dev/eval: eval/cloud-diagnostics.promptfooconfig.yaml
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/cloud-diagnostics/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/cloud-diagnostics
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm-gateway
+  - resource:aws-eks
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cluster-diagnostics
+  description: ARIA's read-only Kubernetes diagnostics agent. Investigates pod/deployment/service issues using live
+    cluster state.
+  tags:
+  - aria
+  - declarative
+  - evals
+  annotations:
+    aria.dev/tier: 1-readonly
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: litellm-gateway
+    aria.dev/eval: eval/cluster-diagnostics.promptfooconfig.yaml
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/cluster-diagnostics/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/cluster-diagnostics
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm-gateway
+  - resource:kagent-tool-server
+  - resource:aws-documentation
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cluster-remediation
+  description: ARIA's Tier-2 remediation agent. Can restart (k8s_rollout) and scale (k8s_scale) workloads to fix
+    common failures â€” but ONLY with human approval on every mutation, and with no destructive tools (no delete/apply/create/patch).
+  tags:
+  - aria
+  - declarative
+  - evals
+  annotations:
+    aria.dev/tier: 2-remediation
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: litellm-gateway
+    aria.dev/eval: eval/cluster-remediation.promptfooconfig.yaml
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/cluster-remediation/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/cluster-remediation
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm-gateway
+  - resource:kagent-tool-server
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: cost-sentinel
+  description: ARIA's AWS cost/pricing specialist. Answers pricing and cost-estimation questions using live AWS
+    Pricing API data via a self-hosted MCP server.
+  tags:
+  - aria
+  - declarative
+  - evals
+  annotations:
+    aria.dev/tier: 1-readonly
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: litellm-gateway
+    aria.dev/eval: eval/cost-sentinel.promptfooconfig.yaml
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/cost-sentinel/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/cost-sentinel
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm-gateway
+  - resource:aws-pricing
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: deploy-diagnostics
+  description: ARIA's deployment-history specialist. Reads the aria git repo itself - source config, commit history,
+    issues, pull requests - to answer questions about WHEN and WHY something changed, and what's DECLARED vs what's
+    actually running.
+  tags:
+  - aria
+  - declarative
+  - evals
+  annotations:
+    aria.dev/tier: 1-readonly
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: litellm-gateway
+    aria.dev/eval: eval/deploy-diagnostics.promptfooconfig.yaml
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/deploy-diagnostics/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/deploy-diagnostics
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm-gateway
+  - resource:github
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: helm-agent
+  description: The Helm Expert AI Agent specializing in using Helm for Kubernetes cluster management and operations.
+  tags:
+  - kagent-builtin
+  - no-evals
+  annotations:
+    aria.dev/tier: kagent-builtin
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: default-model-config
+    aria.dev/eval: no-evals
+  links:
+  - url: https://kagent.dev/docs
+    title: kagent built-in agent (chart-managed)
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:default-model-config
+  - resource:kagent-tool-server
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: incident-commander
+  description: ARIA's incident-commander orchestrator. Routes investigation requests to the right specialist agent(s)
+    and synthesizes their findings into a single coherent answer.
+  tags:
+  - aria
+  - declarative
+  - eval-known-unevaluable
+  annotations:
+    aria.dev/tier: 3-orchestrator
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: litellm-gateway
+    aria.dev/eval: eval-known-unevaluable
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/incident-commander/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/incident-commander
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm-gateway
+  - component:cluster-diagnostics
+  - component:cloud-diagnostics
+  - component:cost-sentinel
+  - component:deploy-diagnostics
+  - component:investigation-loop
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: infra-author
+  description: ARIA's infrastructure author. Reads the platform's existing Terraform, looks up real provider and
+    module schemas from the public registry, and proposes changes as a pull request.
+  tags:
+  - aria
+  - declarative
+  - evals
+  annotations:
+    aria.dev/tier: 2-propose
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: litellm-gateway
+    aria.dev/eval: eval/infra-author.promptfooconfig.yaml
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/infra-author/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/infra-author
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: experimental
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm-gateway
+  - resource:terraform
+  - resource:github-write
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: investigation-loop
+  description: ARIA's stateful investigation agent (hand-built LangGraph, gather/hypothesize/verify/loop).
+  tags:
+  - aria
+  - byo
+  - evals
+  annotations:
+    aria.dev/tier: 2-byo
+    aria.dev/agent-type: byo
+    aria.dev/model-config: byo-env
+    aria.dev/eval: eval/investigation-loop.promptfooconfig.yaml
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/investigation-loop/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/investigation-loop
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm
+  - resource:kagent-tool-server
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: istio-agent
+  description: An Istio Expert AI Agent specializing in Istio operations, troubleshooting, and maintenance.
+  tags:
+  - kagent-builtin
+  - no-evals
+  annotations:
+    aria.dev/tier: kagent-builtin
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: default-model-config
+    aria.dev/eval: no-evals
+  links:
+  - url: https://kagent.dev/docs
+    title: kagent built-in agent (chart-managed)
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:default-model-config
+  - resource:kagent-tool-server
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: k8s-agent
+  description: An Kubernetes Expert AI Agent specializing in cluster operations, troubleshooting, and maintenance.
+  tags:
+  - kagent-builtin
+  - no-evals
+  annotations:
+    aria.dev/tier: kagent-builtin
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: default-model-config
+    aria.dev/eval: no-evals
+  links:
+  - url: https://kagent.dev/docs
+    title: kagent built-in agent (chart-managed)
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:default-model-config
+  - resource:kagent-tool-server
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: promql-agent
+  description: GeneratePromQLTool generates PromQL queries from natural language descriptions.
+  tags:
+  - kagent-builtin
+  - no-evals
+  annotations:
+    aria.dev/tier: kagent-builtin
+    aria.dev/agent-type: declarative
+    aria.dev/model-config: default-model-config
+    aria.dev/eval: no-evals
+  links:
+  - url: https://kagent.dev/docs
+    title: kagent built-in agent (chart-managed)
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:default-model-config
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: strands-investigator
+  description: ARIA's Strands-based investigation agent - same task as investigation-loop, but the loop is model-driven
+    inside the Strands SDK rather than a hand-built graph.
+  tags:
+  - aria
+  - byo
+  - no-evals
+  annotations:
+    aria.dev/tier: 2-byo
+    aria.dev/agent-type: byo
+    aria.dev/model-config: byo-env
+    aria.dev/eval: no-evals
+    backstage.io/source-location: url:https://github.com/guoxiangng/aria/tree/main/agents/strands-investigator/
+  links:
+  - url: https://github.com/guoxiangng/aria/tree/main/agents/strands-investigator
+    title: Agent source
+    icon: github
+spec:
+  type: kagent-agent
+  lifecycle: production
+  owner: group:platform-team
+  system: aria
+  dependsOn:
+  - resource:litellm
+  - resource:kagent-tool-server

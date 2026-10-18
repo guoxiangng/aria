@@ -1,0 +1,33 @@
+# Wave 3 — Backstage IDP (idp/), the self-service front door. Upstream Helm chart + our values
+# from THIS repo (multi-source $values pattern, same as kagent.yaml). Backstage never touches the
+# cluster: it reads the catalog from GitHub and (from P2) opens PRs; ArgoCD still does all
+# deploying. Design: docs/spec-idp-golden-path.md. Live state: idp/README.md.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: backstage
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  sources:
+    - repoURL: https://github.com/guoxiangng/aria.git
+      targetRevision: main
+      ref: values
+    - repoURL: https://backstage.github.io/charts
+      chart: backstage
+      targetRevision: "2.10.2" # pinned; verify latest at github.com/backstage/charts/releases before bumping
+      helm:
+        valueFiles:
+          - $values/idp/backstage/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: idp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false # created by namespace-bootstrap (wave -1)
+      - ServerSideApply=true

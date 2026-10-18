@@ -109,3 +109,25 @@ namespaces:
       defaultRequestMemory: "512Mi"
       maxCpu: "2"
       maxMemory: "4Gi"
+
+  # Backstage IDP (idp/) — the self-service front door. One pod (backend serves the UI), in-memory
+  # SQLite, no Postgres for the POC. NOT mesh-enrolled: it only reads GitHub and opens PRs; it never
+  # calls agents. Quota fits the running pod plus a rolling-update surge pod — see litellm above
+  # for why a quota that exactly fits one pod makes the next rollout impossible.
+  - name: idp
+    service: backstage
+    env: dev
+    quota:
+      requestsCpu: "1"
+      requestsMemory: "2Gi"
+      limitsCpu: "2"
+      limitsMemory: "4Gi"
+      pvcs: 0
+      pods: 4
+    limits:
+      defaultCpu: "500m"
+      defaultMemory: "1Gi"
+      defaultRequestCpu: "250m"
+      defaultRequestMemory: "512Mi"
+      maxCpu: "1"
+      maxMemory: "2Gi"
