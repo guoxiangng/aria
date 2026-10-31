@@ -20,6 +20,16 @@ spec:
   description: ${{ values.purpose | dump }}
   declarative:
     modelConfig: ${{ values.modelConfig }}
+    deployment:
+      # Platform default (2026-11-01): agents mostly wait on the LLM — measured 1-5m CPU, ~120-260Mi.
+      # kagent's own default (100m/384Mi) over-reserves ~4x and was why the fleet needed a third node.
+      resources:
+        requests:
+          cpu: 25m
+          memory: 256Mi
+        limits:
+          cpu: "2"
+          memory: 1Gi
     promptTemplate:
       dataSources:
         - kind: ConfigMap

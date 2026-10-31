@@ -20,6 +20,15 @@ spec:
     Read-only tools only - see agents/investigation-loop/README.md.
   byo:
     deployment:
+      # Requests right-sized 2026-11-01: kagent's hard-coded default is 100m/384Mi; agents measure
+      # 1-5m CPU and ~120-260Mi (they mostly wait on the LLM). Limits keep kagent's defaults.
+      resources:
+        requests:
+          cpu: 25m
+          memory: 256Mi
+        limits:
+          cpu: "2"
+          memory: 1Gi
       image: 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/investigation-loop:latest
       # Always, not IfNotPresent — this repo pushes to a mutable :latest tag during active
       # development. Without this, a node can silently keep running a stale cached image after

@@ -67,6 +67,16 @@ spec:
     # Bedrock-backed, so the fleet has one model plane with per-agent cost/traces in Langfuse.
     # Requires this agent's SA on platform/istio/policies/litellm-allow-list.yaml.
     modelConfig: litellm-gateway
+    deployment:
+      # Requests right-sized 2026-11-01: kagent's hard-coded default is 100m/384Mi; agents measure
+      # 1-5m CPU and ~120-260Mi (they mostly wait on the LLM). Limits keep kagent's defaults.
+      resources:
+        requests:
+          cpu: 25m
+          memory: 256Mi
+        limits:
+          cpu: "2"
+          memory: 1Gi
     systemMessage: |
       You are ARIA's infra-author agent — the one agent in this fleet that writes
       infrastructure code. Everything else here reports on the environment; you propose

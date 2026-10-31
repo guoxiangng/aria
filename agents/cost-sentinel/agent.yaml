@@ -27,6 +27,16 @@ spec:
     # agent with a one-principal allow-list (platform/istio/policies/litellm-allow-list.yaml), so
     # lowest blast radius in the fleet. Every other agent still uses default-model-config directly.
     modelConfig: litellm-gateway
+    deployment:
+      # Requests right-sized 2026-11-01: kagent's hard-coded default is 100m/384Mi; agents measure
+      # 1-5m CPU and ~120-260Mi (they mostly wait on the LLM). Limits keep kagent's defaults.
+      resources:
+        requests:
+          cpu: 25m
+          memory: 256Mi
+        limits:
+          cpu: "2"
+          memory: 1Gi
     systemMessage: |
       You are ARIA's cost-sentinel agent — an AWS pricing and cost-estimation specialist.
       You run as a pod in the `kagent` namespace.

@@ -31,12 +31,30 @@ global:
   # distroless variant is the chart default; pinned here for reproducibility/intent.
   variant: distroless
 
+# REQUESTS right-sized 2026-11-01. The chart defaults are sized for big clusters (its own comment:
+# ztunnel's 512Mi is "enough for ~200k pod cluster"). Here the mesh reserved 1.4 cores + 3.8Gi —
+# nearly as much as the 26 kagent pods — while using ~15m CPU and ~150Mi in total. Requests are what
+# the scheduler packs by, so they were a big part of why a third node was needed. Each value below is
+# ~5-10x measured use (kubectl top, 2026-11-01); no limits are set, so a burst can still use the node.
+# ztunnel and istio-cni run once PER NODE, so every node added used to cost 300m of reservations.
 istiod:
   enabled: true
   profile: ambient
+  resources:
+    requests:
+      cpu: 50m       # used ~3m
+      memory: 256Mi  # used ~46Mi
 
 ztunnel:
   profile: ambient
+  resources:
+    requests:
+      cpu: 20m       # used ~3-4m per node
+      memory: 64Mi   # used ~6-13Mi per node
 
 cni:
   profile: ambient
+  resources:
+    requests:
+      cpu: 10m       # used ~1m per node
+      memory: 64Mi   # used ~18-38Mi per node

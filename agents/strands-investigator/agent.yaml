@@ -30,6 +30,15 @@ spec:
     Read-only tools only - see agents/strands-investigator/README.md.
   byo:
     deployment:
+      # Requests right-sized 2026-11-01: kagent's hard-coded default is 100m/384Mi; agents measure
+      # 1-5m CPU and ~120-260Mi (they mostly wait on the LLM). Limits keep kagent's defaults.
+      resources:
+        requests:
+          cpu: 25m
+          memory: 256Mi
+        limits:
+          cpu: "2"
+          memory: 1Gi
       image: 622629043701.dkr.ecr.ap-southeast-1.amazonaws.com/aria/strands-investigator:latest
       # Mutable :latest during active development — see investigation-loop/agent.yaml
       # for why IfNotPresent silently serves stale images off a node cache.

@@ -27,7 +27,21 @@ module "eks" {
   cluster_addons = {
     coredns                = {}
     kube-proxy             = {}
-    vpc-cni                = {}
+    # Prefix delegation ON (2026-11-01). Each ENI slot holds a /28 (16 IPs) instead of one IP, so a
+    # t3.large goes from 35 pods to EKS's 110 cap (managed node groups compute max-pods themselves —
+    # our launch template pins no AMI). The 35-pod ceiling, not CPU or memory, is what forced the third
+    # node ("1 Too many pods"). Cost: nodes reserve IPs 16 at a time — irrelevant in /23 subnets with
+    # ~470 free each. Existing nodes keep 35 until replaced. Version pinned so this change can't also
+    # upgrade the CNI.
+    vpc-cni = {
+      addon_version = "v1.22.3-eksbuild.1"
+      configuration_values = jsonencode({
+        env = {
+          ENABLE_PREFIX_DELEGATION = "true"
+          WARM_PREFIX_TARGET       = "1"
+        }
+      })
+    }
     eks-pod-identity-agent = {} # enables Pod Identity (used for Bedrock + EBS CSI)
     # Added 2026-09-19. Without it `kubectl top` fails with "Metrics API not available", so the only
     # visible numbers are resource *requests* — which is how this cluster ran at 96-97% of requested
