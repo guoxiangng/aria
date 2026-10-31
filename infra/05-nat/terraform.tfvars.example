@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars (gitignored).
+vpc_id                 = "vpc-xxxxxxxxxxxxxxxxx"
+public_subnet_id       = "subnet-xxxxxxxxxxxxxxxxx"
+private_route_table_id = "rtb-xxxxxxxxxxxxxxxxx"
