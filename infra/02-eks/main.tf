@@ -16,6 +16,11 @@ module "eks" {
   cluster_endpoint_public_access           = true
   enable_cluster_creator_admin_permissions = true # the principal running apply gets cluster-admin
 
+  # Control-plane logging OFF (2026-10-31). The module's default (api, audit, authenticator) was
+  # ingesting ~64 GB/month into CloudWatch, ~$43/month — the largest CloudWatch line on a POC bill.
+  # Re-enable selectively, e.g. ["authenticator"], when debugging auth; "audit" is the expensive one.
+  cluster_enabled_log_types = []
+
   vpc_id     = var.vpc_id
   subnet_ids = var.private_subnet_ids
 
