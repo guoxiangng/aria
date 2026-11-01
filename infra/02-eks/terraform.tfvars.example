@@ -6,6 +6,8 @@ cluster_version = "1.36"
 
 # Existing VPC + private subnets (>=2 AZs) to deploy EKS into.
 vpc_id = "vpc-xxxxxxxx"
+# Optional: pin the NODES to fewer AZs (see variables.tf). Empty/unset = all of private_subnet_ids.
+# node_subnet_ids = ["subnet-bbbb"]
 private_subnet_ids = [
   "subnet-aaaa", # AZ a
   "subnet-bbbb", # AZ b

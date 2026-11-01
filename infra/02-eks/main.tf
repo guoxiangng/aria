@@ -61,6 +61,7 @@ module "eks" {
   eks_managed_node_groups = {
     default = {
       ami_type       = "AL2023_x86_64_STANDARD"
+      subnet_ids     = length(var.node_subnet_ids) > 0 ? var.node_subnet_ids : var.private_subnet_ids
       instance_types = var.node_instance_types
       capacity_type  = var.node_capacity_type
 

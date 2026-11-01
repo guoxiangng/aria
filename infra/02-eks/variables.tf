@@ -26,6 +26,17 @@ variable "private_subnet_ids" {
 }
 
 # --- Managed node group sizing (lab defaults: small + spot for cost) ---
+variable "node_subnet_ids" {
+  description = <<-EOT
+    Subnets for the NODES only; empty = the same as private_subnet_ids. The control plane still needs
+    >=2 AZs, the nodes don't. Single AZ keeps a small fleet next to its data: EBS volumes are bound to
+    one AZ, so with 2 nodes over 3 AZs a database's volume can sit in an AZ with no node — and a spot
+    replacement can land in the wrong AZ. Trade-off: no AZ redundancy (fine for a POC).
+  EOT
+  type        = list(string)
+  default     = []
+}
+
 variable "node_instance_types" {
   type    = list(string)
   default = ["t3.large"]
