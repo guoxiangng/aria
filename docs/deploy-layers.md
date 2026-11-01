@@ -55,7 +55,7 @@ Substrate's Helm chart fought GitOps two ways. Neither was allowed to break the 
    `helm template`, so certs would regenerate every sync. The *wrong* fix is "install the chart by
    hand so `lookup` works." The **in-layer** fix: disable the chart's bootstrap
    (`auth.jwt.bootstrap.enabled=false`) and provide the four cert objects via **ESO from Secrets
-   Manager** — material generated declaratively by `infra/03-argocd/substrate-certs.tf` (TF `tls`
+   Manager** — material generated declaratively by `infra/04-persistent/substrate-certs.tf` (TF `tls`
    provider → SM; the AWS-layer narrowing above), K8s Secrets synced by ESO (platform layer).
    Deterministic, no churn, reproducible on a fresh cluster. See `platform/substrate/README.md`.
 

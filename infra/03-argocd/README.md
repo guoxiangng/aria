@@ -3,6 +3,11 @@
 Codifies the GitOps control plane. After this layer applies, **ArgoCD owns everything else from git** —
 no more `kubectl`/`helm` by hand.
 
+> **2026-11-01:** this layer now holds only cluster-scoped things: ArgoCD, the root app, and ESO's Pod
+> Identity binding (`eso.tf`). The Secrets Manager secrets, their seed variables and the ESO IAM role
+> moved to `infra/04-persistent` so a cluster teardown can't destroy them. It needs no tfvars any more.
+> Sections below that mention tfvars-fed secrets describe the older layout.
+
 ## What it creates
 - **ArgoCD** via the upstream `argo-cd` Helm chart (not vendored; version in `argocd_chart_version`, default 10.1.0)
 - The **app-of-apps** root Application (ridden in as a chart `extraObject`) → ArgoCD then syncs `gitops/`

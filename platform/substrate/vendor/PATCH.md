@@ -49,7 +49,7 @@ Nothing else in the chart assumes 6 nodes — `ate-api` reaches Redis via the si
 ARIA disables the chart's JWT self-bootstrap (`auth.jwt.bootstrap.enabled: false`) because it
 uses Helm `lookup` to reuse cert material, which returns empty under ArgoCD's `helm template`
 (certs would regenerate every sync). Instead all four bootstrap objects are supplied via ESO
-from Secrets Manager (`infra/03-argocd/substrate-certs.tf` + `../manifests/`). Three are Secrets
+from Secrets Manager (`infra/04-persistent/substrate-certs.tf` + `../manifests/`). Three are Secrets
 already; the CA bundle upstream is a **ConfigMap**, but ESO emits Secrets — so the two consumers
 that mount it are patched to read a Secret:
 

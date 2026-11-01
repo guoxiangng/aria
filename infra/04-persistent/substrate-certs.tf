@@ -9,11 +9,11 @@
 # server cert + session-signing keys on EVERY sync. We therefore DISABLE the chart
 # bootstrap (auth.jwt.bootstrap.enabled=false in platform/substrate/values.yaml)
 # and provide the material ourselves — deterministic, and the same ESO + Secrets
-# Manager pattern as the kagent secrets (see eso.tf). Shapes mirror jwt-bootstrap.yaml
+# Manager pattern as the kagent secrets (see secrets.tf). Shapes mirror jwt-bootstrap.yaml
 # EXACTLY (server cert SANs, session-pool JSON) so ate-api consumes them unchanged.
 #
 # LAYERING: this is cert *material generation + AWS storage* (Terraform/AWS layer),
-# same tier as the secret seeding in eso.tf. The K8s objects (Secrets via ESO) are
+# same tier as the secret seeding in secrets.tf. The K8s objects (Secrets via ESO) are
 # in the platform layer, deployed by ArgoCD. No K8s resource is created here.
 ###############################################################################
 
@@ -131,12 +131,12 @@ resource "aws_secretsmanager_secret_version" "substrate_session_ca_pool" {
   lifecycle { ignore_changes = [secret_string] }
 }
 
-# --- Extend the ESO role (defined in eso.tf) to read these three secrets too. ---
+# --- Extend the ESO role (defined in secrets.tf) to read these three secrets too. ---
 data "aws_iam_policy_document" "eso_read_substrate" {
   statement {
-    sid       = "ReadSubstrateSecrets"
-    effect    = "Allow"
-    actions   = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
+    sid     = "ReadSubstrateSecrets"
+    effect  = "Allow"
+    actions = ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"]
     resources = [
       aws_secretsmanager_secret.substrate_ateapi_tls.arn,
       aws_secretsmanager_secret.substrate_session_jwt_pool.arn,
@@ -147,6 +147,6 @@ data "aws_iam_policy_document" "eso_read_substrate" {
 
 resource "aws_iam_role_policy" "eso_read_substrate" {
   name   = "read-substrate-secrets"
-  role   = aws_iam_role.eso.id # role from eso.tf
+  role   = aws_iam_role.eso.id # role from secrets.tf
   policy = data.aws_iam_policy_document.eso_read_substrate.json
 }

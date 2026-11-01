@@ -1,12 +1,18 @@
 # infra/04-persistent
 
-**Durable** layer — resources here must survive `terraform destroy` of `infra/02-eks` (the cost-toggle
-layer). Currently just ECR repos for BYO agent images; images shouldn't vanish because the cluster was
-torn down to save cost overnight.
+**Durable** layer — resources here must survive `terraform destroy` of `infra/02-eks` and
+`infra/03-argocd` (the cluster teardown). Nothing here needs the cluster to exist.
 
 ## What it creates
 - One ECR repo per entry in `byo_agent_repos` (default: `aria/investigation-loop`)
 - A lifecycle policy expiring untagged images after 14 days (keeps storage cost near zero for a lab)
+- **All `aria/*` Secrets Manager secrets + the ESO IAM role that reads them** (`secrets.tf`,
+  `substrate-certs.tf`). Moved here from `03-argocd` on 2026-11-01 with `terraform state mv` (no AWS
+  change). Why: five values were set by hand with the CLI and would be lost on destroy, and Secrets
+  Manager reserves a deleted name for 7–30 days, so a rebuild couldn't recreate them. ESO's Pod Identity
+  binding stays in `03-argocd/eso.tf` because it's tied to the cluster.
+- Seed values for three of the secrets come from gitignored `terraform.tfvars` (see the `.example`);
+  they're only read when a secret is first created.
 
 ## Use
 ```bash

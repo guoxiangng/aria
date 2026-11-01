@@ -59,7 +59,7 @@ aria/
   incident-commander SPIFFE principal (default-deny for everyone else). Reachability constrained by
   cryptographic identity, not network position.
 - **External Secrets Operator** (`platform/external-secrets/`, `gitops/apps/external-secrets*.yaml`) —
-  secret material lives in **AWS Secrets Manager** (seeded by `infra/03-argocd/eso.tf`); ESO syncs it into
+  secret material lives in **AWS Secrets Manager** (seeded by `infra/04-persistent/secrets.tf`); ESO syncs it into
   k8s Secrets via git-committed `ExternalSecret` pointer CRs, authenticated by **EKS Pod Identity** (no
   static keys). Secrets are OUT of Terraform state entirely.
 

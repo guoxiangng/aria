@@ -11,7 +11,7 @@
 #
 # The referenced Secret holds the key and is NOT in git. Provision it via ESO
 # (platform/external-secrets/manifests/externalsecret-kagent-azure-embedding.yaml +
-# infra/03-argocd/eso.tf), which is the durable path.
+# infra/04-persistent/secrets.tf), which is the durable path.
 apiVersion: kagent.dev/v1alpha2
 kind: ModelConfig
 metadata:

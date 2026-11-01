@@ -1,7 +1,7 @@
 # External Secrets Operator (ESO) — syncs secrets FROM AWS Secrets Manager INTO the
 # cluster as native k8s Secrets, driven by git-committed `ExternalSecret` pointer CRs
 # (which carry no secret material). This is what lets secret provisioning become pure
-# GitOps/CaC — see docs + infra/03-argocd/eso.tf for the AWS backing (Secrets Manager
+# GitOps/CaC — see docs + infra/04-persistent/secrets.tf for the AWS backing (Secrets Manager
 # secrets + the Pod Identity IAM role ESO's controller SA assumes).
 #
 # Controller ServiceAccount is `external-secrets` (chart default with this release name),

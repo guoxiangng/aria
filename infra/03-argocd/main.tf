@@ -27,18 +27,18 @@ resource "kubectl_manifest" "root_app" {
 
 ###############################################################################
 # The kagent namespace is NO LONGER Terraform-owned. Once its secrets moved to ESO
-# (see eso.tf), the namespace was a bare object with no reason to stay in Terraform —
+# (see infra/04-persistent/secrets.tf), the namespace was a bare object with no reason to stay in Terraform —
 # it's now managed as pure CaC by ArgoCD via charts/namespace-bootstrap (envs/dev.yaml),
 # which also carries its Istio ambient-mesh enrollment label. Migrated via
 # `terraform state rm` (so the live namespace + everything in it was never deleted).
 #
 # The kagent-azure-openai and kagent-langfuse-otel Secrets are also gone from here —
-# moved to External Secrets Operator (see eso.tf + platform/external-secrets/):
+# moved to External Secrets Operator (see infra/04-persistent/secrets.tf + platform/external-secrets/):
 # the values live in AWS Secrets Manager, and git-committed ExternalSecret pointer CRs
 # (owned by ArgoCD) materialize the in-cluster Secrets. This removes secret material
 # from Terraform state and makes secret provisioning pure GitOps.
 #
-# The azure_openai_api_key / langfuse_* variables are still used — eso.tf reads them to
-# seed the initial Secrets Manager values (after which Secrets Manager is the source of
-# truth and rotation happens there, not in tfvars).
+# The Secrets Manager secrets, their seed variables and the ESO IAM role moved to
+# infra/04-persistent (2026-11-01) so they survive a cluster teardown. Only ESO's Pod
+# Identity binding stays here (eso.tf), because it is tied to the cluster.
 ###############################################################################

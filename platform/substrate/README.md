@@ -37,7 +37,7 @@ leave the platform layer, ARIA solves it there:
   calling `lookup`).
 - The four objects it would have made are provided via **ESO from Secrets Manager**: `ateapi-tls`,
   `ateapi-ca`, `session-id-jwt-pool`, `session-id-ca-pool` (`manifests/`). Material is generated
-  declaratively by `infra/03-argocd/substrate-certs.tf` (Terraform `tls` provider → Secrets
+  declaratively by `infra/04-persistent/substrate-certs.tf` (Terraform `tls` provider → Secrets
   Manager) — the same TF→SM→ESO pattern as the kagent secrets. Deterministic, rotatable, no
   churn. The CA bundle (public) is delivered as a Secret too, so the two consumers that mount it
   are patched from ConfigMap→Secret (see `vendor/PATCH.md`).

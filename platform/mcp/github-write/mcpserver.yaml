@@ -20,7 +20,7 @@
 #     --secret-string '{"GITHUB_PERSONAL_ACCESS_TOKEN":"<token>"}'
 #
 # Declared in platform/external-secrets/manifests/externalsecret-github-pat-write.yaml;
-# backing secret and the ARN-scoped ESO read grant in infra/03-argocd/eso.tf.
+# backing secret and the ARN-scoped ESO read grant in infra/04-persistent/secrets.tf.
 # Scope it to the SINGLE repo infra-author is allowed to open PRs against, with Contents:RW
 # and Pull requests:RW and nothing else. A fine-grained PAT, not a classic one — a classic
 # token cannot be limited to one repository, and "all my repos" is not a scope any agent

@@ -14,29 +14,5 @@ variable "argocd_chart_version" {
   default     = "10.1.0"
 }
 
-variable "azure_openai_api_key" {
-  description = "Azure OpenAI API key -> kagent-azure-openai secret. Provide via gitignored terraform.tfvars or TF_VAR_azure_openai_api_key."
-  type        = string
-  sensitive   = true
-}
-# NOTE: there is deliberately NO variable for the Azure EMBEDDING key. That secret's value is written
-# directly to Secrets Manager with the CLI (see the comment in eso.tf), so it never enters tfvars or
-# Terraform state.
-
-variable "langfuse_public_key" {
-  description = "Langfuse public key (pk-lf-...) for OTel trace export."
-  type        = string
-  sensitive   = true
-}
-
-variable "langfuse_secret_key" {
-  description = "Langfuse secret key (sk-lf-...) for OTel trace export."
-  type        = string
-  sensitive   = true
-}
-
-variable "langfuse_otel_endpoint" {
-  description = "Langfuse OTLP endpoint (region-specific). US per the team's LADP account."
-  type        = string
-  default     = "https://us.cloud.langfuse.com/api/public/otel"
-}
+# The Azure / Langfuse key variables moved to infra/04-persistent with the secrets they seed
+# (2026-11-01). This layer no longer needs any secret input.
