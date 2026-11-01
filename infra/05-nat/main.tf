@@ -28,12 +28,9 @@ module "fck_nat" {
   update_route_tables = false
 }
 
-# The private subnets' default route, taken over from the hand-made NAT gateway.
-import {
-  to = aws_route.private_default
-  id = "${var.private_route_table_id}_0.0.0.0/0"
-}
-
+# The private subnets' default route. It existed already (pointing at the hand-made NAT gateway), so it
+# was adopted with a one-off `import` block on 2026-11-01, removed afterwards: on a fresh rebuild there
+# is no route to import, and the block would fail the plan. Terraform now simply creates it.
 resource "aws_route" "private_default" {
   route_table_id         = var.private_route_table_id
   destination_cidr_block = "0.0.0.0/0"
