@@ -159,6 +159,17 @@ resource "aws_secretsmanager_secret" "litellm_postgres" {
   description = "Postgres password for the LiteLLM gateway DB (budget enforcement + spend tracking)."
 }
 
+# GitHub token the ARC runner scale set uses to register self-hosted runners (platform/arc/).
+# Until 2026-11-01 this was a hand-made `kubectl create secret` in arc-runners, so a cluster rebuild
+# lost it. Container-only pattern; the value was copied in from that Secret with the CLI:
+#
+#   aws secretsmanager put-secret-value --secret-id aria/arc-gha-pat \
+#     --secret-string '{"github_token":"<PAT>"}'
+resource "aws_secretsmanager_secret" "arc_gha_pat" {
+  name        = "${local.sm_prefix}/arc-gha-pat"
+  description = "GitHub token for ARC runner registration (consumed via ESO ExternalSecret in arc-runners)."
+}
+
 # --- IAM: the role ESO's ServiceAccount assumes via EKS Pod Identity ---
 
 data "aws_iam_policy_document" "eso_pod_identity_trust" {
@@ -193,6 +204,7 @@ data "aws_iam_policy_document" "eso_read" {
       aws_secretsmanager_secret.litellm_langfuse.arn,
       aws_secretsmanager_secret.litellm_master_key.arn,
       aws_secretsmanager_secret.litellm_postgres.arn,
+      aws_secretsmanager_secret.arc_gha_pat.arn,
     ]
   }
 }
