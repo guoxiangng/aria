@@ -25,16 +25,22 @@ module "eks" {
   subnet_ids = var.private_subnet_ids
 
   cluster_addons = {
-    coredns                = {}
-    kube-proxy             = {}
+    coredns    = {}
+    kube-proxy = {}
     # Prefix delegation ON (2026-11-01). Each ENI slot holds a /28 (16 IPs) instead of one IP, so a
     # t3.large goes from 35 pods to EKS's 110 cap (managed node groups compute max-pods themselves —
     # our launch template pins no AMI). The 35-pod ceiling, not CPU or memory, is what forced the third
     # node ("1 Too many pods"). Cost: nodes reserve IPs 16 at a time — irrelevant in /23 subnets with
     # ~470 free each. Existing nodes keep 35 until replaced. Version pinned so this change can't also
     # upgrade the CNI.
+    #
+    # before_compute = true (2026-11-03, found by the rebuild drill): the module otherwise creates
+    # addons AFTER the node group, so on a fresh build the nodes launched 2 minutes before prefix
+    # delegation was switched on and EKS gave them max-pods 35, not 110. The 11-01 change only worked
+    # because the nodes happened to be replaced after the CNI was already configured.
     vpc-cni = {
-      addon_version = "v1.22.3-eksbuild.1"
+      before_compute = true
+      addon_version  = "v1.22.3-eksbuild.1"
       configuration_values = jsonencode({
         env = {
           ENABLE_PREFIX_DELEGATION = "true"
@@ -100,6 +106,13 @@ module "eks" {
       source_cluster_security_group = true
     }
   }
+}
+
+# vpc-cni switched to before_compute (above): the module keeps those addons under a different
+# resource address. Without this, Terraform would delete and recreate the live CNI addon.
+moved {
+  from = module.eks.aws_eks_addon.this["vpc-cni"]
+  to   = module.eks.aws_eks_addon.before_compute["vpc-cni"]
 }
 
 ###############################################################################
