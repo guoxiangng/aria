@@ -11,7 +11,10 @@
 auth:
   mode: jwt
   jwt:
-    issuer: https://oidc.eks.ap-southeast-1.amazonaws.com/id/4EFBE072411043FBC822ACD19BB625DD
+    # REBUILD STEP: every new EKS cluster gets a new issuer ID, so this must be updated after a
+    # rebuild (found by the 2026-11-03 rebuild drill: ate-api rejected every token with
+    # "unexpected issuer" and SandboxAgents never became Ready). Not automated yet.
+    issuer: https://oidc.eks.ap-southeast-1.amazonaws.com/id/3939327012F0605AFBC9B1CE1ED19DA7
     audience: api.ate-system.svc
     # Do NOT let the chart self-bootstrap the server cert / session pools. Its bootstrap uses
     # Helm `lookup` to reuse material, which returns empty under ArgoCD's `helm template` -> it
